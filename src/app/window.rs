@@ -220,6 +220,7 @@ pub fn show_and_center(app: &AppWindow, silent: bool) {
         }
 
         app.set_is_window_visible(true);
+        app.window().set_minimized(false);
         let _ = app.show();
 
         // 2. CONSOLIDATED REVEAL FLOW: ONE thread to handle positioning, styling, and activation
@@ -263,11 +264,11 @@ pub fn show_and_center(app: &AppWindow, silent: bool) {
                                     let _ = ShowWindow(hwnd, SW_RESTORE);
                                     let _ = ShowWindow(hwnd, SW_SHOW);
                                     let _ = SetForegroundWindow(hwnd);
-                                    
+
                                     // F. Reveal: Transition opacity back to 255
                                     set_window_opacity_by_hwnd(hwnd, 255);
 
-                                    info!("Window successfully centered at {}, {} and robustly activated.", x, y);
+                                    info!("Window successfully centered and robustly activated.");
                                     return;
                                 }
                             }
@@ -297,9 +298,36 @@ pub fn activate_window_by_hwnd(hwnd: HWND) {
         ex_style &= !WS_EX_TOOLWINDOW.0;
         ex_style |= WS_EX_APPWINDOW.0;
         SetWindowLongW(hwnd, GWL_EXSTYLE, ex_style as i32);
+
+        // CLEAR TRANSPARENCY: Restore opacity to 255 in case it was hidden to tray
+        let _ = SetLayeredWindowAttributes(hwnd, windows::Win32::Foundation::COLORREF(0), 255, LWA_ALPHA);
         
-        // Refresh frame and bring to top position
-        let _ = SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_FRAMECHANGED);
+        // RESTORE POSITION: If the window is currently off-screen (e.g., at -32000), move it to center
+        let mut rect = RECT::default();
+        if GetWindowRect(hwnd, &mut rect).is_ok() {
+            let w = rect.right - rect.left;
+            let h = rect.bottom - rect.top;
+            
+            // If coordinate is significantly off-screen, center it
+            if rect.left < -10000 || rect.top < -10000 {
+                let hmonitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTOPRIMARY);
+                let mut monitor_info = MONITORINFO {
+                    cbSize: std::mem::size_of::<MONITORINFO>() as u32,
+                    ..Default::default()
+                };
+                
+                if GetMonitorInfoW(hmonitor, &mut monitor_info).as_bool() {
+                    let mr = monitor_info.rcWork;
+                    let x = mr.left + (mr.right - mr.left - w) / 2;
+                    let y = mr.top + (mr.bottom - mr.top - h) / 2;
+                    
+                    let _ = SetWindowPos(hwnd, HWND_TOP, x, y, 0, 0, SWP_NOSIZE | SWP_FRAMECHANGED);
+                }
+            } else {
+                // Already in a reasonable position, just refresh frame and bring to top position
+                let _ = SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_FRAMECHANGED);
+            }
+        }
         
         // Activation: Restore if minimized, then show and focus
         let _ = ShowWindow(hwnd, SW_RESTORE);

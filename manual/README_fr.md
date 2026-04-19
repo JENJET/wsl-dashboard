@@ -222,10 +222,10 @@ Built with ❤️ for the WSL Community.
 
 A big thank you to the following communities for their support:
 
-- [Rust Community](https://www.rust-lang.org/community) - For the powerful and safe programming language
-- [Slint Community](https://slint.dev/community) - For the modern UI framework
-- [WSL Community](https://github.com/microsoft/WSL/discussions) - For the amazing Windows Subsystem for Linux
-- [Tokio Community](https://tokio.rs/community) - For the efficient async runtime
+- [Rust Programming Language](https://www.rust-lang.org) - For the powerful and safe programming language
+- [Slint | Declarative GUI for Rust, C++, JavaScript & Python](https://slint.dev) - For the modern UI framework
+- [WSL: Windows Subsystem for Linux](https://github.com/microsoft/WSL) - For the amazing Windows Subsystem for Linux
+- [Tokio - An asynchronous Rust runtime](https://tokio.rs) - For the efficient async runtime
 - [Windows Developer Community](https://developer.microsoft.com/en-us/windows/community) - For continuous platform improvements
 - [Reddit](https://www.reddit.com) - For global community discussions and support
 - [Linux.do](https://linux.do) - For popular community for IT professionals

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
+use std::collections::HashMap;
 use tokio::sync::{Mutex, Notify};
 use tokio::time::Duration;
 use tracing::debug;
@@ -22,6 +23,8 @@ pub struct WslDashboard {
     manual_operation: Arc<std::sync::atomic::AtomicI32>,
     // Heavy operation lock
     heavy_op_lock: Arc<Mutex<()>>,
+    // Active operations per distro (DistroName -> OpName)
+    active_ops: Arc<Mutex<HashMap<String, String>>>,
 }
 
 impl WslDashboard {
@@ -33,6 +36,7 @@ impl WslDashboard {
             state_changed: Arc::new(Notify::new()),
             manual_operation: Arc::new(std::sync::atomic::AtomicI32::new(0)),
             heavy_op_lock: Arc::new(Mutex::new(())),
+            active_ops: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -85,6 +89,19 @@ impl WslDashboard {
     }
 
     pub async fn refresh_distros(&self) -> WslCommandResult<Vec<WslDistro>> {
+        // Intercept: Skip wsl -l -v if heavy operation is in progress
+        // if self.heavy_op_lock.try_lock().is_err() {
+        //     debug!("Heavy operation in progress, skipping wsl -l -v to avoid conflicts");
+        //     let cached_distros = {
+        //         let distros_lock = self.distros.lock().await;
+        //         distros_lock.clone()
+        //     };
+        //     return WslCommandResult::success(
+        //         "Skipped refresh due to heavy operation".to_string(),
+        //         Some(cached_distros)
+        //     );
+        // }
+
         let result = self.executor.list_distros().await;
         if result.success {
             if let Some(distros) = result.data.clone() {
@@ -146,6 +163,24 @@ impl WslDashboard {
         }
         false
     }
+
+    pub async fn register_operation(&self, distro_name: String, op_name: String) {
+        let mut ops = self.active_ops.lock().await;
+        ops.insert(distro_name.clone(), op_name.clone());
+        debug!("Operation registered for '{}': {}", distro_name, op_name);
+    }
+
+    pub async fn unregister_operation(&self, distro_name: &str) {
+        let mut ops = self.active_ops.lock().await;
+        if let Some(op) = ops.remove(distro_name) {
+            debug!("Operation unregistered for '{}': {}", distro_name, op);
+        }
+    }
+
+    pub async fn get_active_op(&self, distro_name: &str) -> Option<String> {
+        let ops = self.active_ops.lock().await;
+        ops.get(distro_name).cloned()
+    }
 }
 
 impl Default for WslDashboard {
@@ -155,3 +190,4 @@ impl Default for WslDashboard {
 }
 
 mod ops;
+pub mod operation_guard;

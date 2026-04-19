@@ -2,6 +2,7 @@ use tray_icon::{
     menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem},
     TrayIconBuilder, Icon, TrayIconEvent,
 };
+use slint::ComponentHandle;
 use crate::AppWindow;
 use crate::i18n;
 use tracing::{info, error};
@@ -67,12 +68,15 @@ impl SystemTray {
                         TrayIconEvent::DoubleClick { .. } => {
                             if let Some(app) = app_weak_clone.upgrade() {
                                 let is_visible = app.get_is_window_visible();
-                                if is_visible {
+                                // Consider minimized window as "not visible" for the purpose of showing it
+                                let is_minimized = app.window().is_minimized();
+
+                                if is_visible && !is_minimized {
                                     info!("Tray double-clicked: hiding window");
                                     app.set_is_window_visible(false);
                                     crate::app::window::set_skip_taskbar(&app, true);
                                 } else {
-                                    info!("Tray double-clicked: showing window");
+                                    info!("Tray double-clicked: showing window (minimized={})", is_minimized);
                                     crate::app::window::show_and_center(&app, false);
                                 }
                             }

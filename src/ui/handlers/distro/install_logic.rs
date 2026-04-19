@@ -52,6 +52,23 @@ pub async fn perform_install(
         db.decrement_manual_operation();
     });
 
+    // 2.5 Acquire heavy operation lock
+    let _heavy_lock = match dashboard.heavy_op_lock().try_lock() {
+        Ok(lock) => lock,
+        Err(_) => {
+            error!("perform_install: Heavy operation lock is already held");
+            let ah_err = ah.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(app) = ah_err.upgrade() {
+                    let app_typed: AppWindow = app;
+                    app_typed.set_is_installing(false);
+                    app_typed.set_install_status(i18n::t("toast.system_busy").into());
+                }
+            });
+            return;
+        }
+    };
+
     info!("perform_install: Initializing UI state...");
     let ah_init = ah.clone();
     let _ = slint::invoke_from_event_loop(move || {

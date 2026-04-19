@@ -13,6 +13,7 @@ pub async fn perform_save_settings(
     is_default: bool,
     autostart: bool,
     startup_script: String,
+    terminal_proxy: bool,
 ) {
     info!("Operation: Save settings - {}", name);
 
@@ -84,6 +85,7 @@ pub async fn perform_save_settings(
         vscode_dir,
         auto_startup: autostart,
         startup_script: startup_script.clone(),
+        terminal_proxy,
     };
 
     {

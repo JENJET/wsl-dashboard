@@ -69,6 +69,7 @@ export component ModalManager inherits Rectangle {
     in property <string> settings_startup_script_error: "";
     in property <string> settings_default_error: "";
     in property <bool> settings_is_task_exists: true;
+    in-out property <bool> settings_terminal_proxy: true;
     in property <Information> information;
     in property <[RootFSHelpItem]> rootfs_help_list;
     
@@ -132,7 +133,7 @@ export component ModalManager inherits Rectangle {
     callback cancel_install_warn();
     callback close_expire();
     callback close_information();
-    callback confirm_settings(string, string, string, bool, bool, string);
+    callback confirm_settings(string, string, string, bool, bool, string, bool);
     callback close_settings();
     callback close_rootfs_help();
     callback close_vscode_startup();
@@ -309,11 +310,12 @@ export component ModalManager inherits Rectangle {
         startup_script_error: settings_startup_script_error;
         default_error: settings_default_error;
         is_task_exists: settings_is_task_exists;
+        terminal_proxy <=> settings_terminal_proxy;
         open-url(url) => {
             root.open_url(url);
         }
         save => {
-            root.confirm_settings(root.settings_target_name, root.settings_terminal_dir, root.settings_vscode_dir, root.settings_is_default, root.settings_autostart, root.settings_startup_script);
+            root.confirm_settings(root.settings_target_name, root.settings_terminal_dir, root.settings_vscode_dir, root.settings_is_default, root.settings_autostart, root.settings_startup_script, root.settings_terminal_proxy);
         }
         close => {
             root.close_settings();

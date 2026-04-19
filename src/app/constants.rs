@@ -32,7 +32,7 @@ pub const STATIC_API_FREE: &str = "https://raw.githubusercontent.com/owu/oss/ref
 pub const STATIC_API: &str = "https://gitee.com/bye/oss/raw";
 
 #[allow(dead_code)]
-pub const UPDATE_CHECK_API: &str = "/main/wsldashboard/api/base.json";
+pub const BASE_API: &str = "/main/wsldashboard/api/base.json";
 
 #[allow(dead_code)]
 pub const INSTANCE_API: &str = "/main/wsldashboard/api/instance.json";

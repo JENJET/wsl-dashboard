@@ -8,6 +8,9 @@ import {
 
 export component AboutView inherits VerticalLayout {
     in property <AboutStrings> strings;
+    in property <image> group_pic;
+    in property <bool> group_pic_ready: false;
+    in-out property <bool> show_group_popup: false;
     spacing: 20px;
     padding-left: AppI18n.is-rtl ? 16px : 4px;
     padding-right: AppI18n.is-rtl ? 4px : 16px;
@@ -16,6 +19,8 @@ export component AboutView inherits VerticalLayout {
     alignment: start;
     callback open_url(string);
     callback check_update_clicked();
+    callback group_clicked();
+    callback close_group_popup();
     Rectangle {
         background: Theme.card_bg;
         border-radius: 8px;
@@ -53,131 +58,308 @@ export component AboutView inherits VerticalLayout {
 
             VerticalLayout {
                 spacing: 20px;
-                VerticalLayout {
-                    spacing: 6px;
-                    Text {
-                        text: root.strings.version;
-                        font-size: 13px * LayoutConstants.font-scale;
-                        font-family: Theme.default_font;
-                        font-weight: 500;
-                        color: Theme.text_primary;
-                        horizontal-alignment: AppI18n.is-rtl ? right : left;
-                    }
-
-                    HorizontalLayout {
-                        spacing: 6px;
-                        alignment: AppI18n.is-rtl ? end : start;
-
-                        // In RTL, the update message should be on the left of the version number
-                        if (AppI18n.is-rtl && AppInfo.checking_update): Text {
-                            text: "(" + root.strings.check_update + ")";
-                            font-size: 12px * LayoutConstants.font-scale;
-                            font-family: Theme.default_font;
+                HorizontalLayout {
+                    spacing: 12px;
+                    if (!AppI18n.is-rtl): Rectangle {
+                        width: 20px;
+                        Text {
+                            y: 1px;
+                            text: "\u{e8f3}";
+                            font-size: 15px * LayoutConstants.font-scale;
+                            font-family: Theme.icon_font;
                             color: Theme.accent;
+                            horizontal-alignment: center;
                         }
-                        if (AppI18n.is-rtl && !AppInfo.checking_update && AppInfo.has_update): Text {
-                            text: "(" + AppI18n.t("about.new_version", [AppInfo.latest_version, AppI18n.version]) + ")";
-                            font-size: 12px * LayoutConstants.font-scale;
-                            font-family: Theme.default_font;
-                            color: #FF4D4F;
-                            TouchArea {
-                                mouse-cursor: pointer;
-                                clicked => {
-                                    root.open_url(AppInfo.release_url);
+                    }
+                    VerticalLayout {
+                        spacing: 6px;
+                        HorizontalLayout {
+                            spacing: 4px;
+                            alignment: AppI18n.is-rtl ? end : start;
+
+                            // In RTL, the updates text should be on the left of the Version text
+                            if (AppI18n.is-rtl): Text {
+                                text: root.strings.updates;
+                                font-size: 13px * LayoutConstants.font-scale;
+                                font-family: Theme.default_font;
+                                font-weight: 500;
+                                color: Theme.text_primary;
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        root.check_update_clicked();
+                                    }
+                                }
+                            }
+
+                            Text {
+                                text: root.strings.version;
+                                font-size: 13px * LayoutConstants.font-scale;
+                                font-family: Theme.default_font;
+                                font-weight: 500;
+                                color: Theme.text_primary;
+                            }
+
+                            // In LTR, the updates text should be on the right
+                            if (!AppI18n.is-rtl): Text {
+                                text: root.strings.updates;
+                                font-size: 13px * LayoutConstants.font-scale;
+                                font-family: Theme.default_font;
+                                font-weight: 500;
+                                color: Theme.text_primary;
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        root.check_update_clicked();
+                                    }
                                 }
                             }
                         }
+
+                        HorizontalLayout {
+                            spacing: 6px;
+                            alignment: AppI18n.is-rtl ? end : start;
+
+                            // In RTL, the update message should be on the left of the version number
+                            if (AppI18n.is-rtl && AppInfo.checking_update): Text {
+                                text: "(" + root.strings.check_update + ")";
+                                font-size: 12px * LayoutConstants.font-scale;
+                                font-family: Theme.default_font;
+                                color: Theme.accent;
+                            }
+                            if (AppI18n.is-rtl && !AppInfo.checking_update && AppInfo.has_update): Text {
+                                text: "(" + AppI18n.t("about.new_version", [AppInfo.latest_version, AppI18n.version]) + ")";
+                                font-size: 12px * LayoutConstants.font-scale;
+                                font-family: Theme.default_font;
+                                color: #FF4D4F;
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        root.open_url(AppInfo.release_url);
+                                    }
+                                }
+                            }
+                            Text {
+                                text: "v" + AppInfo.version;
+                                font-size: 13px * LayoutConstants.font-scale;
+                                font-family: Theme.default_font;
+                                color: Theme.text_secondary;
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        root.check_update_clicked();
+                                    }
+                                }
+                            }
+
+                            // In LTR, the update message should be on the right
+                            if (!AppI18n.is-rtl && AppInfo.checking_update): Text {
+                                text: "(" + root.strings.check_update + ")";
+                                font-size: 12px * LayoutConstants.font-scale;
+                                font-family: Theme.default_font;
+                                color: Theme.accent;
+                            }
+                            if (!AppI18n.is-rtl && !AppInfo.checking_update && AppInfo.has_update): Text {
+                                text: "(" + AppI18n.t("about.new_version", [AppInfo.latest_version, AppI18n.version]) + ")";
+                                font-size: 12px * LayoutConstants.font-scale;
+                                font-family: Theme.default_font;
+                                color: #FF4D4F;
+                                TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        root.open_url(AppInfo.release_url);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if (AppI18n.is-rtl): Rectangle {
+                        width: 20px;
                         Text {
-                            text: "v" + AppInfo.version;
+                            y: 1px;
+                            text: "\u{e8f3}";
+                            font-size: 15px * LayoutConstants.font-scale;
+                            font-family: Theme.icon_font;
+                            color: Theme.accent;
+                            horizontal-alignment: center;
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 12px;
+                    if (!AppI18n.is-rtl): Rectangle {
+                        width: 20px;
+                        Text {
+                            y: 1px;
+                            text: "\u{e80f}";
+                            font-size: 15px * LayoutConstants.font-scale;
+                            font-family: Theme.icon_font;
+                            color: #10b981;
+                            horizontal-alignment: center;
+                        }
+                    }
+                    VerticalLayout {
+                        spacing: 6px;
+                        Text {
+                            text: root.strings.website;
                             font-size: 13px * LayoutConstants.font-scale;
                             font-family: Theme.default_font;
-                            color: Theme.text_secondary;
-                            TouchArea {
-                                mouse-cursor: pointer;
-                                clicked => {
-                                    root.check_update_clicked();
-                                }
-                            }
+                            font-weight: 500;
+                            color: Theme.text_primary;
+                            horizontal-alignment: AppI18n.is-rtl ? right : left;
                         }
 
-                        // In LTR, the update message should be on the right
-                        if (!AppI18n.is-rtl && AppInfo.checking_update): Text {
-                            text: "(" + root.strings.check_update + ")";
-                            font-size: 12px * LayoutConstants.font-scale;
+                        Text {
+                            text: AppInfo.homepage;
+                            font-size: 13px * LayoutConstants.font-scale;
                             font-family: Theme.default_font;
                             color: Theme.accent;
-                        }
-                        if (!AppI18n.is-rtl && !AppInfo.checking_update && AppInfo.has_update): Text {
-                            text: "(" + AppI18n.t("about.new_version", [AppInfo.latest_version, AppI18n.version]) + ")";
-                            font-size: 12px * LayoutConstants.font-scale;
-                            font-family: Theme.default_font;
-                            color: #FF4D4F;
+                            horizontal-alignment: AppI18n.is-rtl ? right : left;
                             TouchArea {
                                 mouse-cursor: pointer;
                                 clicked => {
-                                    root.open_url(AppInfo.release_url);
+                                    root.open_url(AppInfo.homepage);
                                 }
                             }
                         }
                     }
-                }
-
-                VerticalLayout {
-                    spacing: 6px;
-                    Text {
-                        text: root.strings.website;
-                        font-size: 13px * LayoutConstants.font-scale;
-                        font-family: Theme.default_font;
-                        font-weight: 500;
-                        color: Theme.text_primary;
-                        horizontal-alignment: AppI18n.is-rtl ? right : left;
-                    }
-
-                    Text {
-                        text: AppInfo.homepage;
-                        font-size: 13px * LayoutConstants.font-scale;
-                        font-family: Theme.default_font;
-                        color: Theme.accent;
-                        horizontal-alignment: AppI18n.is-rtl ? right : left;
-                        TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => {
-                                root.open_url(AppInfo.homepage);
-                            }
+                    if (AppI18n.is-rtl): Rectangle {
+                        width: 20px;
+                        Text {
+                            y: 1px;
+                            text: "\u{e80f}";
+                            font-size: 15px * LayoutConstants.font-scale;
+                            font-family: Theme.icon_font;
+                            color: #10b981;
+                            horizontal-alignment: center;
                         }
                     }
                 }
 
-                VerticalLayout {
-                    spacing: 6px;
-                    Text {
-                        text: root.strings.issues;
-                        font-size: 13px * LayoutConstants.font-scale;
-                        font-family: Theme.default_font;
-                        color: Theme.text_primary;
-                        horizontal-alignment: AppI18n.is-rtl ? right : left;
-                        TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => {
-                                root.open_url(AppInfo.issues_url);
+                // Join the official communication group (above issues)
+                HorizontalLayout {
+                    spacing: 12px;
+                    if (!AppI18n.is-rtl): Rectangle {
+                        width: 20px;
+                        Text {
+                            y: 1px;
+                            text: "\u{e8f2}";
+                            font-size: 15px * LayoutConstants.font-scale;
+                            font-family: Theme.icon_font;
+                            color: #0ea5e9;
+                            horizontal-alignment: center;
+                        }
+                    }
+                    VerticalLayout {
+                        spacing: 6px;
+                        Text {
+                            text: root.strings.group;
+                            font-size: 13px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            color: Theme.text_primary;
+                            horizontal-alignment: AppI18n.is-rtl ? right : left;
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    root.group_clicked();
+                                }
                             }
+                        }
+                    }
+                    if (AppI18n.is-rtl): Rectangle {
+                        width: 20px;
+                        Text {
+                            y: 1px;
+                            text: "\u{e8f2}";
+                            font-size: 15px * LayoutConstants.font-scale;
+                            font-family: Theme.icon_font;
+                            color: #0ea5e9;
+                            horizontal-alignment: center;
                         }
                     }
                 }
 
-                VerticalLayout {
-                    spacing: 6px;
-                    Text {
-                        text: root.strings.discussions;
-                        font-size: 13px * LayoutConstants.font-scale;
-                        font-family: Theme.default_font;
-                        color: Theme.text_primary;
-                        horizontal-alignment: AppI18n.is-rtl ? right : left;
-                        TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => {
-                                root.open_url(AppInfo.discussions_url);
+                HorizontalLayout {
+                    spacing: 12px;
+                    if (!AppI18n.is-rtl): Rectangle {
+                        width: 20px;
+                        Text {
+                            y: 1px;
+                            text: "\u{ebe8}";
+                            font-size: 15px * LayoutConstants.font-scale;
+                            font-family: Theme.icon_font;
+                            color: #ef4444;
+                            horizontal-alignment: center;
+                        }
+                    }
+                    VerticalLayout {
+                        spacing: 6px;
+                        Text {
+                            text: root.strings.issues;
+                            font-size: 13px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            color: Theme.text_primary;
+                            horizontal-alignment: AppI18n.is-rtl ? right : left;
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    root.open_url(AppInfo.issues_url);
+                                }
                             }
+                        }
+                    }
+                    if (AppI18n.is-rtl): Rectangle {
+                        width: 20px;
+                        Text {
+                            y: 1px;
+                            text: "\u{ebe8}";
+                            font-size: 15px * LayoutConstants.font-scale;
+                            font-family: Theme.icon_font;
+                            color: #ef4444;
+                            horizontal-alignment: center;
+                        }
+                    }
+                }
+
+                HorizontalLayout {
+                    spacing: 12px;
+                    if (!AppI18n.is-rtl): Rectangle {
+                        width: 20px;
+                        Text {
+                            y: 1px;
+                            text: "\u{e95a}";
+                            font-size: 15px * LayoutConstants.font-scale;
+                            font-family: Theme.icon_font;
+                            color: #8b5cf6;
+                            horizontal-alignment: center;
+                        }
+                    }
+                    VerticalLayout {
+                        spacing: 6px;
+                        Text {
+                            text: root.strings.discussions;
+                            font-size: 13px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            color: Theme.text_primary;
+                            horizontal-alignment: AppI18n.is-rtl ? right : left;
+                            TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    root.open_url(AppInfo.discussions_url);
+                                }
+                            }
+                        }
+                    }
+                    if (AppI18n.is-rtl): Rectangle {
+                        width: 20px;
+                        Text {
+                            y: 1px;
+                            text: "\u{e95a}";
+                            font-size: 15px * LayoutConstants.font-scale;
+                            font-family: Theme.icon_font;
+                            color: #8b5cf6;
+                            horizontal-alignment: center;
                         }
                     }
                 }
@@ -188,37 +370,53 @@ export component AboutView inherits VerticalLayout {
                 background: Theme.border_color;
             }
 
-            VerticalLayout {
-                spacing: 6px;
+            HorizontalLayout {
+                spacing: 12px;
+                if (!AppI18n.is-rtl): Rectangle {
+                    width: 20px;
+                    Text {
+                        y: 1px;
+                        text: "\u{e735}";
+                        font-size: 15px * LayoutConstants.font-scale;
+                        font-family: Theme.icon_font;
+                        color: #eac54f;
+                        horizontal-alignment: center;
+                    }
+                }
+                VerticalLayout {
+                    spacing: 6px;
 
-                HorizontalLayout {
-                    alignment: AppI18n.is-rtl ? end : start;
-                    spacing: 4px;
                     Text {
                         text: root.strings.love;
                         font-size: 14px * LayoutConstants.font-scale;
                         font-family: Theme.default_font;
                         font-weight: 500;
                         color: Theme.text_primary;
+                        horizontal-alignment: AppI18n.is-rtl ? right : left;
                     }
+
                     Text {
-                        text: "\u{e735}";
-                        font-size: 14px * LayoutConstants.font-scale;
-                        font-family: Theme.icon_font;
-                        color: #eac54f;
-                        y: 1.5px;
+                        text: root.strings.star;
+                        font-size: 13px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        color: Theme.text_secondary ;
+                        wrap: word-wrap;
+                        horizontal-alignment: AppI18n.is-rtl ? right : left;
                     }
                 }
-
-                Text {
-                    text: root.strings.star;
-                    font-size: 13px * LayoutConstants.font-scale;
-                    font-family: Theme.default_font;
-                    color: Theme.text_secondary ;
-                    wrap: word-wrap;
-                    horizontal-alignment: AppI18n.is-rtl ? right : left;
+                if (AppI18n.is-rtl): Rectangle {
+                    width: 20px;
+                    Text {
+                        y: 1px;
+                        text: "\u{e735}";
+                        font-size: 15px * LayoutConstants.font-scale;
+                        font-family: Theme.icon_font;
+                        color: #eac54f;
+                        horizontal-alignment: center;
+                    }
                 }
             }
         }
     }
+
 }

@@ -1,10 +1,12 @@
-use tokio::time::Duration;
+use tokio::time::{Duration, Instant};
 use tracing::{info, warn, debug};
-use crate::wsl::models::WslCommandResult;
+use crate::wsl::models::{WslCommandResult, WslStatus};
 use super::WslDashboard;
+use super::operation_guard::DistroOpGuard;
 
 impl WslDashboard {
     pub async fn start_distro(&self, name: &str) -> WslCommandResult<String> {
+        let _guard = DistroOpGuard::create(self.clone(), name.to_string(), "Starting".to_string()).await;
         self.increment_manual_operation();
         let result = self.executor.start_distro(name).await;
         if result.success {
@@ -26,6 +28,7 @@ impl WslDashboard {
     }
 
     pub async fn stop_distro(&self, name: &str) -> WslCommandResult<String> {
+        let _guard = DistroOpGuard::create(self.clone(), name.to_string(), "Stopping".to_string()).await;
         self.increment_manual_operation();
         info!("Calling executor.stop_distro for '{}'", name);
         let result = self.executor.stop_distro(name).await;
@@ -51,19 +54,49 @@ impl WslDashboard {
     }
 
     pub async fn restart_distro(&self, name: &str) -> WslCommandResult<String> {
+        let _guard = DistroOpGuard::create(self.clone(), name.to_string(), "Restarting".to_string()).await;
         info!("WSL distro '{}' restart initiated", name);
+        
+        // 1. Terminate
         let stop_result = self.stop_distro(name).await;
         if !stop_result.success {
             warn!("Stop failed during restart for '{}', aborting restart", name);
             return stop_result;
         }
-        info!("Stop successful for '{}', waiting 4s before start...", name);
-        tokio::time::sleep(Duration::from_secs(4)).await;
-        info!("Wait complete for '{}', initiating start...", name);
+
+        // 2. Poll for Stopped status (Smart Wait)
+        info!("Stop successful for '{}', polling for Stopped status...", name);
+        let start_wait = Instant::now();
+        let timeout = Duration::from_secs(10);
+        let mut is_stopped = false;
+
+        while start_wait.elapsed() < timeout {
+            // Use refresh_distros to get latest state from system
+            let _ = self.refresh_distros().await;
+            if let Some(distro) = self.get_distro(name).await {
+                if matches!(distro.status, WslStatus::Stopped) {
+                    debug!("Distro '{}' confirmed Stopped after {}ms", name, start_wait.elapsed().as_millis());
+                    is_stopped = true;
+                    break;
+                }
+            }
+            tokio::time::sleep(Duration::from_millis(500)).await;
+        }
+
+        if !is_stopped {
+            warn!("Distro '{}' did not reach Stopped status within timeout, forcing start attempt anyway", name);
+        } else {
+            // Give WSL a tiny moment to breathe before starting again
+            tokio::time::sleep(Duration::from_millis(500)).await;
+        }
+
+        // 3. Start
+        info!("Initiating start for '{}'...", name);
         self.start_distro(name).await
     }
 
     pub async fn shutdown_wsl(&self) -> WslCommandResult<String> {
+        let _heavy_lock = self.heavy_op_lock.lock().await;
         self.increment_manual_operation();
         info!("Initiating WSL system shutdown");
         let result = self.executor.shutdown_wsl().await;
@@ -75,6 +108,7 @@ impl WslDashboard {
     }
 
     pub async fn delete_distro(&self, config_manager: &crate::config::ConfigManager, name: &str) -> WslCommandResult<String> {
+        let _guard = DistroOpGuard::create(self.clone(), name.to_string(), "Deleting".to_string()).await;
         let _heavy_lock = self.heavy_op_lock.lock().await;
         self.increment_manual_operation();
         
@@ -83,9 +117,9 @@ impl WslDashboard {
             self_clone.decrement_manual_operation();
         });
 
-        warn!("Initiating deletion of WSL distro '{}' (irreversible operation)", name);
+        info!("Initiating deletion of WSL distro '{}' (irreversible operation)", name);
         let result = self.executor.delete_distro(config_manager, name).await;
-        
+
         if result.success {
             // Immediate local update to make UI responsive
             {
@@ -105,6 +139,7 @@ impl WslDashboard {
     }
 
     pub async fn export_distro(&self, name: &str, file_path: &str) -> WslCommandResult<String> {
+        let _guard = DistroOpGuard::create(self.clone(), name.to_string(), "Exporting".to_string()).await;
         let _heavy_lock = self.heavy_op_lock.lock().await;
         self.increment_manual_operation();
         let result = self.executor.export_distro(name, file_path).await;
@@ -113,6 +148,7 @@ impl WslDashboard {
     }
 
     pub async fn import_distro(&self, name: &str, install_location: &str, file_path: &str) -> WslCommandResult<String> {
+        let _guard = DistroOpGuard::create(self.clone(), name.to_string(), "Importing".to_string()).await;
         let _heavy_lock = self.heavy_op_lock.lock().await;
         self.increment_manual_operation();
         let result = self.executor.import_distro(name, install_location, file_path).await;
@@ -124,6 +160,7 @@ impl WslDashboard {
     }
 
     pub async fn move_distro(&self, name: &str, new_path: &str) -> WslCommandResult<String> {
+        let _guard = DistroOpGuard::create(self.clone(), name.to_string(), "Moving".to_string()).await;
         let _heavy_lock = self.heavy_op_lock.lock().await;
         self.increment_manual_operation();
         let result = self.executor.move_distro(name, new_path).await;

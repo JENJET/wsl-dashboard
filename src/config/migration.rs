@@ -59,6 +59,12 @@ pub fn migrate_config(config: &mut Config) {
         config.settings.sidebar_collapsed = false;
     }
 
+    // v4 -> v5 logic
+    if old_version < 5 {
+        info!("Upgrading to v5: adding [settings] system-color");
+        config.settings.system_color = false;
+    }
+
     config.application.setting_version = SETTINGS_VERSION as u8;
     info!("✅ Configuration migration complete, current version: v{}", SETTINGS_VERSION);
 }
@@ -72,8 +78,9 @@ pub fn migrate_instances_config(container: &mut super::InstancesContainer) {
 
     info!("Detected instances configuration version v{}, upgrading to v{}...", old_version, super::INSTANCES_VERSION);
 
-    // Add version-specific migration logic here if needed in the future
-    // For now, we just update the version number and timestamps are handled during save
+    if old_version < 2 {
+        info!("Upgrading instances config to v2: adding terminal-proxy field (default enabled)");
+    }
     
     container.common.setting_version = super::INSTANCES_VERSION;
     info!("✅ Instances configuration migration complete, current version: v{}", super::INSTANCES_VERSION);

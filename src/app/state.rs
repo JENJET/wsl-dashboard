@@ -16,6 +16,7 @@ pub struct AppState {
     pub logging_system: Option<LoggingSystem>,
     pub vscode_extension: Option<VSCodeExtensionData>,
     pub is_silent_mode: bool,
+    pub theme_watcher: Option<crate::utils::theme::ThemeWatcher>,
 }
 
 impl AppState {
@@ -38,6 +39,7 @@ impl AppState {
             logging_system: Some(logging_system),
             vscode_extension: None,
             is_silent_mode,
+            theme_watcher: None,
         }
     }
 }

@@ -144,6 +144,7 @@ export component NetworkAddRuleDialog inherits Rectangle {
                     if (AppI18n.is-rtl): CustomLineEdit {
                         width: 300px;
                         text <=> root.listen_port;
+                        input-type: number;
                         placeholder-text: AppI18n.t("network.add_rule_port_placeholder", [AppI18n.version]);
                         edited(t) => {
                             // Sync full content to target_port
@@ -163,6 +164,7 @@ export component NetworkAddRuleDialog inherits Rectangle {
                     if (!AppI18n.is-rtl): CustomLineEdit {
                         width: 300px;
                         text <=> root.listen_port;
+                        input-type: number;
                         placeholder-text: AppI18n.t("network.add_rule_port_placeholder", [AppI18n.version]);
                         edited(t) => {
                             // Sync full content to target_port
@@ -206,6 +208,7 @@ export component NetworkAddRuleDialog inherits Rectangle {
                     if (AppI18n.is-rtl): CustomLineEdit {
                         width: 300px;
                         text <=> root.target_port;
+                        input-type: number;
                         placeholder-text: AppI18n.t("network.add_rule_target_port_placeholder", [AppI18n.version]);
                     }
 
@@ -221,6 +224,7 @@ export component NetworkAddRuleDialog inherits Rectangle {
                     if (!AppI18n.is-rtl): CustomLineEdit {
                         width: 300px;
                         text <=> root.target_port;
+                        input-type: number;
                         placeholder-text: AppI18n.t("network.add_rule_target_port_placeholder", [AppI18n.version]);
                     }
                 }

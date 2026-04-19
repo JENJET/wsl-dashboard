@@ -24,6 +24,30 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
     app.on_add_network_rule(move |distro, ip, lport, tport, fw| {
         let ah = ah_add.clone();
         let as_ptr = as_add.clone();
+        
+        let lport_str = lport.to_string();
+        let tport_str = tport.to_string();
+
+        // Validation: Port range 1-65534
+        let lport_valid = if let Ok(p) = lport_str.parse::<u32>() {
+            p > 0 && p < 65535
+        } else {
+            false
+        };
+        let tport_valid = if let Ok(p) = tport_str.parse::<u32>() {
+            p > 0 && p < 65535
+        } else {
+            false
+        };
+
+        if !lport_valid || !tport_valid {
+            if let Some(app) = ah.upgrade() {
+                let err_msg = crate::i18n::t("network.proxy_error_port");
+                app.set_network_add_error(err_msg.into());
+            }
+            return;
+        }
+
         tokio::spawn(async move {
             let state = as_ptr.lock().await;
 

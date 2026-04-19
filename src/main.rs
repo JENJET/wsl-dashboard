@@ -283,6 +283,22 @@ async fn main() {
     // 10. Load settings to UI (crucial for i18n, fonts, and theme)
     ui::data::load_settings_to_ui(&app, &app_state, &settings, &tray_settings).await;
 
+    // 10.1 Initialize System Theme Watcher if enabled
+    if settings.system_color {
+        match crate::utils::theme::ThemeWatcher::new(app.as_weak()) {
+            Ok(watcher) => {
+                let theme = crate::utils::theme::ThemeWatcher::get_current_theme();
+                app.global::<crate::Theme>().set_dark_mode(theme == crate::utils::theme::Theme::Dark);
+                
+                let mut state = app_state.lock().await;
+                state.theme_watcher = Some(watcher);
+            }
+            Err(e) => {
+                error!("Failed to initialize ThemeWatcher: {}", e);
+            }
+        }
+    }
+
     // 11. Setup handlers
     handlers::setup(&app, app.as_weak(), app_state.clone()).await;
     

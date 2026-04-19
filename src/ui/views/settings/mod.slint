@@ -17,6 +17,7 @@ export component SettingsView inherits Rectangle {
     in-out property <int> log_level: 4;
     in-out property <int> log_days: 7;
     in-out property <int> check_update_interval: 7;
+    in-out property <bool> system_color: false;
     in-out property <bool> auto_shutdown: false;
     in-out property <bool> tray_autostart: false;
     in-out property <bool> tray_start_minimized: false;
@@ -222,6 +223,7 @@ export component SettingsView inherits Rectangle {
                         VerticalLayout {
                             padding: 12px;
                             spacing: 12px;
+                            CustomCheckBox { checked <=> root.system_color; text: root.strings.system_color; }
                             CustomCheckBox { checked <=> root.auto_shutdown; text: root.strings.auto_close; }
                             CustomCheckBox { checked <=> root.tray_autostart; text: root.strings.auto_start; }
                             CustomCheckBox { checked <=> root.tray_start_minimized; text: root.strings.minimize_tray; }

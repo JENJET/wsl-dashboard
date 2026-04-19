@@ -123,6 +123,7 @@ export component TitleBar inherits Rectangle {
                 }
             }
             if (!AppI18n.is-rtl): ThemeSwitch {
+                visible: !Theme.system_color;
                 clicked => {
                     root.toggle_theme();
                 }
@@ -137,6 +138,7 @@ export component TitleBar inherits Rectangle {
             }
 
             if (AppI18n.is-rtl): ThemeSwitch {
+                visible: !Theme.system_color;
                 clicked => {
                     root.toggle_theme();
                 }

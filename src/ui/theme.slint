@@ -66,6 +66,7 @@ export struct SettingsStrings {
     select_folder: string,
     install_dir: string,
     auto_close: string,
+    system_color: string,
     auto_start: string,
     minimize_tray: string,
     close_to_tray: string,
@@ -78,8 +79,10 @@ export struct AboutStrings {
     title: string,
     description: string,
     version: string,
+    updates: string,
     check_update: string,
     website: string,
+    group: string,
     issues: string,
     discussions: string,
     star: string,
@@ -91,6 +94,7 @@ export struct AboutStrings {
 
 export global Theme {
     in property <bool> dark_mode: false;
+    in property <bool> system_color: false;
     out property <color> background: dark_mode ? #2d2d30 : #F3F3F3;
     out property <color> content_bg: dark_mode ? #1E1E1E : #FFFFFF;
     out property <color> sidebar_bg: transparent;

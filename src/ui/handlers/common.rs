@@ -49,6 +49,11 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     crate::ui::handlers::network::refresh_network_view_data(ah, as_ptr).await;
                 });
             }
+
+            // Tab 6 is "About" — fetch BASE_API once on first visit
+            if tab == 6 {
+                super::about::trigger_fetch_if_needed(ah.clone(), as_ptr.clone());
+            }
         }
     });
 

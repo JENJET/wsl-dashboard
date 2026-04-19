@@ -22,6 +22,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 let log_level = app.get_log_level() as u8;
                 let log_days = app.get_log_days() as u8;
                 let check_update = app.get_check_update_interval() as u8;
+                let system_color = app.get_system_color();
                 
                 let sidebar_add = app.get_sidebar_add();
                 let sidebar_usb = app.get_sidebar_usb();
@@ -114,7 +115,29 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     check_update,
                     check_time: state.config_manager.get_settings().check_time.clone(),
                     sidebar_collapsed: app.get_sidebar_collapsed(),
+                    system_color,
                 };
+
+                // Dynamic ThemeWatcher switching
+                let old_system_color = state.config_manager.get_settings().system_color;
+                if old_system_color != system_color {
+                    if system_color {
+                        match crate::utils::theme::ThemeWatcher::new(ah.clone()) {
+                            Ok(watcher) => {
+                                let theme = crate::utils::theme::ThemeWatcher::get_current_theme();
+                                app.global::<crate::Theme>().set_dark_mode(theme == crate::utils::theme::Theme::Dark);
+                                state.theme_watcher = Some(watcher);
+                                info!("ThemeWatcher enabled via settings.");
+                            }
+                            Err(e) => {
+                                error!("Failed to enable ThemeWatcher: {}", e);
+                            }
+                        }
+                    } else {
+                        state.theme_watcher = None;
+                        info!("ThemeWatcher disabled via settings.");
+                    }
+                }
 
                 match state.config_manager.update_settings(user_settings) {
                     Ok(_) => {

@@ -68,6 +68,7 @@ pub fn refresh_localized_strings(app: &AppWindow) {
         select_folder: i18n::tr("settings.select_folder", &[]).into(),
         install_dir: i18n::tr("settings.distro_dir", &[]).into(),
         auto_close: i18n::tr("settings.auto_shutdown_msg", &[]).into(),
+        system_color: i18n::tr("settings.system_color", &[]).into(),
         auto_start: i18n::tr("settings.tray_autostart", &[]).into(),
         minimize_tray: i18n::tr("settings.tray_start_minimized", &[]).into(),
         close_to_tray: i18n::tr("settings.tray_close_to_tray", &[]).into(),
@@ -80,8 +81,10 @@ pub fn refresh_localized_strings(app: &AppWindow) {
         title: i18n::tr("about.title", &[]).into(),
         description: i18n::tr("about.description", &[]).into(),
         version: i18n::tr("about.version", &[]).into(),
+        updates: i18n::tr("about.updates", &[]).into(),
         check_update: i18n::tr("about.check_update", &[]).into(),
         website: i18n::tr("about.homepage", &[]).into(),
+        group: i18n::tr("about.group", &[]).into(),
         issues: i18n::tr("about.issues", &[]).into(),
         discussions: i18n::tr("about.discussions", &[]).into(),
         star: i18n::tr("about.star", &[]).into(),
@@ -434,6 +437,8 @@ pub async fn load_settings_to_ui(app: &AppWindow, app_state: &Arc<Mutex<AppState
     app.set_new_instance_path(settings.distro_location.clone().into());
     app.set_logs_location(settings.logs_location.clone().into());
     app.set_auto_shutdown(settings.auto_shutdown);
+    app.set_system_color(settings.system_color);
+    app.global::<crate::Theme>().set_system_color(settings.system_color);
     app.set_sidebar_collapsed(settings.sidebar_collapsed);
     app.set_tray_autostart(tray.autostart);
     app.set_tray_start_minimized(tray.start_minimized);

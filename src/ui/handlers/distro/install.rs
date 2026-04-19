@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use slint::Model;
+use slint::{ComponentHandle, Model};
 use crate::{AppWindow, AppState, i18n};
 use crate::ui::data::refresh_installable_distros;
 use super::sanitize_instance_name;
@@ -207,18 +207,40 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
         
         println!("\n[UI Event] on_install_distro: name={}, source={}", name, source_idx);
         
-        let internal_id = if let Some(app) = ah.upgrade() {
-            if app.get_is_installing() {
-                println!("[UI Event] Installation already in progress, ignoring click.");
+        let ah_weak = ah.clone();
+        let as_ptr = as_ptr.clone();
+        
+        println!("\n[UI Event] on_install_distro: name={}, source={}", name, source_idx);
+        
+        let _ = slint::spawn_local(async move {
+            let (manager, internal_id) = if let Some(app) = ah_weak.upgrade() {
+                if app.get_is_installing() {
+                    println!("[UI Event] Installation already in progress, ignoring click.");
+                    return;
+                }
+
+                let state = as_ptr.lock().await;
+                (state.wsl_dashboard.clone(), app.get_selected_install_distro().to_string())
+            } else {
+                return;
+            };
+
+            // Sentinel Check: System heavy op?
+            if manager.heavy_op_lock().try_lock().is_err() {
+                let msg = i18n::t("toast.system_busy");
+                if let Some(app) = ah_weak.upgrade() {
+                    app.set_current_message(msg.into());
+                    app.set_show_message_dialog(true);
+                }
                 return;
             }
-            app.get_selected_install_distro().to_string()
-        } else {
-            return;
-        };
 
-        let _ = tokio::spawn(async move {
-            super::install_logic::perform_install(ah, as_ptr, source_idx, name, friendly_name, internal_id, install_path, file_path).await;
+            if let Some(app) = ah_weak.upgrade() {
+                let ah_logic = app.as_weak();
+                let _ = tokio::spawn(async move {
+                    super::install_logic::perform_install(ah_logic, as_ptr, source_idx, name, friendly_name, internal_id, install_path, file_path).await;
+                });
+            }
         });
     });
 }

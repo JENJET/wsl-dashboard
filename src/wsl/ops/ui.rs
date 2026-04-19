@@ -14,7 +14,7 @@ pub async fn open_distro_folder(_executor: &WslCommandExecutor, distro_name: &st
             const CREATE_NO_WINDOW: u32 = 0x08000000;
             command.creation_flags(CREATE_NO_WINDOW);
         }
-        let output = command.output();
+        let output = command.status();
         match output {
             Ok(_) => WslCommandResult::success(String::new(), None),
             Err(e) => WslCommandResult::error(String::new(), e.to_string()),
@@ -37,7 +37,7 @@ pub async fn open_distro_vscode(_executor: &WslCommandExecutor, distro_name: &st
             const CREATE_NO_WINDOW: u32 = 0x08000000;
             command.creation_flags(CREATE_NO_WINDOW);
         }
-        let output = command.output();
+        let output = command.status();
         match output {
             Ok(_) => WslCommandResult::success(String::new(), None),
             Err(e) => WslCommandResult::error(String::new(), e.to_string()),
@@ -82,7 +82,7 @@ pub async fn open_distro_terminal(_executor: &WslCommandExecutor, distro_name: &
         let mut command = std::process::Command::new("cmd");
         
         if let Some(exports) = proxy_exports {
-            let mut cmd_str = format!("title wsl.exe & ");
+            let mut cmd_str = String::new();
             let mut wslenv = String::new();
             
             for (k, v) in exports {
@@ -107,7 +107,7 @@ pub async fn open_distro_terminal(_executor: &WslCommandExecutor, distro_name: &
             const CREATE_NO_WINDOW: u32 = 0x08000000;
             command.creation_flags(CREATE_NO_WINDOW);
         }
-        let output = command.output();
+        let output = command.status();
         match output {
             Ok(_) => WslCommandResult::success(String::new(), None),
             Err(e) => WslCommandResult::error(String::new(), e.to_string()),
@@ -132,7 +132,7 @@ pub async fn open_distro_folder_path(_executor: &WslCommandExecutor, distro_name
             const CREATE_NO_WINDOW: u32 = 0x08000000;
             command.creation_flags(CREATE_NO_WINDOW);
         }
-        let output = command.output();
+        let output = command.status();
         match output {
             Ok(_) => WslCommandResult::success(String::new(), None),
             Err(e) => WslCommandResult::error(String::new(), e.to_string()),

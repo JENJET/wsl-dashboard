@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 // Configuration file version constant
-pub const SETTINGS_VERSION: u32 = 4;
+pub const SETTINGS_VERSION: u32 = 5;
 
 // Application configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,6 +45,8 @@ pub struct UserSettings {
     pub ui_language: String,
     #[serde(rename = "auto-shutdown")]
     pub auto_shutdown: bool,
+    #[serde(rename = "system-color", default)]
+    pub system_color: bool,
     #[serde(rename = "dark-mode", default)]
     pub dark_mode: bool,
     #[serde(rename = "sidebar-collapsed", default)]
@@ -133,6 +135,7 @@ impl Config {
                 temp_location: format!("{}\\.wsldashboard\\temp", home_dir),
                 ui_language: "auto".to_string(),
                 auto_shutdown: false,
+                system_color: false,
                 dark_mode: false,
                 sidebar_collapsed: false,
                 log_level: 4,
@@ -239,7 +242,7 @@ pub struct UsbAutoAttachDevice {
 
 // --- Instance-specific configuration (instances.toml) ---
 
-pub const INSTANCES_VERSION: u32 = 1;
+pub const INSTANCES_VERSION: u32 = 2;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CachedDistro {
@@ -268,6 +271,8 @@ pub struct DistroInstanceConfig {
     pub auto_startup: bool,
     #[serde(rename = "startup-script", default)]
     pub startup_script: String,
+    #[serde(rename = "terminal-proxy", default = "default_true")]
+    pub terminal_proxy: bool,
 }
 
 pub fn default_terminal_dir() -> String { "~".to_string() }
@@ -280,6 +285,7 @@ impl Default for DistroInstanceConfig {
             vscode_dir: default_vscode_dir(),
             auto_startup: false,
             startup_script: String::new(),
+            terminal_proxy: true,
         }
     }
 }

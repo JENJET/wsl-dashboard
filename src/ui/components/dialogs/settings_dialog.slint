@@ -20,6 +20,7 @@ export component SettingsDialog inherits Rectangle {
     in property <string> vscode_dir_error: "";
     in property <string> startup_script_error: "";
     in property <string> default_error: "";
+    in-out property <bool> terminal_proxy: true;
     callback close;
     callback save;
     callback open-url(string);
@@ -214,6 +215,12 @@ export component SettingsDialog inherits Rectangle {
                                 color: #ff3333;
                                 horizontal-alignment: AppI18n.is-rtl ? right : left;
                             }
+                        }
+
+                        // Proxy Toggle
+                        CustomCheckBox {
+                            text: AppI18n.t("dialog.terminal_proxy", [AppI18n.version]);
+                            checked <=> root.terminal_proxy;
                         }
 
                         // 4. VS Code working directory
