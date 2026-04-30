@@ -257,6 +257,7 @@ export component AppWindow inherits Window {
     callback home_clicked();
     callback check_network_task_status();
     callback initialize_task_clicked();
+    callback uninitialize_task_clicked();
     callback open_add_rule_dialog();
     callback add_network_rule(string, string, string, string, bool);
     callback delete_network_rule(string);
@@ -544,6 +545,9 @@ export component AppWindow inherits Window {
                                 proxy_default_no_proxy: root.network_proxy_default_no_proxy;
                                 initialize_task_clicked => {
                                     root.initialize_task_clicked();
+                                }
+                                uninitialize_task_clicked => {
+                                    root.uninitialize_task_clicked();
                                 }
                                 open_add_rule_dialog => {
                                     root.open_add_rule_dialog();

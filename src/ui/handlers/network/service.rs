@@ -41,4 +41,30 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, _app_state: Ar
             }
         });
     });
+
+    let ah_cancel = app_handle.clone();
+    app.on_uninitialize_task_clicked(move || {
+        let ah = ah_cancel.clone();
+        tokio::spawn(async move {
+            match network::scheduler::unregister_task_with_elevation() {
+                Ok(_) => {
+                    let ah_success = ah.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah_success.upgrade() {
+                            app.set_network_is_helper_installed(false);
+                        }
+                    });
+                    show_toast(ah, crate::i18n::t("network.task_unscheduled"));
+                },
+                Err(e) => {
+                    let msg = if e.contains("InvalidOperation") || e.contains("denied") {
+                        crate::i18n::t("network.error_uac")
+                    } else {
+                        crate::i18n::tr("network.task_failed", &[e.to_string()])
+                    };
+                    show_toast(ah, msg);
+                }
+            }
+        });
+    });
 }

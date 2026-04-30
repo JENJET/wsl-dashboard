@@ -14,6 +14,7 @@ export component PortForwardingView inherits Rectangle {
     in property <[PortProxyRuleUI]> rules: [];
 
     callback initialize_task_clicked();
+    callback uninitialize_task_clicked();
     callback open_add_rule_dialog();
     callback delete_rule(string);
     callback process_rule(string);
@@ -135,6 +136,15 @@ export component PortForwardingView inherits Rectangle {
                 }
             }
 
+            if (!AppI18n.is-rtl && is_helper_installed): CustomButton {
+                text: AppI18n.t("network.uninitialize_btn", [AppI18n.version]);
+                show_shield: true;
+                height: 32px;
+                clicked => {
+                    root.uninitialize_task_clicked();
+                }
+            }
+
             if (AppI18n.is-rtl): CustomButton {
                 text: AppI18n.t("network.add_rule_btn", [AppI18n.version]);
                 primary: true;
@@ -200,6 +210,15 @@ export component PortForwardingView inherits Rectangle {
                 height: 32px;
                 clicked => {
                     root.initialize_task_clicked();
+                }
+            }
+
+            if (AppI18n.is-rtl && is_helper_installed): CustomButton {
+                text: AppI18n.t("network.uninitialize_btn", [AppI18n.version]);
+                show_shield: true;
+                height: 32px;
+                clicked => {
+                    root.uninitialize_task_clicked();
                 }
             }
         }

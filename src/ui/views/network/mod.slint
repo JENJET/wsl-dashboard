@@ -26,6 +26,7 @@ export component NetworkView inherits Rectangle {
     property <int> active_tab: 0;
 
     callback initialize_task_clicked();
+    callback uninitialize_task_clicked();
     callback open_add_rule_dialog();
     callback add_rule(string, string, string, string, bool);
     callback delete_rule(string);
@@ -83,6 +84,7 @@ export component NetworkView inherits Rectangle {
                 rules: root.rules;
                 
                 initialize_task_clicked => { root.initialize_task_clicked(); }
+                uninitialize_task_clicked => { root.uninitialize_task_clicked(); }
                 open_add_rule_dialog => { root.open_add_rule_dialog(); }
                 delete_rule(id) => { root.delete_rule(id); }
                 process_rule(id) => { root.process_rule(id); }
