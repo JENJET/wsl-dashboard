@@ -15,8 +15,21 @@ pub async fn perform_install(
     internal_id: String,
     install_path: String,
     file_path: String,
+    set_root_password: bool,
+    root_password: String,
 ) {
-    info!("perform_install started: source={}, name={}, friendly={}, internal_id={}, path={}", 
+    // Helper to trigger one-shot scroll-to-bottom from the backend
+    fn trigger_scroll(ah: &slint::Weak<AppWindow>) {
+        let ah = ah.clone();
+        let _ = slint::invoke_from_event_loop(move || {
+            if let Some(app) = ah.upgrade() {
+                // Set to a large negative value; Flickable clamps to the actual bottom
+                app.set_add_page_vp_y(-99999.0);
+            }
+        });
+    }
+
+    info!("perform_install started: source={}, name={}, friendly={}, internal_id={}, path={}",
           source_idx, name, friendly_name, internal_id, install_path);
 
     // Guard against UI thread blocks - yield initially
@@ -185,6 +198,7 @@ pub async fn perform_install(
                     app_typed.set_terminal_output(format!("{}\n", i18n::tr("install.step_1", &[real_id_clone])).into());
                 }
             });
+            trigger_scroll(&ah);
             let mut terminal_buffer = format!("{}\n", i18n::tr("install.step_1", &[real_id.clone()]));
             info!("Starting store installation for distribution ID: {}", real_id);
             
@@ -491,7 +505,8 @@ pub async fn perform_install(
                         app_typed.set_terminal_output(tb_clone.into());
                     }
                 });
-                
+                trigger_scroll(&ah);
+
                 let mut target_path = install_path.clone();
                 if target_path.is_empty() {
                     let distro_location = config_manager.get_settings().distro_location.clone();
@@ -628,6 +643,104 @@ pub async fn perform_install(
         }
     }
 
+    // Set root password if requested (after successful install)
+    if success && set_root_password && !root_password.is_empty() {
+        info!("Setting root password for distro '{}'", final_name);
+
+        let step_text = i18n::t("install.step_set_root_password");
+        let ah_pw = ah.clone();
+        let _ = slint::invoke_from_event_loop(move || {
+            if let Some(app) = ah_pw.upgrade() {
+                let app_typed: AppWindow = app;
+                app_typed.set_install_status(step_text.clone().into());
+                let mut tb = app_typed.get_terminal_output().to_string();
+                tb.push_str(&format!("\n[ ] {}\n", step_text));
+                app_typed.set_terminal_output(tb.into());
+            }
+        });
+        trigger_scroll(&ah);
+
+        // Start the distro first to ensure it's fully initialized
+        info!("Starting distro '{}' before setting password", final_name);
+        let _ = executor.execute_command(&["-d", &final_name, "-u", "root", "-e", "/bin/true"]).await;
+        tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+
+        // Escape password for safe use in shell heredoc
+        let pw_safe = root_password.replace('\\', "\\\\").replace('$', "\\$").replace('`', "\\`");
+
+        // Use heredoc (more reliable than pipe in WSL) with chpasswd at /usr/sbin
+        let pw_cmd = format!(
+            "/usr/sbin/chpasswd 2>/dev/null <<'PWEOF'\nroot:{}\nPWEOF\n",
+            pw_safe
+        );
+        let set_pw_args = ["-d", &final_name, "-u", "root", "sh", "-c", &pw_cmd];
+        info!("Root password command: wsl {}", set_pw_args.join(" "));
+        let pw_result = executor.execute_command(&set_pw_args).await;
+        info!("Root password result: success={}, output={:?}, error={:?}",
+            pw_result.success, pw_result.output, pw_result.error);
+
+        // Retry with /sbin/chpasswd if first attempt failed
+        let pw_result = if !pw_result.success {
+            info!("Retrying with /sbin/chpasswd...");
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            let pw_cmd2 = format!(
+                "/sbin/chpasswd <<'PWEOF'\nroot:{}\nPWEOF\n",
+                pw_safe
+            );
+            let retry_args = ["-d", &final_name, "-u", "root", "sh", "-c", &pw_cmd2];
+            let retry_result = executor.execute_command(&retry_args).await;
+            info!("Retry result: success={}, output={:?}, error={:?}",
+                retry_result.success, retry_result.output, retry_result.error);
+            retry_result
+        } else {
+            pw_result
+        };
+
+        if pw_result.success {
+            info!("Root password set successfully for distro '{}'", final_name);
+            let done_text = i18n::t("install.step_set_root_password_done");
+            let ah_pw = ah.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(app) = ah_pw.upgrade() {
+                    let app_typed: AppWindow = app;
+                    app_typed.set_install_status(done_text.clone().into());
+                    let mut tb = app_typed.get_terminal_output().to_string();
+                    tb.push_str(&format!("[OK] {}\n", done_text));
+                    app_typed.set_terminal_output(tb.into());
+                }
+            });
+            trigger_scroll(&ah);
+        } else {
+            let pw_output = pw_result.output.clone();
+            let pw_err = pw_result.error.unwrap_or_else(|| {
+                if !pw_output.trim().is_empty() {
+                    pw_output.trim().to_string()
+                } else {
+                    "Unknown error".to_string()
+                }
+            });
+            error!("Failed to set root password for '{}': {}", final_name, pw_err);
+            let fail_text = i18n::tr("install.step_set_root_password_failed", &[pw_err.clone()]);
+            error_msg = fail_text.clone();
+            success = false;
+
+            let ah_pw = ah.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(app) = ah_pw.upgrade() {
+                    let app_typed: AppWindow = app;
+                    app_typed.set_install_status(fail_text.clone().into());
+                    let mut tb = app_typed.get_terminal_output().to_string();
+                    tb.push_str(&format!("[FAIL] {}\n", fail_text));
+                    if !pw_output.trim().is_empty() {
+                        tb.push_str(&format!("    {}\n", pw_output.trim()));
+                    }
+                    app_typed.set_terminal_output(tb.into());
+                }
+            });
+            trigger_scroll(&ah);
+        }
+    }
+
     let ah_final = ah.clone();
     let final_name_clone = final_name.clone();
     let error_msg_clone = error_msg.clone();
@@ -644,7 +757,8 @@ pub async fn perform_install(
             app_typed.set_is_installing(false);
         }
     });
-    
+    trigger_scroll(&ah);
+
     if success {
         refresh_distros_ui(ah.clone(), as_ptr.clone()).await;
     }

@@ -277,6 +277,11 @@ step_3_3 = "[3/3] '{0}' disztribúció sikeresen importálva."
 title = "Szoftver bemutatása"
 description = "A WSL Dashboard egy nyílt forráskódú vizuális menedzsment eszköz a Windows Subsystem for Linux (WSL). Intuitív grafikus felületet biztosít a felhasználók számára a Linux disztribúciók hatékony kezeléséhez, támogatva az olyan alapvető funkciókat, mint az egykattintásos indítás, leállítás, újraindítás, klónozás és biztonsági mentések exportálása. Beépített disztribúció áruházat is tartalmaz, így a WSL kezelése és használata egyszerűbbé és kényelmesebbé válik."
 version = "Verzió"
+step_set_root_password = "Root jelszó beállítása a disztribúcióhoz..."
+step_set_root_password_done = "A root jelszó sikeresen beállítva."
+step_set_root_password_failed = "Nem sikerült beállítani a root jelszót: {0}"
+step_set_root_password_skip = "A root jelszó nem lett beállítva (a jelölőnégyzet nincs bejelölve)."
+
 updates = "(Ellenőrizze a frissítéseket)"
 check_update = "Frissítések keresése..."
 new_version = "Új verzió érhető el: v{0}"
@@ -301,6 +306,10 @@ select_folder = "Mappa kiválasztása"
 installing = "Telepítés..."
 create = "Példány létrehozása"
 note = "Megjegyzés: A telepítési folyamat néhány percet vehet igénybe az internetkapcsolattól függően."
+
+set_root_password = "Root jelszó beállítása (opcionális)"
+root_password = "Root jelszó"
+root_password_placeholder = "Adja meg a root jelszót"
 
 [add.sources]
 rootfs = "Helyi RootFS fájl"

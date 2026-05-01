@@ -277,6 +277,11 @@ step_3_3 = "[3/3] 发行版 “{0}” 导入成功。"
 title = "软件简介"
 description = "WSL Dashboard 是一款针对 Windows Subsystem for Linux (WSL) 的开源视觉管理工具。它为用户提供了直观的图形界面，用于高效管理 Linux 发行版，支持一键启动、停止、重启、克隆和导出备份等核心功能。它还内置了发行版商店，使 WSL 的管理和使用更加简单方便。"
 version = "版本信息"
+step_set_root_password = "正在为发行版设置 root 密码..."
+step_set_root_password_done = "Root 密码设置成功。"
+step_set_root_password_failed = "设置 root 密码失败：{0}"
+step_set_root_password_skip = "未设置 root 密码（未勾选复选框）。"
+
 updates = "(检查更新)"
 check_update = "正在检查更新..."
 new_version = "发现新版本: v{0}"
@@ -301,6 +306,10 @@ select_folder = "选择文件夹"
 installing = "正在安装..."
 create = "创建安装"
 note = "注意：根据网络连接情况，安装过程可能需要几分钟。"
+
+set_root_password = "设置 root 密码（可选）"
+root_password = "Root 密码"
+root_password_placeholder = "请输入 root 密码"
 
 [add.sources]
 rootfs = "本地 RootFS 文件"

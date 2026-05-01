@@ -94,6 +94,9 @@ export component AppWindow inherits Window {
     in-out property <bool> show_install_warn_dialog: false;
     in-out property <bool> show_expire_dialog: false;
     in-out property <bool> show_rootfs_help: false;
+    in-out property <bool> set_root_password: false;
+    in-out property <string> root_password: "";
+    in-out property <length> add_page_vp_y: 0px;
     in-out property <bool> show_vscode_startup: false;
     in-out property <string> ui_language: "auto";
     in property <string> system_language: "en"; // Injected by backend at startup
@@ -462,6 +465,9 @@ export component AppWindow inherits Window {
                                 install_file_path <=> root.install_file_path;
                                 show_install_warn_dialog <=> root.show_install_warn_dialog;
                                 show_rootfs_help <=> root.show_rootfs_help;
+                                set_root_password <=> root.set_root_password;
+                                root_password <=> root.root_password;
+                                page_vp_y <=> root.add_page_vp_y;
                                 source_selected(i) => {
                                     root.source_selected(i);
                                 }

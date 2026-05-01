@@ -277,6 +277,11 @@ step_3_3 = "[3/3] Distribúcia '{0}' úspešne importovaná."
 title = "O aplikácii"
 description = "WSL Dashboard je open-source vizuálny nástroj na správu Windows Subsystem for Linux (WSL). Poskytuje používateľom intuitívne grafické rozhranie na efektívnu správu linuxových distribúcií, podporuje základné funkcie ako spustenie jedným kliknutím, zastavenie, reštart, klonovanie a export záloh. Obsahuje tiež vstavaný obchod s distribúciami, vďaka čomu je správa a používanie WSL jednoduchšie a pohodlnejšie."
 version = "Verzia"
+step_set_root_password = "Nastavuje sa heslo root pre distribúciu..."
+step_set_root_password_done = "Heslo root bolo úspešne nastavené."
+step_set_root_password_failed = "Nepodarilo sa nastaviť heslo root: {0}"
+step_set_root_password_skip = "Heslo root nebolo nastavené (začiarkavacie políčko nie je začiarknuté)."
+
 updates = "(Skontrolujte aktualizácie)"
 check_update = "Kontrola aktualizácií..."
 new_version = "K dispozícii je nová verzia: v{0}"
@@ -301,6 +306,10 @@ select_folder = "Vybrať priečinok"
 installing = "Inštalácia..."
 create = "Vytvoriť"
 note = "Poznámka: Inštalácia môže trvať niekoľko minút v závislosti od pripojenia."
+
+set_root_password = "Nastaviť heslo root (voliteľné)"
+root_password = "Heslo root"
+root_password_placeholder = "Zadajte heslo root"
 
 [add.sources]
 rootfs = "Lokálny RootFS súbor"

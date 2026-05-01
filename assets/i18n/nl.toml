@@ -277,6 +277,11 @@ step_3_3 = "[3/3] Distributie '{0}' succesvol geïmporteerd."
 title = "Software-introductie"
 description = "WSL Dashboard is een open-source visueel beheertoel voor Windows Subsystem for Linux (WSL). Het biedt gebruikers een intuïtieve grafische interface voor het efficiënt beheren van Linux-distributies, ondersteunt kernfuncties zoals starten, stoppen, herstarten met één klik, klonen en exporteren van back-ups. Het bevat ook een ingebouwde distributiewinkel, waardoor WSL-beheer en -gebruik eenvoudiger en handiger wordt."
 version = "Versie"
+step_set_root_password = "Root-wachtwoord voor de distributie instellen..."
+step_set_root_password_done = "Root-wachtwoord is succesvol ingesteld."
+step_set_root_password_failed = "Instellen van root-wachtwoord mislukt: {0}"
+step_set_root_password_skip = "Root-wachtwoord niet ingesteld (selectievakje niet aangevinkt)."
+
 updates = "(Controleer op updates)"
 check_update = "Controleren op updates..."
 new_version = "Er is een nieuwe versie beschikbaar: v{0}"
@@ -301,6 +306,10 @@ select_folder = "Map selecteren"
 installing = "Installeren..."
 create = "Installatie maken"
 note = "Opmerking: Het installatieproces kan enkele minuten duren, afhankelijk van uw internetverbinding."
+
+set_root_password = "Root-wachtwoord instellen (optioneel)"
+root_password = "Root-wachtwoord"
+root_password_placeholder = "Voer root-wachtwoord in"
 
 [add.sources]
 rootfs = "Lokaal RootFS-bestand"

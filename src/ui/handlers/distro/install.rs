@@ -237,8 +237,10 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
 
             if let Some(app) = ah_weak.upgrade() {
                 let ah_logic = app.as_weak();
+                let set_pw = app.get_set_root_password();
+                let root_pw = app.get_root_password().to_string();
                 let _ = tokio::spawn(async move {
-                    super::install_logic::perform_install(ah_logic, as_ptr, source_idx, name, friendly_name, internal_id, install_path, file_path).await;
+                    super::install_logic::perform_install(ah_logic, as_ptr, source_idx, name, friendly_name, internal_id, install_path, file_path, set_pw, root_pw).await;
                 });
             }
         });

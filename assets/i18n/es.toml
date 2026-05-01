@@ -277,6 +277,11 @@ step_3_3 = "[3/3] Distribución '{0}' importada con éxito."
 title = "Introducción al software"
 description = "WSL Dashboard es una herramienta de gestión visual de código abierto para el Subsistema de Windows para Linux (WSL). Proporciona a los usuarios una interfaz gráfica intuitiva para gestionar de forma eficiente las distribuciones de Linux, admitiendo funciones principales como el inicio, la detención, el reinicio, la clonación y la exportación de copias de seguridad con un solo clic. También incluye una tienda de distribuciones integrada, lo que hace que la gestión y el uso de WSL sean más sencillos y cómodos."
 version = "Versión"
+step_set_root_password = "Estableciendo contraseña de root para la distribución..."
+step_set_root_password_done = "Contraseña de root establecida correctamente."
+step_set_root_password_failed = "Error al establecer la contraseña de root: {0}"
+step_set_root_password_skip = "Contraseña de root no establecida (casilla no marcada)."
+
 updates = "(Buscar actualizaciones)"
 check_update = "Buscando actualizaciones..."
 new_version = "Hay una nueva versión disponible: v{0}"
@@ -301,6 +306,10 @@ select_folder = "Seleccionar carpeta"
 installing = "Instalando..."
 create = "Crear instancia"
 note = "Nota: El proceso de instalación puede durar varios minutos, dependiendo de su conexión a internet."
+
+set_root_password = "Establecer contraseña de root (opcional)"
+root_password = "Contraseña de root"
+root_password_placeholder = "Ingrese la contraseña de root"
 
 [add.sources]
 rootfs = "Archivo RootFS local"

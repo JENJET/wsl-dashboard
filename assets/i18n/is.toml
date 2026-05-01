@@ -277,6 +277,11 @@ step_3_3 = "[3/3] Drefing '{0}' flutt inn."
 title = "Kynning á hugbúnaði"
 description = "WSL Dashboard er myndrænt stjórnunartól með opinn grunnkóða fyrir Windows Subsystem for Linux (WSL). Það veitir notendum leiðandi myndrænt viðmót til að stjórna Linux dreifingum á skilvirkan hátt og styður grunnaðgerðir eins og að ræsa, stöðva, endurræsa, klóna og flytja út afrit með einum smelli. Það inniheldur einnig innbyggða dreifingarverslun, sem gerir stjórnun og notkun WSL einfaldari og þægilegri."
 version = "Útgáfa"
+step_set_root_password = "Stilli root lykilorð fyrir dreifinguna..."
+step_set_root_password_done = "Root lykilorð hefur verið stillt."
+step_set_root_password_failed = "Mistókst að stilla root lykilorð: {0}"
+step_set_root_password_skip = "Root lykilorð ekki stillt (gátreitur ekki valinn)."
+
 updates = "(Leitaðu að uppfærslum)"
 check_update = "Leita að uppfærslum..."
 new_version = "Ný útgáfa er fáanleg: v{0}"
@@ -301,6 +306,10 @@ select_folder = "Veldu möppu"
 installing = "Setur upp..."
 create = "Búa til tilvik"
 note = "Athugið: Uppsetningarferlið gæti tekið nokkrar mínútur eftir nettengingu."
+
+set_root_password = "Stilla root lykilorð (valfrjálst)"
+root_password = "Root lykilorð"
+root_password_placeholder = "Sláðu inn root lykilorð"
 
 [add.sources]
 rootfs = "Staðbundin RootFS skrá"
