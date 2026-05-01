@@ -273,14 +273,25 @@ step_1_3 = "[1/3] Undirbýr markmöppu..."
 step_2_3 = "[2/3] Flytur inn drefingu: {0}"
 step_3_3 = "[3/3] Drefing '{0}' flutt inn."
 
-[about]
-title = "Kynning á hugbúnaði"
-description = "WSL Dashboard er myndrænt stjórnunartól með opinn grunnkóða fyrir Windows Subsystem for Linux (WSL). Það veitir notendum leiðandi myndrænt viðmót til að stjórna Linux dreifingum á skilvirkan hátt og styður grunnaðgerðir eins og að ræsa, stöðva, endurræsa, klóna og flytja út afrit með einum smelli. Það inniheldur einnig innbyggða dreifingarverslun, sem gerir stjórnun og notkun WSL einfaldari og þægilegri."
-version = "Útgáfa"
+step_create_user = "Bý til nýjan notanda '{0}'..."
+step_create_user_done = "Notandi '{0}' var búinn til."
+step_create_user_failed = "Mistókst að búa til notanda '{0}': {1}"
+step_set_user_password = "Stilli lykilorð fyrir notanda '{0}'..."
+step_set_user_password_done = "Lykilorð fyrir notanda '{0}' hefur verið stillt."
+step_set_user_password_failed = "Mistókst að stilla lykilorð fyrir notanda '{0}': {1}"
+step_set_default_user = "Stilli '{0}' sem sjálfgefinn innskráningarnotanda..."
+step_set_default_user_done = "Notandi '{0}' er nú sjálfgefinn innskráningarnotandi."
+step_set_default_user_failed = "Mistókst að stilla sjálfgefinn notanda: {0}"
+
 step_set_root_password = "Stilli root lykilorð fyrir dreifinguna..."
 step_set_root_password_done = "Root lykilorð hefur verið stillt."
 step_set_root_password_failed = "Mistókst að stilla root lykilorð: {0}"
 step_set_root_password_skip = "Root lykilorð ekki stillt (gátreitur ekki valinn)."
+
+[about]
+title = "Kynning á hugbúnaði"
+description = "WSL Dashboard er myndrænt stjórnunartól með opinn grunnkóða fyrir Windows Subsystem for Linux (WSL). Það veitir notendum leiðandi myndrænt viðmót til að stjórna Linux dreifingum á skilvirkan hátt og styður grunnaðgerðir eins og að ræsa, stöðva, endurræsa, klóna og flytja út afrit með einum smelli. Það inniheldur einnig innbyggða dreifingarverslun, sem gerir stjórnun og notkun WSL einfaldari og þægilegri."
+version = "Útgáfa"
 
 updates = "(Leitaðu að uppfærslum)"
 check_update = "Leita að uppfærslum..."
@@ -310,6 +321,16 @@ note = "Athugið: Uppsetningarferlið gæti tekið nokkrar mínútur eftir nette
 set_root_password = "Stilla root lykilorð (valfrjálst)"
 root_password = "Root lykilorð"
 root_password_placeholder = "Sláðu inn root lykilorð"
+
+add_new_user = "Bæta við nýjum notanda (valfrjálst)"
+new_username = "Nýtt notendanafn"
+new_username_placeholder = "Sláðu inn nýtt notendanafn"
+new_user_password = "Lykilorð nýs notanda"
+new_user_password_placeholder = "Sláðu inn lykilorð nýs notanda"
+set_default_user = "Setja sem sjálfgefinn innskráningarnotanda"
+username_required = "Notendanafn er nauðsynlegt þegar nýjum notanda er bætt við"
+username_pure_numeric_warning = "Viðvörun: Notendanafnið er eingöngu tölustafir, sem getur valdið innskráningarvandamálum"
+
 
 [add.sources]
 rootfs = "Staðbundin RootFS skrá"

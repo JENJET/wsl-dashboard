@@ -273,14 +273,25 @@ step_1_3 = "[1/3] 正在準備目標目錄..."
 step_2_3 = "[2/3] 正在導入分發版: {0}"
 step_3_3 = "[3/3] 分發版 “{0}” 導入成功。"
 
-[about]
-title = "軟體簡介"
-description = "WSL Dashboard 是一款針對 Windows Subsystem for Linux (WSL) 的開源視覺管理工具。它為用戶提供了直覺的圖形介面，用於高效管理 Linux 分發版，支援一鍵啟動、停止、重啟、克隆和匯出備份等核心功能。它還內建了分發版商店，使 WSL 的管理和使用更加簡單方便。"
-version = "版本資訊"
+step_create_user = "正在建立新使用者 '{0}'..."
+step_create_user_done = "使用者 '{0}' 已成功建立。"
+step_create_user_failed = "建立使用者 '{0}' 失敗：{1}"
+step_set_user_password = "正在為使用者 '{0}' 設定密碼..."
+step_set_user_password_done = "使用者 '{0}' 的密碼已設定成功。"
+step_set_user_password_failed = "設定使用者 '{0}' 密碼失敗：{1}"
+step_set_default_user = "正在將 '{0}' 設為預設登入使用者..."
+step_set_default_user_done = "使用者 '{0}' 現在是預設登入使用者。"
+step_set_default_user_failed = "設定預設使用者失敗：{0}"
+
 step_set_root_password = "正在為發行版設定 root 密碼..."
 step_set_root_password_done = "Root 密碼設定成功。"
 step_set_root_password_failed = "設定 root 密碼失敗：{0}"
 step_set_root_password_skip = "未設定 root 密碼（未勾選核取方塊）。"
+
+[about]
+title = "軟體簡介"
+description = "WSL Dashboard 是一款針對 Windows Subsystem for Linux (WSL) 的開源視覺管理工具。它為用戶提供了直覺的圖形介面，用於高效管理 Linux 分發版，支援一鍵啟動、停止、重啟、克隆和匯出備份等核心功能。它還內建了分發版商店，使 WSL 的管理和使用更加簡單方便。"
+version = "版本資訊"
 
 updates = "(檢查更新)"
 check_update = "正在檢查更新..."
@@ -310,6 +321,16 @@ note = "注意：根據網路連線情況，安裝過程可能需要幾分鐘。
 set_root_password = "設定 root 密碼（可選）"
 root_password = "Root 密碼"
 root_password_placeholder = "請輸入 root 密碼"
+
+add_new_user = "新增使用者（可選）"
+new_username = "新使用者名稱"
+new_username_placeholder = "請輸入新使用者名稱"
+new_user_password = "新使用者密碼"
+new_user_password_placeholder = "請輸入新使用者密碼"
+set_default_user = "設為預設登入使用者"
+username_required = "新增使用者時需要輸入使用者名稱"
+username_pure_numeric_warning = "警告：使用者名稱為純數字時，可能會導致登入出現問題"
+
 
 [add.sources]
 rootfs = "本地 RootFS 檔案"

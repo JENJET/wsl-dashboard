@@ -31,7 +31,13 @@ export component AddInstanceView inherits VerticalLayout {
     in-out property <bool> show_rootfs_help: false;
     in-out property <bool> set_root_password: false;
     in-out property <string> root_password: "";
+    in-out property <bool> add_new_user: false;
+    in-out property <string> new_username: "";
+    in-out property <string> new_user_password: "";
+    in-out property <bool> set_default_user: false;
+    in-out property <bool> new_username_is_numeric: false;
     in-out property <length> page_vp_y: 0px;
+    in-out property <length> term_vp_y: 0px;
 
     // Callbacks
     callback source_selected(int);
@@ -41,6 +47,7 @@ export component AddInstanceView inherits VerticalLayout {
     callback install_distro(int, string, string, string, string);
     callback distro_selected(string);
     callback show_rootfs_help_clicked();
+    callback check_new_username(string);
 
     // Page-level scroll
     outer-flick := Flickable {
@@ -300,12 +307,71 @@ export component AddInstanceView inherits VerticalLayout {
                 }
             }
 
+            // New User (Optional)
+            VerticalLayout {
+                spacing: 0px;
+                CustomCheckBox {
+                    text: AppI18n.t("add.add_new_user", [AppI18n.version]);
+                    checked <=> root.add_new_user;
+                    enabled: !root.is_installing;
+                }
+                if (root.add_new_user): VerticalLayout {
+                    spacing: 4px;
+                    Rectangle { height: 4px; }
+                    Text {
+                        text: AppI18n.t("add.new_username", [AppI18n.version]);
+                        font-size: 13px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        color: Theme.text_secondary;
+                        height: 18px;
+                        horizontal-alignment: AppI18n.is-rtl ? right : left;
+                    }
+                    CustomLineEdit {
+                        placeholder-text: AppI18n.t("add.new_username_placeholder", [AppI18n.version]);
+                        text <=> root.new_username;
+                        height: 32px;
+                        enabled: !root.is_installing;
+                        edited(val) => { root.check_new_username(val); }
+                    }
+
+                    Rectangle { height: 4px; }
+                    Text {
+                        text: AppI18n.t("add.new_user_password", [AppI18n.version]);
+                        font-size: 13px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        color: Theme.text_secondary;
+                        height: 18px;
+                        horizontal-alignment: AppI18n.is-rtl ? right : left;
+                    }
+                    CustomLineEdit {
+                        placeholder-text: AppI18n.t("add.new_user_password_placeholder", [AppI18n.version]);
+                        text <=> root.new_user_password;
+                        height: 32px;
+                        enabled: !root.is_installing;
+                        input-type: password;
+                    }
+                    if (root.new_username_is_numeric): Text {
+                        text: AppI18n.t("add.username_pure_numeric_warning", [AppI18n.version]);
+                        font-size: 11px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        color: #ff9800;
+                        wrap: word-wrap;
+                        horizontal-alignment: AppI18n.is-rtl ? right : left;
+                    }
+                    if (!root.new_username_is_numeric): CustomCheckBox {
+                        text: AppI18n.t("add.set_default_user", [AppI18n.version]);
+                        checked <=> root.set_default_user;
+                        enabled: !root.is_installing;
+                    }
+                }
+            }
+
             Rectangle { height: 8px; }
 
             // Create button
             CustomButton {
                 text: root.is_installing ? AppI18n.t("add.installing", [AppI18n.version]) : AppI18n.t("add.create", [AppI18n.version]);
-                enabled: !root.is_installing && root.new_instance_name != "" && path_error == "" && (root.selected_source_idx == 2 ? root.selected_install_distro != "" : root.install_file_path != "");
+                enabled: !root.is_installing && root.new_instance_name != "" && path_error == "" && (root.selected_source_idx == 2 ? root.selected_install_distro != "" : root.install_file_path != "") && (!root.set_root_password || root.root_password != "") && (!root.add_new_user || root.new_username != "");
                 primary: true;
                 height: 36px;
                 clicked => {
@@ -336,8 +402,10 @@ export component AddInstanceView inherits VerticalLayout {
                     border-width: 1px;
                     border-color: Theme.border_color;
                     term-flick := Flickable {
+                        Rectangle { height: 4px; }
+                        viewport-y <=> root.term_vp_y;
                         VerticalLayout {
-                            padding: 8px;
+                            padding: 4px;
                             alignment: start;
                             Text {
                                 text: terminal_output;
@@ -350,7 +418,7 @@ export component AddInstanceView inherits VerticalLayout {
                         }
                     }
                 }
-                Rectangle { height: 5px; }
+                Rectangle { height: 4px; }
             }
 
             // Loading bar

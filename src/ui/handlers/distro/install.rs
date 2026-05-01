@@ -239,9 +239,28 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 let ah_logic = app.as_weak();
                 let set_pw = app.get_set_root_password();
                 let root_pw = app.get_root_password().to_string();
+                let add_user = app.get_add_new_user();
+                let new_user = app.get_new_username().to_string();
+                let new_pw = app.get_new_user_password().to_string();
+                let set_default = app.get_set_default_user();
                 let _ = tokio::spawn(async move {
-                    super::install_logic::perform_install(ah_logic, as_ptr, source_idx, name, friendly_name, internal_id, install_path, file_path, set_pw, root_pw).await;
+                    super::install_logic::perform_install(ah_logic, as_ptr, source_idx, name, friendly_name, internal_id, install_path, file_path, set_pw, root_pw, add_user, new_user, new_pw, set_default).await;
                 });
+            }
+        });
+    });
+
+    // Check if new username is purely numeric, hide default user if so
+    let ah_pw2 = app_handle.clone();
+    app.on_check_new_username(move |val: slint::SharedString| {
+        let is_numeric = !val.is_empty() && val.chars().all(|c| c.is_ascii_digit());
+        let ah = ah_pw2.clone();
+        let _ = slint::invoke_from_event_loop(move || {
+            if let Some(app) = ah.upgrade() {
+                app.set_new_username_is_numeric(is_numeric);
+                if is_numeric {
+                    app.set_set_default_user(false);
+                }
             }
         });
     });

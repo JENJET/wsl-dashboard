@@ -273,14 +273,25 @@ step_1_3 = "[1/3] Hedef dizin hazırlanıyor..."
 step_2_3 = "[2/3] Dağıtım içe aktarılıyor: {0}"
 step_3_3 = "[3/3] Dağıtım '{0}' başarıyla içe aktarıldı."
 
-[about]
-title = "Yazılım Tanıtımı"
-description = "WSL Paneli, Linux için Windows Alt Sistemi (WSL) için açık kaynaklı bir görsel yönetim aracıdır. Kullanıcılara Linux dağıtımlarını verimli bir şekilde yönetmeleri için sezgisel bir grafik arayüz sunar; tek tıkla başlatma, durdurma, yeniden başlatma, klonlama ve yedek dışa aktarma gibi temel işlevleri destekler. Ayrıca, WSL yönetimini ve kullanımını daha basit ve kullanışlı hale getiren yerleşik bir dağıtım mağazası içerir."
-version = "Sürüm"
+step_create_user = "Yeni kullanıcı '{0}' oluşturuluyor..."
+step_create_user_done = "Kullanıcı '{0}' başarıyla oluşturuldu."
+step_create_user_failed = "Kullanıcı '{0}' oluşturulamadı: {1}"
+step_set_user_password = "Kullanıcı '{0}' için parola belirleniyor..."
+step_set_user_password_done = "Kullanıcı '{0}' için parola başarıyla belirlendi."
+step_set_user_password_failed = "Kullanıcı '{0}' için parola belirlenemedi: {1}"
+step_set_default_user = "'{0}' varsayılan oturum açma kullanıcısı olarak ayarlanıyor..."
+step_set_default_user_done = "Kullanıcı '{0}' artık varsayılan oturum açma kullanıcısı."
+step_set_default_user_failed = "Varsayılan kullanıcı ayarlanamadı: {0}"
+
 step_set_root_password = "Dağıtım için root parolası belirleniyor..."
 step_set_root_password_done = "Root parolası başarıyla belirlendi."
 step_set_root_password_failed = "Root parolası belirlenemedi: {0}"
 step_set_root_password_skip = "Root parolası belirlenmedi (onay kutusu işaretli değil)."
+
+[about]
+title = "Yazılım Tanıtımı"
+description = "WSL Paneli, Linux için Windows Alt Sistemi (WSL) için açık kaynaklı bir görsel yönetim aracıdır. Kullanıcılara Linux dağıtımlarını verimli bir şekilde yönetmeleri için sezgisel bir grafik arayüz sunar; tek tıkla başlatma, durdurma, yeniden başlatma, klonlama ve yedek dışa aktarma gibi temel işlevleri destekler. Ayrıca, WSL yönetimini ve kullanımını daha basit ve kullanışlı hale getiren yerleşik bir dağıtım mağazası içerir."
+version = "Sürüm"
 
 updates = "(Güncellemeleri kontrol edin)"
 check_update = "Güncellemeler kontrol ediliyor..."
@@ -310,6 +321,16 @@ note = "Not: Kurulum işlemi internet bağlantınıza bağlı olarak birkaç dak
 set_root_password = "Root parolası belirle (isteğe bağlı)"
 root_password = "Root Parolası"
 root_password_placeholder = "Root parolasını girin"
+
+add_new_user = "Yeni kullanıcı ekle (isteğe bağlı)"
+new_username = "Yeni Kullanıcı Adı"
+new_username_placeholder = "Yeni kullanıcı adını girin"
+new_user_password = "Yeni Kullanıcı Parolası"
+new_user_password_placeholder = "Yeni kullanıcı parolasını girin"
+set_default_user = "Varsayılan oturum açma kullanıcısı olarak ayarla"
+username_required = "Yeni kullanıcı eklerken kullanıcı adı gereklidir"
+username_pure_numeric_warning = "Uyarı: Kullanıcı adı tamamen sayısaldır, bu da oturum açma sorunlarına neden olabilir"
+
 
 [add.sources]
 rootfs = "Yerel RootFS Dosyası"

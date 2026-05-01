@@ -96,7 +96,13 @@ export component AppWindow inherits Window {
     in-out property <bool> show_rootfs_help: false;
     in-out property <bool> set_root_password: false;
     in-out property <string> root_password: "";
+    in-out property <bool> add_new_user: false;
+    in-out property <string> new_username: "";
+    in-out property <string> new_user_password: "";
+    in-out property <bool> set_default_user: false;
+    in-out property <bool> new_username_is_numeric: false;
     in-out property <length> add_page_vp_y: 0px;
+    in-out property <length> add_term_vp_y: 0px;
     in-out property <bool> show_vscode_startup: false;
     in-out property <string> ui_language: "auto";
     in property <string> system_language: "en"; // Injected by backend at startup
@@ -251,6 +257,7 @@ export component AppWindow inherits Window {
     callback clone_name_changed(string);
     callback distro_selected(string);
     callback show_rootfs_help_clicked();
+    callback check_new_username(string);
     callback close_vscode_startup();
     callback close_task_status();
     callback configs_clicked(string);
@@ -467,7 +474,13 @@ export component AppWindow inherits Window {
                                 show_rootfs_help <=> root.show_rootfs_help;
                                 set_root_password <=> root.set_root_password;
                                 root_password <=> root.root_password;
+                                add_new_user <=> root.add_new_user;
+                                new_username <=> root.new_username;
+                                new_user_password <=> root.new_user_password;
+                                set_default_user <=> root.set_default_user;
+                                new_username_is_numeric <=> root.new_username_is_numeric;
                                 page_vp_y <=> root.add_page_vp_y;
+                                term_vp_y <=> root.add_term_vp_y;
                                 source_selected(i) => {
                                     root.source_selected(i);
                                 }
@@ -488,6 +501,9 @@ export component AppWindow inherits Window {
                                 }
                                 show_rootfs_help_clicked => {
                                     root.show_rootfs_help_clicked();
+                                }
+                                check_new_username(pw) => {
+                                    root.check_new_username(pw);
                                 }
                             }
 

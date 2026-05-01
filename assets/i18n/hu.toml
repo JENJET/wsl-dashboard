@@ -273,14 +273,25 @@ step_1_3 = "[1/3] Célkönyvtár előkészítése..."
 step_2_3 = "[2/3] Disztribúció importálása: {0}"
 step_3_3 = "[3/3] '{0}' disztribúció sikeresen importálva."
 
-[about]
-title = "Szoftver bemutatása"
-description = "A WSL Dashboard egy nyílt forráskódú vizuális menedzsment eszköz a Windows Subsystem for Linux (WSL). Intuitív grafikus felületet biztosít a felhasználók számára a Linux disztribúciók hatékony kezeléséhez, támogatva az olyan alapvető funkciókat, mint az egykattintásos indítás, leállítás, újraindítás, klónozás és biztonsági mentések exportálása. Beépített disztribúció áruházat is tartalmaz, így a WSL kezelése és használata egyszerűbbé és kényelmesebbé válik."
-version = "Verzió"
+step_create_user = "Új felhasználó '{0}' létrehozása..."
+step_create_user_done = "A(z) '{0}' felhasználó sikeresen létrehozva."
+step_create_user_failed = "Nem sikerült létrehozni a(z) '{0}' felhasználót: {1}"
+step_set_user_password = "Jelszó beállítása a(z) '{0}' felhasználóhoz..."
+step_set_user_password_done = "A(z) '{0}' felhasználó jelszava sikeresen beállítva."
+step_set_user_password_failed = "Nem sikerült beállítani a jelszót a(z) '{0}' felhasználóhoz: {1}"
+step_set_default_user = "'{0}' beállítása alapértelmezett bejelentkezési felhasználóként..."
+step_set_default_user_done = "A(z) '{0}' felhasználó most az alapértelmezett bejelentkezési felhasználó."
+step_set_default_user_failed = "Nem sikerült beállítani az alapértelmezett felhasználót: {0}"
+
 step_set_root_password = "Root jelszó beállítása a disztribúcióhoz..."
 step_set_root_password_done = "A root jelszó sikeresen beállítva."
 step_set_root_password_failed = "Nem sikerült beállítani a root jelszót: {0}"
 step_set_root_password_skip = "A root jelszó nem lett beállítva (a jelölőnégyzet nincs bejelölve)."
+
+[about]
+title = "Szoftver bemutatása"
+description = "A WSL Dashboard egy nyílt forráskódú vizuális menedzsment eszköz a Windows Subsystem for Linux (WSL). Intuitív grafikus felületet biztosít a felhasználók számára a Linux disztribúciók hatékony kezeléséhez, támogatva az olyan alapvető funkciókat, mint az egykattintásos indítás, leállítás, újraindítás, klónozás és biztonsági mentések exportálása. Beépített disztribúció áruházat is tartalmaz, így a WSL kezelése és használata egyszerűbbé és kényelmesebbé válik."
+version = "Verzió"
 
 updates = "(Ellenőrizze a frissítéseket)"
 check_update = "Frissítések keresése..."
@@ -310,6 +321,16 @@ note = "Megjegyzés: A telepítési folyamat néhány percet vehet igénybe az i
 set_root_password = "Root jelszó beállítása (opcionális)"
 root_password = "Root jelszó"
 root_password_placeholder = "Adja meg a root jelszót"
+
+add_new_user = "Új felhasználó hozzáadása (opcionális)"
+new_username = "Új felhasználónév"
+new_username_placeholder = "Adja meg az új felhasználónevet"
+new_user_password = "Új felhasználó jelszava"
+new_user_password_placeholder = "Adja meg az új felhasználó jelszavát"
+set_default_user = "Beállítás alapértelmezett bejelentkezési felhasználóként"
+username_required = "Felhasználónév szükséges új felhasználó hozzáadásakor"
+username_pure_numeric_warning = "Figyelmeztetés: A felhasználónév tisztán numerikus, ami bejelentkezési problémákat okozhat"
+
 
 [add.sources]
 rootfs = "Helyi RootFS fájl"

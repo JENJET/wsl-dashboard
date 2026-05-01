@@ -273,14 +273,25 @@ step_1_3 = "[1/3] Valmistellaan kohdehakemistoa..."
 step_2_3 = "[2/3] Tuodaan jakelu: {0}"
 step_3_3 = "[3/3] Jakelu '{0}' tuotu onnistuneesti."
 
-[about]
-title = "Ohjelmiston esittely"
-description = "WSL Dashboard on avoimen lähdekoodin visuaalinen hallintatyökalu Windows Subsystem for Linuxille (WSL). Se tarjoaa käyttäjille intuitiivisen graafisen käyttöliittymän Linux-jakeluiden tehokkaaseen hallintaan, tukien ydintoimintoja kuten yhden napsautuksen käynnistystä, pysäytystä, uudelleenkäynnistystä, kloonausta ja varmuuskopioiden vientiä. Se sisältää myös sisäänrakennetun jakelukaupan, mikä tekee WSL:n hallinnasta ja käytöstä yksinkertaisempaa ja kätevämpää."
-version = "Versio"
+step_create_user = "Luodaan uutta käyttäjää '{0}'..."
+step_create_user_done = "Käyttäjä '{0}' luotu onnistuneesti."
+step_create_user_failed = "Käyttäjän '{0}' luominen epäonnistui: {1}"
+step_set_user_password = "Asetetaan salasanaa käyttäjälle '{0}'..."
+step_set_user_password_done = "Salasana käyttäjälle '{0}' on asetettu onnistuneesti."
+step_set_user_password_failed = "Salasanan asettaminen käyttäjälle '{0}' epäonnistui: {1}"
+step_set_default_user = "Asetetaan '{0}' oletuskirjautumiskäyttäjäksi..."
+step_set_default_user_done = "Käyttäjä '{0}' on nyt oletuskirjautumiskäyttäjä."
+step_set_default_user_failed = "Oletuskäyttäjän asettaminen epäonnistui: {0}"
+
 step_set_root_password = "Asetetaan root-salasanaa jakelulle..."
 step_set_root_password_done = "Root-salasana on asetettu onnistuneesti."
 step_set_root_password_failed = "Root-salasanan asettaminen epäonnistui: {0}"
 step_set_root_password_skip = "Root-salasanaa ei asetettu (valintaruutua ei ole valittu)."
+
+[about]
+title = "Ohjelmiston esittely"
+description = "WSL Dashboard on avoimen lähdekoodin visuaalinen hallintatyökalu Windows Subsystem for Linuxille (WSL). Se tarjoaa käyttäjille intuitiivisen graafisen käyttöliittymän Linux-jakeluiden tehokkaaseen hallintaan, tukien ydintoimintoja kuten yhden napsautuksen käynnistystä, pysäytystä, uudelleenkäynnistystä, kloonausta ja varmuuskopioiden vientiä. Se sisältää myös sisäänrakennetun jakelukaupan, mikä tekee WSL:n hallinnasta ja käytöstä yksinkertaisempaa ja kätevämpää."
+version = "Versio"
 
 updates = "(Tarkista päivitykset)"
 check_update = "Tarkistetaan päivityksiä..."
@@ -310,6 +321,16 @@ note = "Huomautus: Asennusprosessi voi kestää useita minuutteja riippuen inter
 set_root_password = "Aseta root-salasana (valinnainen)"
 root_password = "Root-salasana"
 root_password_placeholder = "Anna root-salasana"
+
+add_new_user = "Lisää uusi käyttäjä (valinnainen)"
+new_username = "Uusi käyttäjänimi"
+new_username_placeholder = "Anna uusi käyttäjänimi"
+new_user_password = "Uuden käyttäjän salasana"
+new_user_password_placeholder = "Anna uuden käyttäjän salasana"
+set_default_user = "Aseta oletuskirjautumiskäyttäjäksi"
+username_required = "Käyttäjänimi vaaditaan lisättäessä uutta käyttäjää"
+username_pure_numeric_warning = "Varoitus: Käyttäjänimi on täysin numeerinen, mikä voi aiheuttaa kirjautumisongelmia"
+
 
 [add.sources]
 rootfs = "Paikallinen RootFS-tiedosto"

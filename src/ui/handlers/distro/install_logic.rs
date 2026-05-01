@@ -17,14 +17,18 @@ pub async fn perform_install(
     file_path: String,
     set_root_password: bool,
     root_password: String,
+    add_new_user: bool,
+    new_username: String,
+    new_user_password: String,
+    set_default_user: bool,
 ) {
-    // Helper to trigger one-shot scroll-to-bottom from the backend
+    // Helper to trigger scroll-to-bottom for both page and terminal
     fn trigger_scroll(ah: &slint::Weak<AppWindow>) {
         let ah = ah.clone();
         let _ = slint::invoke_from_event_loop(move || {
             if let Some(app) = ah.upgrade() {
-                // Set to a large negative value; Flickable clamps to the actual bottom
                 app.set_add_page_vp_y(-99999.0);
+                app.set_add_term_vp_y(-99999.0);
             }
         });
     }
@@ -138,13 +142,9 @@ pub async fn perform_install(
 
     if name_exists {
         let new_suggested_name = sanitize_instance_name(&generate_random_suffix(&final_name));
+        let distro_location = config_manager.get_settings().distro_location.clone();
         let ah_err = ah.clone();
-        let mut distro_location = String::new();
-        if let Some(app) = ah_err.upgrade() {
-             let app_typed: AppWindow = app;
-            distro_location = app_typed.get_distro_location().to_string();
-        }
-        
+
         let new_path = std::path::Path::new(&distro_location)
             .join(&new_suggested_name)
             .to_string_lossy()
@@ -654,7 +654,7 @@ pub async fn perform_install(
                 let app_typed: AppWindow = app;
                 app_typed.set_install_status(step_text.clone().into());
                 let mut tb = app_typed.get_terminal_output().to_string();
-                tb.push_str(&format!("\n[ ] {}\n", step_text));
+                tb.push_str(&format!("\n--> {}\n", step_text));
                 app_typed.set_terminal_output(tb.into());
             }
         });
@@ -705,7 +705,7 @@ pub async fn perform_install(
                     let app_typed: AppWindow = app;
                     app_typed.set_install_status(done_text.clone().into());
                     let mut tb = app_typed.get_terminal_output().to_string();
-                    tb.push_str(&format!("[OK] {}\n", done_text));
+                    tb.push_str(&format!("      {}\n", done_text));
                     app_typed.set_terminal_output(tb.into());
                 }
             });
@@ -732,12 +732,218 @@ pub async fn perform_install(
                     let mut tb = app_typed.get_terminal_output().to_string();
                     tb.push_str(&format!("[FAIL] {}\n", fail_text));
                     if !pw_output.trim().is_empty() {
-                        tb.push_str(&format!("    {}\n", pw_output.trim()));
+                        tb.push_str(&format!("      {}\n", pw_output.trim()));
                     }
                     app_typed.set_terminal_output(tb.into());
                 }
             });
             trigger_scroll(&ah);
+        }
+    }
+
+    // Create new user if requested (after root password)
+    if success && add_new_user && !new_username.is_empty() {
+        info!("Creating new user '{}' for distro '{}'", new_username, final_name);
+
+        // Step: Create user
+        let create_step = i18n::tr("install.step_create_user", &[new_username.clone()]);
+        let ah_ui = ah.clone();
+        let _ = slint::invoke_from_event_loop(move || {
+            if let Some(app) = ah_ui.upgrade() {
+                let app_typed: AppWindow = app;
+                app_typed.set_install_status(create_step.clone().into());
+                let mut tb = app_typed.get_terminal_output().to_string();
+                tb.push_str(&format!("\n--> {}\n", create_step));
+                app_typed.set_terminal_output(tb.into());
+            }
+        });
+        trigger_scroll(&ah);
+
+        // Always use --badname to allow non-standard usernames, with fallbacks
+        let create_cmd = format!(
+            "(useradd -m --badname {0} 2>&1) || (adduser -D {0} 2>&1) || (adduser {0} 2>&1)",
+            new_username
+        );
+        let create_args = ["-d", &final_name, "-u", "root", "sh", "-c", &create_cmd];
+        let create_result = executor.execute_command(&create_args).await;
+        info!("useradd result: success={}, output={:?}, error={:?}",
+            create_result.success, create_result.output, create_result.error);
+
+        // If creation failed, check if user already exists
+        let user_exists = if !create_result.success {
+            let check_cmd = format!("id {} 2>&1", new_username);
+            let check_args = ["-d", &final_name, "-u", "root", "sh", "-c", &check_cmd];
+            executor.execute_command(&check_args).await.success
+        } else {
+            false
+        };
+
+        let user_ok = create_result.success || user_exists;
+
+        if user_exists {
+            info!("User '{}' already exists, treating as success", new_username);
+            let done_text = i18n::tr("install.step_create_user_done", &[new_username.clone()]);
+            let ah_ui = ah.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(app) = ah_ui.upgrade() {
+                    let app_typed: AppWindow = app;
+                    let mut tb = app_typed.get_terminal_output().to_string();
+                    tb.push_str(&format!("      {} (already exists)\n", done_text));
+                    app_typed.set_terminal_output(tb.into());
+                }
+            });
+            trigger_scroll(&ah);
+        } else if !create_result.success {
+            let err = if !create_result.error.as_ref().map_or(true, |e| e.trim().is_empty()) {
+                create_result.error.unwrap()
+            } else if !create_result.output.trim().is_empty() {
+                create_result.output.trim().to_string()
+            } else {
+                "useradd/adduser command not found or failed".to_string()
+            };
+            error!("Failed to create user '{}': {}", new_username, err);
+            let fail_text = i18n::tr("install.step_create_user_failed", &[new_username.clone(), err.clone()]);
+            error_msg = fail_text.clone();
+            success = false;
+            let ah_ui = ah.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(app) = ah_ui.upgrade() {
+                    let app_typed: AppWindow = app;
+                    app_typed.set_install_status(fail_text.clone().into());
+                    let mut tb = app_typed.get_terminal_output().to_string();
+                    tb.push_str(&format!("[FAIL] {}\n    {}\n", fail_text, err));
+                    app_typed.set_terminal_output(tb.into());
+                }
+            });
+            trigger_scroll(&ah);
+        } else {
+            let done_text = i18n::tr("install.step_create_user_done", &[new_username.clone()]);
+            let ah_ui = ah.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(app) = ah_ui.upgrade() {
+                    let app_typed: AppWindow = app;
+                    let mut tb = app_typed.get_terminal_output().to_string();
+                    tb.push_str(&format!("      {}\n", done_text));
+                    app_typed.set_terminal_output(tb.into());
+                }
+            });
+            trigger_scroll(&ah);
+        }
+
+        // Set password and default user (if user creation succeeded or already existed)
+        if user_ok {
+            // Set password for new user (if provided)
+            if !new_user_password.is_empty() {
+                let pw_step = i18n::tr("install.step_set_user_password", &[new_username.clone()]);
+                let ah_ui = ah.clone();
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(app) = ah_ui.upgrade() {
+                        let app_typed: AppWindow = app;
+                        app_typed.set_install_status(pw_step.clone().into());
+                        let mut tb = app_typed.get_terminal_output().to_string();
+                        tb.push_str(&format!("--> {}\n", pw_step));
+                        app_typed.set_terminal_output(tb.into());
+                    }
+                });
+                trigger_scroll(&ah);
+
+                let pw_safe = new_user_password.replace('\\', "\\\\").replace('$', "\\$").replace('`', "\\`");
+                let pw_cmd = format!("/usr/sbin/chpasswd 2>/dev/null <<'PWEOF'\n{}:{}\nPWEOF\n", new_username, pw_safe);
+                let pw_args = ["-d", &final_name, "-u", "root", "sh", "-c", &pw_cmd];
+                let pw_result = executor.execute_command(&pw_args).await;
+
+                if !pw_result.success {
+                    // Retry with /sbin/chpasswd
+                    let pw_cmd2 = format!("/sbin/chpasswd <<'PWEOF'\n{}:{}\nPWEOF\n", new_username, pw_safe);
+                    let pw_args2 = ["-d", &final_name, "-u", "root", "sh", "-c", &pw_cmd2];
+                    let retry = executor.execute_command(&pw_args2).await;
+                    if !retry.success {
+                        let err = retry.error.unwrap_or_else(|| retry.output.trim().to_string());
+                        let err = if err.is_empty() { "chpasswd failed".to_string() } else { err };
+                        let fail_text = i18n::tr("install.step_set_user_password_failed", &[new_username.clone(), err.clone()]);
+                        error_msg = fail_text.clone();
+                        success = false;
+                        let ah_ui = ah.clone();
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(app) = ah_ui.upgrade() {
+                                let app_typed: AppWindow = app;
+                                app_typed.set_install_status(fail_text.clone().into());
+                                let mut tb = app_typed.get_terminal_output().to_string();
+                                tb.push_str(&format!("[FAIL] {}\n    {}\n", fail_text, err));
+                                app_typed.set_terminal_output(tb.into());
+                            }
+                        });
+                        trigger_scroll(&ah);
+                    }
+                }
+
+                if success {
+                    let pw_done = i18n::tr("install.step_set_user_password_done", &[new_username.clone()]);
+                    let ah_ui = ah.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah_ui.upgrade() {
+                            let app_typed: AppWindow = app;
+                            let mut tb = app_typed.get_terminal_output().to_string();
+                            tb.push_str(&format!("      {}\n", pw_done));
+                            app_typed.set_terminal_output(tb.into());
+                        }
+                    });
+                    trigger_scroll(&ah);
+                }
+            }
+
+            // Set as default login user
+            if success && set_default_user {
+                let def_step = i18n::tr("install.step_set_default_user", &[new_username.clone()]);
+                let ah_ui = ah.clone();
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(app) = ah_ui.upgrade() {
+                        let app_typed: AppWindow = app;
+                        app_typed.set_install_status(def_step.clone().into());
+                        let mut tb = app_typed.get_terminal_output().to_string();
+                        tb.push_str(&format!("--> {}\n", def_step));
+                        app_typed.set_terminal_output(tb.into());
+                    }
+                });
+                trigger_scroll(&ah);
+
+                let uname = &new_username;
+                let wsl_conf_cmd = format!(
+                    "(grep -q '^default=' /etc/wsl.conf 2>/dev/null && sed -i 's/^default=.*/default={u}/' /etc/wsl.conf 2>/dev/null) || (grep -q '^\\[user\\]' /etc/wsl.conf 2>/dev/null && sed -i '/^\\[user\\]/a default={u}' /etc/wsl.conf 2>/dev/null) || printf '\\n[user]\\ndefault={u}\\n' >> /etc/wsl.conf",
+                    u = uname
+                );
+                let def_args = ["-d", &final_name, "-u", "root", "sh", "-c", &wsl_conf_cmd];
+                let def_result = executor.execute_command(&def_args).await;
+
+                if !def_result.success {
+                    let err = def_result.error.unwrap_or_else(|| def_result.output.trim().to_string());
+                    let err = if err.is_empty() { "Failed to write /etc/wsl.conf".to_string() } else { err };
+                    let fail_text = i18n::tr("install.step_set_default_user_failed", &[err.clone()]);
+                    // Don't fail the whole install for this — just warn
+                    let ah_ui = ah.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah_ui.upgrade() {
+                            let app_typed: AppWindow = app;
+                            let mut tb = app_typed.get_terminal_output().to_string();
+                            tb.push_str(&format!("[WARN] {}\n    {}\n", fail_text, err));
+                            app_typed.set_terminal_output(tb.into());
+                        }
+                    });
+                    trigger_scroll(&ah);
+                } else {
+                    let def_done = i18n::tr("install.step_set_default_user_done", &[new_username.clone()]);
+                    let ah_ui = ah.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah_ui.upgrade() {
+                            let app_typed: AppWindow = app;
+                            let mut tb = app_typed.get_terminal_output().to_string();
+                            tb.push_str(&format!("      {}\n", def_done));
+                            app_typed.set_terminal_output(tb.into());
+                        }
+                    });
+                    trigger_scroll(&ah);
+                }
+            }
         }
     }
 
@@ -758,6 +964,10 @@ pub async fn perform_install(
         }
     });
     trigger_scroll(&ah);
+
+    // Force-terminate the distro after install to ensure clean state
+    let _ = executor.execute_command(&["--terminate", &final_name]).await;
+    info!("Terminated distro '{}' after install", final_name);
 
     if success {
         refresh_distros_ui(ah.clone(), as_ptr.clone()).await;
