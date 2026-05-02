@@ -13,6 +13,7 @@ component DistroList inherits VerticalLayout {
     callback restart_distro(string);
     callback terminal_distro(string);
     callback folder_distro(string);
+    callback open_install_folder(string);
     callback vscode_distro(string);
     callback open_export_dialog(string);
     callback open_clone_dialog(string);
@@ -54,6 +55,9 @@ component DistroList inherits VerticalLayout {
         folder_clicked => {
             root.folder_distro(d.name);
         }
+        open_install_folder_clicked => {
+            root.open_install_folder(d.name);
+        }
         vscode_clicked => {
             root.vscode_distro(d.name);
         }
@@ -92,6 +96,7 @@ export component MainView inherits VerticalLayout {
     callback restart_distro(string);
     callback terminal_distro(string);
     callback folder_distro(string);
+    callback open_install_folder(string);
     callback vscode_distro(string);
     callback open_export_dialog(string);
     callback open_clone_dialog(string);
@@ -131,6 +136,9 @@ export component MainView inherits VerticalLayout {
                 }
                 folder_distro(n) => {
                     root.folder_distro(n);
+                }
+                open_install_folder(n) => {
+                    root.open_install_folder(n);
                 }
                 vscode_distro(n) => {
                     root.vscode_distro(n);

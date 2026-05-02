@@ -356,6 +356,8 @@ configs = "設定"
 running = "実行中"
 stopped = "停止"
 
+open_install_folder = "保存場所"
+
 [tray]
 show_window = "ウィンドウを表示"
 exit = "終了"

@@ -356,6 +356,8 @@ configs = "Konfiguráció"
 running = "Fut"
 stopped = "Leállítva"
 
+open_install_folder = "Tárolási hely"
+
 [tray]
 show_window = "Ablak megjelenítése"
 exit = "Kilépés"

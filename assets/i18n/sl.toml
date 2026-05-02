@@ -356,6 +356,8 @@ configs = "Konfiguracija"
 running = "Se izvaja"
 stopped = "Ustavljeno"
 
+open_install_folder = "Mesto shranjevanja"
+
 [tray]
 show_window = "Pokaži okno"
 exit = "Izhod"

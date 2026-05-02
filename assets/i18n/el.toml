@@ -356,6 +356,8 @@ configs = "Διαμόρφωση"
 running = "Σε εκτέλεση"
 stopped = "Σταματημένο"
 
+open_install_folder = "Τοποθεσία αποθήκευσης"
+
 [tray]
 show_window = "Εμφάνιση"
 exit = "Έξοδος"

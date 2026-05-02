@@ -356,6 +356,8 @@ configs = "کنفیگریشن"
 running = "چل رہا ہے"
 stopped = "رکا ہوا"
 
+open_install_folder = "اسٹوریج کی جگہ"
+
 [tray]
 show_window = "ونڈو دکھائیں"
 exit = "باہر نکلیں"

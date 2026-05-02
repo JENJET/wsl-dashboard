@@ -177,6 +177,7 @@ component ExpandedActionIcons inherits VerticalLayout {
     callback export_distro();
     callback clone();
     callback move_distro();
+    callback open_install_folder();
     callback delete_distro();
     callback settings();
     callback configs();
@@ -217,6 +218,15 @@ component ExpandedActionIcons inherits VerticalLayout {
             tooltip: AppI18n.t("distro.move", [AppI18n.version]);
             clicked => {
                 root.move_distro();
+            }
+        }
+
+        ActionIcon {
+            icon: "\u{E8B7}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.open_install_folder", [AppI18n.version]);
+            clicked => {
+                root.open_install_folder();
             }
         }
 
@@ -268,6 +278,7 @@ export component DistroCard inherits Rectangle {
     callback terminal_clicked();
     callback vscode_clicked();
     callback folder_clicked();
+    callback open_install_folder_clicked();
     callback export_clicked();
     callback settings_clicked();
     callback delete_clicked;
@@ -416,6 +427,9 @@ export component DistroCard inherits Rectangle {
                         move_distro => {
                             root.move_clicked();
                         }
+                        open_install_folder => {
+                            root.open_install_folder_clicked();
+                        }
                         delete_distro => {
                             root.delete_clicked();
                         }
@@ -446,6 +460,9 @@ export component DistroCard inherits Rectangle {
                         }
                         move_distro => {
                             root.move_clicked();
+                        }
+                        open_install_folder => {
+                            root.open_install_folder_clicked();
                         }
                         delete_distro => {
                             root.delete_clicked();

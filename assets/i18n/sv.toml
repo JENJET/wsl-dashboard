@@ -356,6 +356,8 @@ configs = "Konfiguration"
 running = "Körs"
 stopped = "Stoppad"
 
+open_install_folder = "Lagringsplats"
+
 [tray]
 show_window = "Visa fönster"
 exit = "Avsluta"

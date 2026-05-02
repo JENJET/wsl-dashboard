@@ -356,6 +356,8 @@ configs = "تكوينات"
 running = "قيد التشغيل"
 stopped = "متوقف"
 
+open_install_folder = "موقع التخزين"
+
 [tray]
 show_window = "إظهار النافذة"
 exit = "خروج"

@@ -356,6 +356,8 @@ configs = "Samskipan"
 running = "Keyrir"
 stopped = "Stöðvað"
 
+open_install_folder = "Geymslustaður"
+
 [tray]
 show_window = "Sýna glugga"
 exit = "Hætta"

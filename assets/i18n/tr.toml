@@ -356,6 +356,8 @@ configs = "Yapılandırma"
 running = "Çalışıyor"
 stopped = "Durduruldu"
 
+open_install_folder = "Depolama Konumu"
+
 [tray]
 show_window = "Pencereyi Göster"
 exit = "Çıkış"

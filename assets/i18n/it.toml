@@ -356,6 +356,8 @@ configs = "Configurazione"
 running = "In esecuzione"
 stopped = "Arrestato"
 
+open_install_folder = "Percorso di archiviazione"
+
 [tray]
 show_window = "Mostra finestra"
 exit = "Esci"

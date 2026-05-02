@@ -356,6 +356,8 @@ configs = "Configuratie"
 running = "Actief"
 stopped = "Gestopt"
 
+open_install_folder = "Opslaglocatie"
+
 [tray]
 show_window = "Venster tonen"
 exit = "Afsluiten"

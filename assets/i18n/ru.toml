@@ -356,6 +356,8 @@ configs = "Конфиг"
 running = "Запущено"
 stopped = "Остановлено"
 
+open_install_folder = "Место хранения"
+
 [tray]
 show_window = "Показать окно"
 exit = "Выход"

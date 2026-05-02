@@ -356,6 +356,8 @@ configs = "Konfigurace"
 running = "Běží"
 stopped = "Zastaveno"
 
+open_install_folder = "Umístění úložiště"
+
 [tray]
 show_window = "Zobrazit okno"
 exit = "Ukončit"

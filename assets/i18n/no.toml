@@ -356,6 +356,8 @@ configs = "Konfigurasjon"
 running = "Kjører"
 stopped = "Stoppet"
 
+open_install_folder = "Lagringsplassering"
+
 [tray]
 show_window = "Vis vindu"
 exit = "Avslutt"

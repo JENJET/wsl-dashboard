@@ -356,6 +356,8 @@ configs = "Kokoonpano"
 running = "Käynnissä"
 stopped = "Pysäytetty"
 
+open_install_folder = "Tallennussijainti"
+
 [tray]
 show_window = "Näytä ikkuna"
 exit = "Lopeta"

@@ -356,6 +356,8 @@ configs = "कॉन्फ़िगरेशन"
 running = "चल रहा है"
 stopped = "रुका हुआ"
 
+open_install_folder = "संग्रहण स्थान"
+
 [tray]
 show_window = "विंडो दिखाएं"
 exit = "निकास"

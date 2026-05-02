@@ -356,6 +356,8 @@ configs = "Konfigurasi"
 running = "Berjalan"
 stopped = "Berhenti"
 
+open_install_folder = "Lokasi Penyimpanan"
+
 [tray]
 show_window = "Tampilkan Jendela"
 exit = "Keluar"

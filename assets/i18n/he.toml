@@ -356,6 +356,8 @@ configs = "תצורה"
 running = "פעיל"
 stopped = "מופסק"
 
+open_install_folder = "מיקום אחסון"
+
 [tray]
 show_window = "הצג חלון"
 exit = "יציאה"

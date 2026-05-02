@@ -356,6 +356,8 @@ configs = "কনফিগারেশন"
 running = "চলছে"
 stopped = "বন্ধ আছে"
 
+open_install_folder = "স্টোরেজ অবস্থান"
+
 [tray]
 show_window = "উইন্ডো দেখান"
 exit = "বাহির"

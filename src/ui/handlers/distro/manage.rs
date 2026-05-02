@@ -135,6 +135,41 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
         });
     }
 
+    // Open install folder
+    {
+        let ah_outer = app_handle.clone();
+        let as_outer = app_state.clone();
+        app.on_open_install_folder(move |name| {
+            info!("Operation: Open install folder - {}", name);
+            let ah = ah_outer.clone();
+            let as_ptr = as_outer.clone();
+            let distro_name = name.to_string();
+            tokio::spawn(async move {
+                let manager = {
+                    let app_state = as_ptr.lock().await;
+                    app_state.wsl_dashboard.clone()
+                };
+                if let Some(op) = manager.get_active_op(&distro_name).await {
+                    let msg = i18n::tr("toast.distro_busy", &[distro_name.to_string(), op.to_string()]);
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah.upgrade() {
+                            app.set_current_message(msg.into());
+                            app.set_show_message_dialog(true);
+                        }
+                    });
+                    return;
+                }
+                let result = crate::wsl::ops::info::get_distro_install_location(
+                    &manager.executor(), &distro_name).await;
+                if let Some(location) = result.data {
+                    if !location.is_empty() {
+                        let _ = open::that(&location);
+                    }
+                }
+            });
+        });
+    }
+
     // VS Code
     {
         let ah_outer = app_handle.clone();

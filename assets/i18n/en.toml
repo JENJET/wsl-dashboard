@@ -369,6 +369,8 @@ configs = "Configs"
 running = "Running"
 stopped = "Stopped"
 
+open_install_folder = "Storage Location"
+
 [tray]
 show_window = "Show Window"
 exit = "Exit"
