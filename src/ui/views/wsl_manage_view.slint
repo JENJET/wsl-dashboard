@@ -1,0 +1,437 @@
+import {
+    Theme,
+    AppI18n,
+    WslManageStrings,
+    LayoutConstants,
+} from "../theme.slint";
+import { CustomButton } from "../components/form_widgets.slint";
+import { CustomScrollbar } from "../components/scrollbar.slint";
+
+// Status badge component
+component StatusBadge inherits Rectangle {
+    in property <string> text: "";
+    in property <color> bg-color: #10b981;
+    height: 24px;
+    border-radius: 12px;
+    background: root.bg-color.with-alpha(20%);
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        spacing: 6px;
+        height: 100%;
+        alignment: center;
+        // Dot indicator
+        Rectangle {
+            width: 6px;
+            height: 6px;
+            border-radius: 3px;
+            background: root.bg-color;
+            y: (24px - 6px) / 2;
+        }
+        Text {
+            text: root.text;
+            font-size: 12px * LayoutConstants.font-scale;
+            font-family: Theme.default_font;
+            color: root.bg-color;
+            vertical-alignment: center;
+            horizontal-alignment: center;
+        }
+    }
+}
+
+// Code block component for displaying command output
+component CodeBlock inherits Rectangle {
+    in property <[string]> lines: [];
+    background: Theme.dark_mode ? #1e1e2e : #f6f8fa;
+    border-radius: 6px;
+    border-width: 1px;
+    border-color: Theme.border_color;
+    clip: true;
+
+    VerticalLayout {
+        padding: 12px;
+        padding-left: AppI18n.is-rtl ? 12px : 16px;
+        padding-right: AppI18n.is-rtl ? 16px : 12px;
+        spacing: 2px;
+        for line in root.lines: Text {
+            text: line == "" ? " " : line;
+            font-size: 12.5px * LayoutConstants.font-scale;
+            font-family: "Cascadia Code, Consolas, Courier New, monospace";
+            color: Theme.dark_mode ? #cdd6f4 : #24292f;
+            vertical-alignment: top;
+            horizontal-alignment: AppI18n.is-rtl ? right : left;
+        }
+    }
+}
+
+export component WslManageView inherits VerticalLayout {
+    // Static labels (i18n)
+    in property <WslManageStrings> strings;
+
+    // Dynamic data from backend
+    in property <bool> wsl_installed: false;
+    in property <int> default_version: 2;
+    in property <bool> has_running_instances: false;
+    in property <bool> is_updating: false;
+    in property <[string]> version_lines: [];
+    in property <[string]> status_lines: [];
+
+    vertical-stretch: 1;
+
+    // Callbacks
+    callback install_wsl();
+    callback start_wsl();
+    callback update_wsl();
+    callback shutdown_all();
+    callback set_default_version(int);
+    callback uninstall_wsl();
+    callback open_wsl_settings();
+
+    spacing: 12px;
+    padding-left: AppI18n.is-rtl ? 16px : 4px;
+    padding-right: AppI18n.is-rtl ? 4px : 16px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+
+    Rectangle {
+        clip: true;
+        vertical-stretch: 1;
+
+        flick := Flickable {
+            viewport-height: content-layout.preferred-height;
+            width: parent.width;
+            height: 100%;
+
+            content-layout := VerticalLayout {
+                width: parent.width;
+                spacing: 12px;
+
+                // === Status Header Card ===
+                Rectangle {
+                    horizontal-stretch: 1;
+                    background: Theme.card_bg;
+                    border-radius: 8px;
+                    border-width: 1px;
+                    border-color: Theme.border_color;
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 14px;
+
+                        // Title centered, equidistant from left edge and right controls
+                        HorizontalLayout {
+                            spacing: 10px;
+                            alignment: center;
+                            horizontal-stretch: 1;
+                            Rectangle { horizontal-stretch: 1; }
+                            Text {
+                                text: root.strings.status_title;
+                                font-size: 14px * LayoutConstants.font-scale;
+                                font-family: Theme.default_font;
+                                font-weight: 500;
+                                color: Theme.text_primary;
+                                vertical-alignment: center;
+                                horizontal-alignment: center;
+                            }
+                            Rectangle { horizontal-stretch: 1; }
+                            HorizontalLayout {
+                                spacing: 8px;
+                                alignment: center;
+                                if (root.wsl_installed): Rectangle {
+                                    height: 28px;
+                                    VerticalLayout {
+                                        alignment: center;
+                                        StatusBadge {
+                                            text: root.has_running_instances ? root.strings.status_running : root.strings.status_stopped;
+                                            bg-color: root.has_running_instances ? #10b981 : #f59e0b;
+                                        }
+                                    }
+                                }
+                                if (!root.wsl_installed): Rectangle {
+                                    height: 28px;
+                                    VerticalLayout {
+                                        alignment: center;
+                                        StatusBadge {
+                                            text: root.strings.status_not_installed;
+                                            bg-color: #ef4444;
+                                        }
+                                    }
+                                }
+                                // Not installed → install icon
+                                if (!root.wsl_installed): Rectangle {
+                                    width: 28px;
+                                    height: 28px;
+                                    border-radius: 6px;
+                                    background: touch_install.has-hover ? Theme.accent.with-alpha(25%) : Theme.accent.with-alpha(12%);
+                                    Text {
+                                        text: "\u{E945}"; // Shield/Download
+                                        font-size: 14px;
+                                        font-family: Theme.icon_font;
+                                        color: Theme.accent;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                    touch_install := TouchArea { clicked => { root.install_wsl(); } }
+                                }
+                                // Running → stop icon
+                                if (root.wsl_installed && root.has_running_instances): Rectangle {
+                                    width: 28px;
+                                    height: 28px;
+                                    border-radius: 6px;
+                                    background: touch_stop.has-hover ? #ef4444.with-alpha(25%) : #ef4444.with-alpha(12%);
+                                    Text {
+                                        text: "\u{E769}"; // Stop
+                                        font-size: 12px;
+                                        font-family: Theme.icon_font;
+                                        color: #ef4444;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                    touch_stop := TouchArea { clicked => { root.shutdown_all(); } }
+                                }
+                                // Installed but stopped → play icon
+                                if (root.wsl_installed && !root.has_running_instances): Rectangle {
+                                    width: 28px;
+                                    height: 28px;
+                                    border-radius: 6px;
+                                    background: touch_start.has-hover ? #10b981.with-alpha(25%) : #10b981.with-alpha(12%);
+                                    Text {
+                                        text: "\u{E768}"; // Play
+                                        font-size: 14px;
+                                        font-family: Theme.icon_font;
+                                        color: #10b981;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                    touch_start := TouchArea { clicked => { root.start_wsl(); } }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // === Version Info Card (wsl --version raw output) ===
+                if (root.wsl_installed && root.version_lines.length > 0): Rectangle {
+                    horizontal-stretch: 1;
+                    background: Theme.card_bg;
+                    border-radius: 8px;
+                    border-width: 1px;
+                    border-color: Theme.border_color;
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 12px;
+
+                        Text {
+                            text: root.strings.version_output_title;
+                            font-size: 14px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            font-weight: 500;
+                            color: Theme.text_primary;
+                            horizontal-alignment: AppI18n.is-rtl ? right : left;
+                        }
+
+                        CodeBlock {
+                            lines: root.version_lines;
+                        }
+                    }
+                }
+
+                // === Status Info Card (wsl --status raw output) ===
+                if (root.wsl_installed && root.status_lines.length > 0): Rectangle {
+                    horizontal-stretch: 1;
+                    background: Theme.card_bg;
+                    border-radius: 8px;
+                    border-width: 1px;
+                    border-color: Theme.border_color;
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 12px;
+
+                        Text {
+                            text: root.strings.status_output_title;
+                            font-size: 14px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            font-weight: 500;
+                            color: Theme.text_primary;
+                            horizontal-alignment: AppI18n.is-rtl ? right : left;
+                        }
+
+                        CodeBlock {
+                            lines: root.status_lines;
+                        }
+                    }
+                }
+
+                // === Default Version Card ===
+                if (root.wsl_installed): Rectangle {
+                    horizontal-stretch: 1;
+                    background: Theme.card_bg;
+                    border-radius: 8px;
+                    border-width: 1px;
+                    border-color: Theme.border_color;
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 14px;
+
+                        Text {
+                            text: root.strings.default_version_title;
+                            font-size: 14px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            font-weight: 500;
+                            color: Theme.text_primary;
+                            horizontal-alignment: AppI18n.is-rtl ? right : left;
+                        }
+
+                        Rectangle {
+                            height: 1px;
+                            background: Theme.border_color;
+                        }
+
+                        Text {
+                            text: root.strings.default_version_desc;
+                            font-size: 13px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            color: Theme.text_secondary;
+                            wrap: word-wrap;
+                            horizontal-alignment: AppI18n.is-rtl ? right : left;
+                        }
+
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: AppI18n.is-rtl ? end : start;
+
+                            Rectangle {
+                                width: 80px;
+                                height: 32px;
+                                border-radius: 4px;
+                                border-width: 1px;
+                                border-color: root.default_version == 1 ? Theme.accent : Theme.input_border;
+                                background: root.default_version == 1 ? Theme.accent.with-alpha(15%) : Theme.input_bg;
+                                HorizontalLayout {
+                                    alignment: center;
+                                    Text {
+                                        text: root.strings.version_label_1;
+                                        font-size: 13px * LayoutConstants.font-scale;
+                                        font-family: Theme.default_font;
+                                        font-weight: root.default_version == 1 ? 700 : 400;
+                                        color: root.default_version == 1 ? Theme.accent : Theme.text_secondary;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                                TouchArea {
+                                    clicked => {
+                                        root.set_default_version(1);
+                                    }
+                                }
+                            }
+
+                            Rectangle {
+                                width: 80px;
+                                height: 32px;
+                                border-radius: 4px;
+                                border-width: 1px;
+                                border-color: root.default_version == 2 ? Theme.accent : Theme.input_border;
+                                background: root.default_version == 2 ? Theme.accent.with-alpha(15%) : Theme.input_bg;
+                                HorizontalLayout {
+                                    alignment: center;
+                                    Text {
+                                        text: root.strings.version_label_2;
+                                        font-size: 13px * LayoutConstants.font-scale;
+                                        font-family: Theme.default_font;
+                                        font-weight: root.default_version == 2 ? 700 : 400;
+                                        color: root.default_version == 2 ? Theme.accent : Theme.text_secondary;
+                                        vertical-alignment: center;
+                                    }
+                                }
+                                TouchArea {
+                                    clicked => {
+                                        root.set_default_version(2);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // === Actions Card ===
+                if (root.wsl_installed): Rectangle {
+                    horizontal-stretch: 1;
+                    background: Theme.card_bg;
+                    border-radius: 8px;
+                    border-width: 1px;
+                    border-color: Theme.border_color;
+                    VerticalLayout {
+                        padding: 16px;
+                        spacing: 14px;
+
+                        Text {
+                            text: root.strings.actions_title;
+                            font-size: 14px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            font-weight: 500;
+                            color: Theme.text_primary;
+                            horizontal-alignment: AppI18n.is-rtl ? right : left;
+                        }
+
+                        Rectangle {
+                            height: 1px;
+                            background: Theme.border_color;
+                        }
+
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: AppI18n.is-rtl ? end : start;
+
+                            CustomButton {
+                                text: root.strings.settings_btn;
+                                height: 32px;
+                                clicked => {
+                                    root.open_wsl_settings();
+                                }
+                            }
+
+                            CustomButton {
+                                text: root.is_updating ? root.strings.updating_btn : root.strings.update_btn;
+                                primary: true;
+                                enabled: !root.is_updating;
+                                height: 32px;
+                                clicked => {
+                                    root.update_wsl();
+                                }
+                            }
+
+                            CustomButton {
+                                text: root.strings.shutdown_btn;
+                                enabled: root.has_running_instances && !root.is_updating;
+                                danger: true;
+                                height: 32px;
+                                clicked => {
+                                    root.shutdown_all();
+                                }
+                            }
+
+                            CustomButton {
+                                text: root.strings.uninstall_btn;
+                                danger: true;
+                                show-shield: true;
+                                enabled: !root.is_updating;
+                                height: 32px;
+                                clicked => {
+                                    root.uninstall_wsl();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (flick.viewport-height > flick.height): CustomScrollbar {
+            x: AppI18n.is-rtl ? 1px : parent.width - 3px;
+            y: 0; width: 2px; height: 100%;
+            maximum: flick.viewport-height - flick.height;
+            page_size: flick.height;
+            value: -flick.viewport-y;
+            scroll_to(v) => { flick.viewport-y = -v; }
+        }
+    }
+}

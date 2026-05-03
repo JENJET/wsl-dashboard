@@ -212,6 +212,7 @@ export component PathSettingsSection inherits VerticalLayout {
 export component SidebarSettingsSection inherits Rectangle {
     in property <SettingsStrings> strings;
     in-out property <bool> sidebar_add: true;
+    in-out property <bool> sidebar_wsl_manage: true;
     in-out property <bool> sidebar_usb: true;
     in-out property <bool> sidebar_network: true;
     in-out property <bool> sidebar_about: true;
@@ -247,13 +248,19 @@ export component SidebarSettingsSection inherits Rectangle {
                 }
 
                 CustomCheckBox {
-                    text: AppI18n.t("sidebar.usb", [AppI18n.version]);
-                    checked <=> root.sidebar_usb;
+                    text: AppI18n.t("sidebar.wsl_manage", [AppI18n.version]);
+                    checked <=> root.sidebar_wsl_manage;
                     horizontal-stretch: 1;
                 }
             }
 
             Row {
+                CustomCheckBox {
+                    text: AppI18n.t("sidebar.usb", [AppI18n.version]);
+                    checked <=> root.sidebar_usb;
+                    horizontal-stretch: 1;
+                }
+
                 CustomCheckBox {
                     text: AppI18n.t("sidebar.network", [AppI18n.version]);
                     checked <=> root.sidebar_network;
@@ -266,12 +273,18 @@ export component SidebarSettingsSection inherits Rectangle {
                     enabled: false;
                     horizontal-stretch: 1;
                 }
+            }
 
+            Row {
                 CustomCheckBox {
                     text: AppI18n.t("sidebar.about", [AppI18n.version]);
                     checked <=> root.sidebar_about;
                     horizontal-stretch: 1;
                 }
+
+                // Empty cells to fill the grid
+                Rectangle { horizontal-stretch: 1; }
+                Rectangle { horizontal-stretch: 1; }
             }
         }
     }

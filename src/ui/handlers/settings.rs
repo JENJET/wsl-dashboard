@@ -25,6 +25,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 let system_color = app.get_system_color();
                 
                 let sidebar_add = app.get_sidebar_add();
+                let sidebar_wsl_manage = app.get_sidebar_wsl_manage();
                 let sidebar_usb = app.get_sidebar_usb();
                 let sidebar_network = app.get_sidebar_network();
                 let sidebar_about = app.get_sidebar_about();
@@ -34,6 +35,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 // Update sidebar settings
                 let sidebar_config = config::SidebarConfig {
                     add: sidebar_add,
+                    wsl_manage: sidebar_wsl_manage,
                     usb: sidebar_usb,
                     network: sidebar_network,
                     about: sidebar_about,

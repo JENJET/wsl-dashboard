@@ -6,13 +6,15 @@ export component Sidebar inherits Rectangle {
     in property <int> selected_tab: 0;
     in property <string> home_text: "";
     in property <string> add_text: "";
+    in property <string> wsl_manage_text: "";
     in property <string> usb_text: "";
     in property <string> network_text: "";
     in property <string> settings_text: "";
     in property <string> about_text: "";
-    
+
     // Visibility toggles
     in property <bool> show_add: true;
+    in property <bool> show_wsl_manage: true;
     in property <bool> show_usb: true;
     in property <bool> show_network: true;
     in property <bool> show_about: true;
@@ -86,6 +88,15 @@ export component Sidebar inherits Rectangle {
             collapsed: root.collapsed;
             clicked => {
                 root.tab_selected(1);
+            }
+        }
+        if (root.show_wsl_manage): SidebarItem {
+            icon: "\u{E912}";
+            text: root.wsl_manage_text;
+            selected: selected_tab == 4;
+            collapsed: root.collapsed;
+            clicked => {
+                root.tab_selected(4);
             }
         }
         if (root.show_usb): SidebarItem {

@@ -7,6 +7,7 @@ pub mod instance;
 pub mod usb;
 pub mod network;
 pub mod about;
+pub mod wsl_manage;
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -22,4 +23,5 @@ pub async fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_stat
     usb::setup(app, app_handle.clone(), app_state.clone());
     network::setup(app, app_handle.clone(), app_state.clone());
     about::setup(app, app_handle.clone(), app_state.clone());
+    wsl_manage::setup(app, app_handle.clone(), app_state.clone());
 }

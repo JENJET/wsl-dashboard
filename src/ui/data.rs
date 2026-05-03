@@ -11,6 +11,18 @@ use crate::i18n;
 use once_cell::sync::Lazy;
 use std::time::{Instant, Duration};
 
+/// Helper to show a message dialog from async contexts
+pub fn show_message(app_handle: &slint::Weak<AppWindow>, message: &str) {
+    let msg = message.to_string();
+    let ah = app_handle.clone();
+    let _ = slint::invoke_from_event_loop(move || {
+        if let Some(app) = ah.upgrade() {
+            app.set_current_message(msg.into());
+            app.set_show_message_dialog(true);
+        }
+    });
+}
+
 static LAST_WSL_REFRESH: Lazy<std::sync::Mutex<Option<Instant>>> = Lazy::new(|| std::sync::Mutex::new(None));
 static LAST_USB_REFRESH: Lazy<std::sync::Mutex<Option<Instant>>> = Lazy::new(|| std::sync::Mutex::new(None));
 
@@ -93,6 +105,8 @@ pub fn refresh_localized_strings(app: &AppWindow) {
         license: "".into(),
         copyright: "".into(),
     });
+
+    crate::ui::handlers::wsl_manage::load_wsl_manage_strings(app);
 }
 
 /// Generic helper to get localized text for use in Handlers
@@ -447,6 +461,7 @@ pub async fn load_settings_to_ui(app: &AppWindow, app_state: &Arc<Mutex<AppState
 
     let sidebar = app_state.lock().await.config_manager.get_config().sidebar.clone();
     app.set_sidebar_add(sidebar.add);
+    app.set_sidebar_wsl_manage(sidebar.wsl_manage);
     app.set_sidebar_usb(sidebar.usb);
     app.set_sidebar_network(sidebar.network);
     app.set_sidebar_about(sidebar.about);

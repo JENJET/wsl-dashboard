@@ -10,12 +10,14 @@ import {
     AppI18n,
     SettingsStrings,
     AboutStrings,
+    WslManageStrings,
 } from "theme.slint";
 import { TitleBar } from "components/title_bar.slint";
 import { Sidebar } from "components/sidebar.slint";
 import { ModalManager } from "components/modal_manager.slint";
 import { MainView } from "views/main_view.slint";
 import { AddInstanceView } from "views/add_view.slint";
+import { WslManageView } from "views/wsl_manage_view.slint";
 import { UsbView } from "views/usb_view.slint";
 import { NetworkView } from "views/network/mod.slint";
 import { SettingsView } from "views/settings/mod.slint";
@@ -23,7 +25,7 @@ import { AboutView } from "views/about_view.slint";
 import { TaskStatusToast } from "components/task_status_toast.slint";
 
 
-export { Theme, Distro, InstallableDistro, AppInfo, RootFSHelpItem, UsbDevice, PortProxyRuleUI, AppI18n }
+export { Theme, Distro, InstallableDistro, AppInfo, RootFSHelpItem, UsbDevice, PortProxyRuleUI, AppI18n, WslManageStrings }
 
 export component AppWindow inherits Window {
     title: "WSL_DASHBOARD_WINDOW_UI";
@@ -203,6 +205,16 @@ export component AppWindow inherits Window {
     in property <string> usbipd_version: "";
     in property <bool> is_usbipd_outdated: false;
 
+    // --- WSL Management Properties ---
+    in property <WslManageStrings> wsl_manage_strings;
+    in property <bool> wsl_installed: false;
+    in property <[string]> wsl_version_output: [];
+    in property <[string]> wsl_status_output: [];
+    in property <int> wsl_default_version: 2;
+    in property <bool> wsl_has_running: false;
+    in property <bool> wsl_is_updating: false;
+    in-out property <bool> sidebar_wsl_manage: true;
+
     // --- Callbacks ---
     callback select_tab(int);
     callback start_distro(string);
@@ -288,6 +300,16 @@ export component AppWindow inherits Window {
     callback usb_toggle_auto_attach(string);
     callback usb_copy_info(UsbDevice);
 
+    // WSL Management callbacks
+    callback wsl_manage_install();
+    callback wsl_manage_start();
+    callback wsl_manage_update();
+    callback wsl_manage_shutdown_all();
+    callback wsl_manage_set_default_version(int);
+    callback wsl_manage_refresh();
+    callback wsl_manage_uninstall();
+    callback wsl_manage_open_settings();
+
     // Dynamic Font Selection to optimize memory usage
     // Helper function to map language to font (No recursion here)
     pure function resolve-font(lang: string) -> string {
@@ -366,11 +388,13 @@ export component AppWindow inherits Window {
                     selected_tab: root.selected_tab;
                     home_text: AppI18n.t("sidebar.home", [AppI18n.version]);
                     add_text: AppI18n.t("sidebar.add", [AppI18n.version]);
+                    wsl_manage_text: AppI18n.t("sidebar.wsl_manage", [AppI18n.version]);
                     usb_text: AppI18n.t("sidebar.usb", [AppI18n.version]);
                     network_text: AppI18n.t("sidebar.network", [AppI18n.version]);
                     settings_text: AppI18n.t("sidebar.settings", [AppI18n.version]);
                     about_text: AppI18n.t("sidebar.about", [AppI18n.version]);
                     show_add: root.sidebar_add;
+                    show_wsl_manage: root.sidebar_wsl_manage;
                     show_usb: root.sidebar_usb;
                     show_network: root.sidebar_network;
                     show_about: root.sidebar_about;
@@ -511,6 +535,41 @@ export component AppWindow inherits Window {
                                 }
                             }
 
+                            WslManageView {
+                                visible: true;
+                                opacity: selected_tab == 4 ? 1 : 0;
+                                z: 9;
+                                x: selected_tab == 4 ? 0px : 10000px;
+                                strings: root.wsl_manage_strings;
+                                wsl_installed: root.wsl_installed;
+                                version_lines: root.wsl_version_output;
+                                status_lines: root.wsl_status_output;
+                                default_version: root.wsl_default_version;
+                                has_running_instances: root.wsl_has_running;
+                                is_updating: root.wsl_is_updating;
+                                install_wsl => {
+                                    root.wsl_manage_install();
+                                }
+                                start_wsl => {
+                                    root.wsl_manage_start();
+                                }
+                                update_wsl => {
+                                    root.wsl_manage_update();
+                                }
+                                shutdown_all => {
+                                    root.wsl_manage_shutdown_all();
+                                }
+                                set_default_version(v) => {
+                                    root.wsl_manage_set_default_version(v);
+                                }
+                                uninstall_wsl => {
+                                    root.wsl_manage_uninstall();
+                                }
+                                open_wsl_settings => {
+                                    root.wsl_manage_open_settings();
+                                }
+                            }
+
                             UsbView {
                                 visible: true;
                                 opacity: selected_tab == 2 ? 1 : 0;
@@ -625,6 +684,7 @@ export component AppWindow inherits Window {
                                 tray_start_minimized <=> root.tray_start_minimized;
                                 tray_close_to_tray <=> root.tray_close_to_tray;
                                 sidebar_add <=> root.sidebar_add;
+                                sidebar_wsl_manage <=> root.sidebar_wsl_manage;
                                 sidebar_usb <=> root.sidebar_usb;
                                 sidebar_network <=> root.sidebar_network;
                                 sidebar_about <=> root.sidebar_about;

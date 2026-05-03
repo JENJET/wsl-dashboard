@@ -156,6 +156,8 @@ pub struct SidebarConfig {
     #[serde(default = "default_true")]
     pub add: bool,
     #[serde(default = "default_true")]
+    pub wsl_manage: bool,
+    #[serde(default = "default_true")]
     pub usb: bool,
     #[serde(default = "default_true")]
     pub network: bool,
@@ -171,6 +173,7 @@ impl Default for SidebarConfig {
     fn default() -> Self {
         Self {
             add: true,
+            wsl_manage: true,
             usb: true,
             network: true,
             about: true,

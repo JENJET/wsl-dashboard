@@ -17,12 +17,12 @@ export component CustomScrollbar {
         property <length> thumb-len: root.horizontal ? thumb.width : thumb.height;
         property <length> travel-dist: track-len - thumb-len;
         thumb := Rectangle {
-            width: root.horizontal ? Math.max(20px, (root.page_size / (root.maximum + root.page_size)) * parent.width) : 6px;
-            height: root.horizontal ? 6px : Math.max(20px, (root.page_size / (root.maximum + root.page_size)) * parent.height);
+            width: root.horizontal ? Math.max(20px, (root.page_size / (root.maximum + root.page_size)) * parent.width) : 2px;
+            height: root.horizontal ? 2px : Math.max(20px, (root.page_size / (root.maximum + root.page_size)) * parent.height);
             x: root.horizontal ? (root.maximum > 0px ? (root.value / root.maximum) * track.travel-dist : 0px) : (parent.width - self.width) / 2;
             y: root.horizontal ? (parent.height - self.height) / 2 : (root.maximum > 0px ? (root.value / root.maximum) * track.travel-dist : 0px);
             background: touch.has-hover || touch.pressed ? Theme.scrollbar_thumb_hover : Theme.scrollbar_thumb;
-            border-radius: 3px;
+            border-radius: 1px;
         }
 
         touch := TouchArea {

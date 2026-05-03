@@ -23,6 +23,7 @@ export component SettingsView inherits Rectangle {
     in-out property <bool> tray_start_minimized: false;
     in-out property <bool> tray_close_to_tray: true;
     in-out property <bool> sidebar_add: true;
+    in-out property <bool> sidebar_wsl_manage: true;
     in-out property <bool> sidebar_usb: true;
     in-out property <bool> sidebar_network: true;
     in-out property <bool> sidebar_about: true;
@@ -234,6 +235,7 @@ export component SettingsView inherits Rectangle {
                     SidebarSettingsSection {
                         strings: root.strings;
                         sidebar_add <=> root.sidebar_add;
+                        sidebar_wsl_manage <=> root.sidebar_wsl_manage;
                         sidebar_usb <=> root.sidebar_usb;
                         sidebar_network <=> root.sidebar_network;
                         sidebar_about <=> root.sidebar_about;

@@ -124,7 +124,6 @@ pub fn is_rtl(lang: &str) -> bool {
     lower == "ur" || lower.starts_with("ur-")
 }
 
-#[allow(dead_code)]
 pub fn current_lang() -> String {
     CURRENT_LANG.lock().unwrap().clone()
 }
@@ -142,7 +141,7 @@ pub fn load_resources(lang_code: &str) {
         load_file_to_map(&normalized, &mut map);
     }
     
-    println!("i18n: Map populated with {} keys", map.len());
+    debug!("i18n: Map populated with {} keys", map.len());
     *CURRENT_LANG.lock().unwrap() = normalized;
 }
 
