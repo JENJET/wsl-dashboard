@@ -146,6 +146,12 @@ export component UsbDeviceCard inherits Rectangle {
         // Main row: Physical spring layout exactly like DistroCard
         Rectangle {
             height: 48px;
+            touch := TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.expand_clicked();
+                }
+            }
             HorizontalLayout {
                 padding-left: 12px;
                 padding-right: 12px;

@@ -309,6 +309,9 @@ export component AppWindow inherits Window {
     callback wsl_manage_refresh();
     callback wsl_manage_uninstall();
     callback wsl_manage_open_settings();
+    
+    // Set default distro callback
+    callback set_default_distro(string);
 
     // Dynamic Font Selection to optimize memory usage
     // Helper function to map language to font (No recursion here)
@@ -473,6 +476,9 @@ export component AppWindow inherits Window {
                                 }
                                 configs_clicked(n) => {
                                     root.configs_clicked(n);
+                                }
+                                set_default_distro(n) => {
+                                    root.set_default_distro(n);
                                 }
                                 delete_clicked(n) => {
                                     root.delete_clicked(n);

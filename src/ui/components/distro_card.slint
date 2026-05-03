@@ -18,12 +18,51 @@ component DistroInfo inherits VerticalLayout {
         horizontal-alignment: is-rtl ? right : left;
     }
 
-    Text {
-        text: AppI18n.t(distro.status == "Running" ? "distro.running" : (distro.status == "Stopped" ? "distro.stopped" : "distro.installing"), [AppI18n.version]);
-        font-size: 12px * LayoutConstants.font-scale;
-        font-family: Theme.default_font;
-        color: Theme.text_secondary;
-        horizontal-alignment: is-rtl ? right : left;
+    HorizontalLayout {
+        spacing: 6px;
+        alignment: start;
+        
+        Text {
+            text: AppI18n.t(distro.status == "Running" ? "distro.running" : (distro.status == "Stopped" ? "distro.stopped" : "distro.installing"), [AppI18n.version]);
+            font-size: 12px * LayoutConstants.font-scale;
+            font-family: Theme.default_font;
+            color: Theme.text_secondary;
+            horizontal-alignment: is-rtl ? right : left;
+        }
+        
+        // WSL version badge
+        if (distro.version != ""): Rectangle {
+            background: Theme.dark_mode ? #3E3E42 : #E0E0E0;
+            border-radius: 3px;
+            width: ver_text.width + 6px;
+            height: 16px;
+            
+            ver_text := Text {
+                text: AppI18n.t("distro.wsl_version_label", [distro.version]);
+                font-size: 10px * LayoutConstants.font-scale;
+                font-family: Theme.default_font;
+                color: Theme.text_secondary;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+        
+        // Default indicator
+        if (distro.is_default): Rectangle {
+            background: Theme.accent;
+            border-radius: 3px;
+            width: def_text.width + 6px;
+            height: 16px;
+            
+            def_text := Text {
+                text: AppI18n.t("distro.is_default", []);
+                font-size: 10px * LayoutConstants.font-scale;
+                font-family: Theme.default_font;
+                color: #FFFFFF;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
     }
 }
 
@@ -181,6 +220,7 @@ component ExpandedActionIcons inherits VerticalLayout {
     callback delete_distro();
     callback settings();
     callback configs();
+    callback set_default();
     alignment: center; // Vertically center (core)
     
     HorizontalLayout {
@@ -249,6 +289,15 @@ component ExpandedActionIcons inherits VerticalLayout {
         }
 
         ActionIcon {
+            icon: "\u{E734}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.set_as_default", []);
+            clicked => {
+                root.set_default();
+            }
+        }
+
+        ActionIcon {
             icon: "\u{E713}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.settings", [AppI18n.version]);
@@ -288,6 +337,7 @@ export component DistroCard inherits Rectangle {
     callback information_clicked;
     callback configs_clicked;
     callback expand_clicked;
+    callback set_default_clicked();
     height: expanded ? 96px : 48px;
     background: (distro.is_default && !sole_distro) ? (Theme.dark_mode ? #2b3c4e : #e6f4ff98) : Theme.card_bg;
     border-radius: 6px;
@@ -303,6 +353,12 @@ export component DistroCard inherits Rectangle {
         // Main row: Revert to physical spring layout, avoid top-level centering
         Rectangle {
             height: 48px;
+            touch := TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.expand_clicked();
+                }
+            }
             HorizontalLayout {
                 padding-left: 12px;
                 padding-right: 12px;
@@ -433,6 +489,9 @@ export component DistroCard inherits Rectangle {
                         delete_distro => {
                             root.delete_clicked();
                         }
+                        set_default => {
+                            root.set_default_clicked();
+                        }
                         settings => {
                             root.settings_clicked();
                         }
@@ -466,6 +525,9 @@ export component DistroCard inherits Rectangle {
                         }
                         delete_distro => {
                             root.delete_clicked();
+                        }
+                        set_default => {
+                            root.set_default_clicked();
                         }
                         settings => {
                             root.settings_clicked();

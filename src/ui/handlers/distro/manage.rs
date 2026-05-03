@@ -471,7 +471,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     return;
                 }
 
-                super::config_logic::handle_configs_clicked(ah, as_ptr, name).await;
+                super::config_logic::handle_configs_clicked(ah, as_ptr, name.to_string()).await;
             });
         });
     }
@@ -531,6 +531,66 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     }
                 });
             }
+        });
+    }
+
+    // Set default distro
+    {
+        let ah_outer = app_handle.clone();
+        let as_outer = app_state.clone();
+        app.on_set_default_distro(move |name| {
+            info!("Operation: Set default distro - {}", name);
+            let ah = ah_outer.clone();
+            let as_ptr = as_outer.clone();
+            tokio::spawn(async move {
+                let manager = {
+                    let app_state = as_ptr.lock().await;
+                    app_state.wsl_dashboard.clone()
+                };
+
+                if let Some(op) = manager.get_active_op(&name).await {
+                    let msg = i18n::tr("toast.distro_busy", &[name.to_string(), op.to_string()]);
+                    let ah_clone = ah.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah_clone.upgrade() {
+                            app.set_current_message(msg.into());
+                            app.set_show_message_dialog(true);
+                        }
+                    });
+                    return;
+                }
+
+                // Execute the command to set default
+                let executor = manager.executor().clone();
+                let result = executor.execute_command(&["--set-default", &name]).await;
+                
+                if result.success {
+                    let msg = i18n::tr("toast.default_set_success", &[name.to_string()]);
+                    let ah_clone = ah.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah_clone.upgrade() {
+                            app.set_current_message(msg.into());
+                            app.set_show_message_dialog(true);
+                        }
+                    });
+                    
+                    // Refresh distros UI immediately after successful operation
+                    refresh_distros_ui(ah.clone(), as_ptr.clone()).await;
+                } else {
+                    let error_msg = result.error.unwrap_or_else(|| "Unknown error".to_string());
+                    let msg = i18n::tr("toast.default_set_failed", &[name.to_string(), error_msg]);
+                    let ah_clone = ah.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah_clone.upgrade() {
+                            app.set_current_message(msg.into());
+                            app.set_show_message_dialog(true);
+                        }
+                    });
+                    
+                    // Also refresh UI even on failure to ensure consistency
+                    refresh_distros_ui(ah.clone(), as_ptr.clone()).await;
+                }
+            });
         });
     }
 }
