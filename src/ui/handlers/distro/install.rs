@@ -254,11 +254,12 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
     let ah_pw2 = app_handle.clone();
     app.on_check_new_username(move |val: slint::SharedString| {
         let is_numeric = !val.is_empty() && val.chars().all(|c| c.is_ascii_digit());
+        let is_empty = val.is_empty();
         let ah = ah_pw2.clone();
         let _ = slint::invoke_from_event_loop(move || {
             if let Some(app) = ah.upgrade() {
                 app.set_new_username_is_numeric(is_numeric);
-                if is_numeric {
+                if is_numeric || is_empty {
                     app.set_set_default_user(false);
                 }
             }
