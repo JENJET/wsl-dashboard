@@ -27,13 +27,14 @@ export component HttpProxyView inherits Rectangle {
         padding: 0px;
         spacing: 0px;
 
-        Rectangle {
+        // Main scrollable content area
+        outer-flick := Flickable {
             vertical-stretch: 1;
-            clip: true;
+            // 锁定视口宽度 = 父容器宽度，消除水平滚动空间
+            // 防止 TextInput 文本选择时 Flickable 误响应为水平拖拽
+            viewport-width: outer-flick.width;
 
-            Flickable {
-                viewport-height: proxy_content.preferred-height;
-                proxy_content := VerticalLayout {
+            proxy_content := VerticalLayout {
                     padding-left: AppI18n.is-rtl ? 16px : 4px;
                     padding-right: AppI18n.is-rtl ? 4px : 16px;
                     padding-top: 8px;
@@ -275,7 +276,7 @@ export component HttpProxyView inherits Rectangle {
                                                 enabled: root.proxy_is_enabled && root.proxy_auth_enabled;
                                                 text: root.proxy_password;
                                                 width: 250px;
-                                                input-type: InputType.password;
+                                                input-type: password;
                                                 edited(t) => { root.proxy_password = t; }
                                             }
 
@@ -293,7 +294,7 @@ export component HttpProxyView inherits Rectangle {
                                                 enabled: root.proxy_is_enabled && root.proxy_auth_enabled;
                                                 text: root.proxy_password;
                                                 width: 250px;
-                                                input-type: InputType.password;
+                                                input-type: password;
                                                 edited(t) => { root.proxy_password = t; }
                                             }
 
@@ -319,9 +320,8 @@ export component HttpProxyView inherits Rectangle {
                     }
                 }
             }
-        }
 
-            // Action Buttons
+        // Action Buttons
             HorizontalLayout {
                 padding-top: 12px;
                 padding-bottom: 4px;

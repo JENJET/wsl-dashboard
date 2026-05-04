@@ -14,7 +14,7 @@ name = "wsldashboard"
 path = "src/main.rs"
 
 [dependencies]
-slint = { version = "1.15", features = ["backend-winit", "renderer-skia"] }
+slint = { version = "1.16.1", features = ["backend-winit", "renderer-skia"] }
 tokio = { version = "1.38", features = ["rt-multi-thread", "macros", "sync", "time", "process", "io-util", "fs"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "registry"] }
@@ -45,7 +45,7 @@ urlencoding = "2.1"
 dhat-heap = ["dhat"]
 
 [build-dependencies]
-slint-build = "1.15"
+slint-build = "1.16.1"
 embed-resource = "2.5"
 image = "0.25"
 toml = "0.9.10"

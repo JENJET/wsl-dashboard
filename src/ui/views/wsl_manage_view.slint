@@ -117,7 +117,7 @@ export component WslManageView inherits VerticalLayout {
                         padding: 16px;
                         spacing: 14px;
 
-                        // Title centered, equidistant from left edge and right controls
+                        // Title row with equidistant spacing between the 3 components
                         HorizontalLayout {
                             spacing: 10px;
                             alignment: center;
@@ -133,77 +133,74 @@ export component WslManageView inherits VerticalLayout {
                                 horizontal-alignment: center;
                             }
                             Rectangle { horizontal-stretch: 1; }
-                            HorizontalLayout {
-                                spacing: 8px;
-                                alignment: center;
-                                if (root.wsl_installed): Rectangle {
-                                    height: 28px;
-                                    VerticalLayout {
-                                        alignment: center;
-                                        StatusBadge {
-                                            text: root.has_running_instances ? root.strings.status_running : root.strings.status_stopped;
-                                            bg-color: root.has_running_instances ? #10b981 : #f59e0b;
-                                        }
+                            if (root.wsl_installed): Rectangle {
+                                height: 28px;
+                                VerticalLayout {
+                                    alignment: center;
+                                    StatusBadge {
+                                        text: root.has_running_instances ? root.strings.status_running : root.strings.status_stopped;
+                                        bg-color: root.has_running_instances ? #10b981 : #f59e0b;
                                     }
                                 }
-                                if (!root.wsl_installed): Rectangle {
-                                    height: 28px;
-                                    VerticalLayout {
-                                        alignment: center;
-                                        StatusBadge {
-                                            text: root.strings.status_not_installed;
-                                            bg-color: #ef4444;
-                                        }
+                            }
+                            if (!root.wsl_installed): Rectangle {
+                                height: 28px;
+                                VerticalLayout {
+                                    alignment: center;
+                                    StatusBadge {
+                                        text: root.strings.status_not_installed;
+                                        bg-color: #ef4444;
                                     }
                                 }
-                                // Not installed → install icon
-                                if (!root.wsl_installed): Rectangle {
-                                    width: 28px;
-                                    height: 28px;
-                                    border-radius: 6px;
-                                    background: touch_install.has-hover ? Theme.accent.with-alpha(25%) : Theme.accent.with-alpha(12%);
-                                    Text {
-                                        text: "\u{E945}"; // Shield/Download
-                                        font-size: 14px;
-                                        font-family: Theme.icon_font;
-                                        color: Theme.accent;
-                                        horizontal-alignment: center;
-                                        vertical-alignment: center;
-                                    }
-                                    touch_install := TouchArea { clicked => { root.install_wsl(); } }
+                            }
+                            Rectangle { horizontal-stretch: 1; }
+                            // Not installed → install icon
+                            if (!root.wsl_installed): Rectangle {
+                                width: 28px;
+                                height: 28px;
+                                border-radius: 6px;
+                                background: touch_install.has-hover ? Theme.accent.with-alpha(25%) : Theme.accent.with-alpha(12%);
+                                Text {
+                                    text: "\u{E945}"; // Shield/Download
+                                    font-size: 14px;
+                                    font-family: Theme.icon_font;
+                                    color: Theme.accent;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
                                 }
-                                // Running → stop icon
-                                if (root.wsl_installed && root.has_running_instances): Rectangle {
-                                    width: 28px;
-                                    height: 28px;
-                                    border-radius: 6px;
-                                    background: touch_stop.has-hover ? #ef4444.with-alpha(25%) : #ef4444.with-alpha(12%);
-                                    Text {
-                                        text: "\u{E769}"; // Stop
-                                        font-size: 12px;
-                                        font-family: Theme.icon_font;
-                                        color: #ef4444;
-                                        horizontal-alignment: center;
-                                        vertical-alignment: center;
-                                    }
-                                    touch_stop := TouchArea { clicked => { root.shutdown_all(); } }
+                                touch_install := TouchArea { clicked => { root.install_wsl(); } }
+                            }
+                            // Running → stop icon
+                            if (root.wsl_installed && root.has_running_instances): Rectangle {
+                                width: 28px;
+                                height: 28px;
+                                border-radius: 6px;
+                                background: touch_stop.has-hover ? #ef4444.with-alpha(25%) : #ef4444.with-alpha(12%);
+                                Text {
+                                    text: "\u{E769}"; // Stop
+                                    font-size: 12px;
+                                    font-family: Theme.icon_font;
+                                    color: #ef4444;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
                                 }
-                                // Installed but stopped → play icon
-                                if (root.wsl_installed && !root.has_running_instances): Rectangle {
-                                    width: 28px;
-                                    height: 28px;
-                                    border-radius: 6px;
-                                    background: touch_start.has-hover ? #10b981.with-alpha(25%) : #10b981.with-alpha(12%);
-                                    Text {
-                                        text: "\u{E768}"; // Play
-                                        font-size: 14px;
-                                        font-family: Theme.icon_font;
-                                        color: #10b981;
-                                        horizontal-alignment: center;
-                                        vertical-alignment: center;
-                                    }
-                                    touch_start := TouchArea { clicked => { root.start_wsl(); } }
+                                touch_stop := TouchArea { clicked => { root.shutdown_all(); } }
+                            }
+                            // Installed but stopped → play icon
+                            if (root.wsl_installed && !root.has_running_instances): Rectangle {
+                                width: 28px;
+                                height: 28px;
+                                border-radius: 6px;
+                                background: touch_start.has-hover ? #10b981.with-alpha(25%) : #10b981.with-alpha(12%);
+                                Text {
+                                    text: "\u{E768}"; // Play
+                                    font-size: 14px;
+                                    font-family: Theme.icon_font;
+                                    color: #10b981;
+                                    horizontal-alignment: center;
+                                    vertical-alignment: center;
                                 }
+                                touch_start := TouchArea { clicked => { root.start_wsl(); } }
                             }
                         }
                     }
