@@ -136,6 +136,7 @@ monthly = "Μηνιαία"
 [dialog]
 confirm = "Επιβεβαίωση"
 copy_path = "Αντιγραφή διαδρομής"
+copy_ip = "Αντιγραφή IP"
 save = "Αποθήκευση"
 add = "Προσθήκη"
 cancel = "Ακύρωση"

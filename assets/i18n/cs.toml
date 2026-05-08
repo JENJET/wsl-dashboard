@@ -136,6 +136,7 @@ monthly = "Každý měsíc"
 [dialog]
 confirm = "Potvrdit"
 copy_path = "Kopírovat cestu"
+copy_ip = "Kopírovat IP"
 save = "Uložit"
 add = "Přidat"
 cancel = "Zrušit"

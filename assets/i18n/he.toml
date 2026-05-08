@@ -136,6 +136,7 @@ monthly = "בכל חודש"
 [dialog]
 confirm = "אישור"
 copy_path = "העתק נתיב"
+copy_ip = "העתק IP"
 save = "שמור"
 add = "הוסף"
 cancel = "ביטול"

@@ -136,6 +136,7 @@ monthly = "Setiap bulan"
 [dialog]
 confirm = "Konfirmasi"
 copy_path = "Salin jalur"
+copy_ip = "Salin IP"
 save = "Simpan"
 add = "Tambah"
 cancel = "Batal"

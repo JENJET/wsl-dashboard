@@ -136,6 +136,7 @@ monthly = "Minden hónapban"
 [dialog]
 confirm = "Megerősítés"
 copy_path = "Útvonal másolása"
+copy_ip = "IP másolása"
 save = "Mentés"
 add = "Hozzáadás"
 cancel = "Mégse"

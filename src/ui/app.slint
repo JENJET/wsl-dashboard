@@ -275,6 +275,7 @@ export component AppWindow inherits Window {
     callback configs_clicked(string);
     callback copy_to_clipboard(string);
     callback show_copy_success();
+    callback copy_ip_clicked();
     callback save_wsl_config();
     callback save_wsl_config_and_restart();
     callback request_wsl_config_preview();
@@ -849,6 +850,9 @@ export component AppWindow inherits Window {
         }
         show_copy_success => {
             root.show_copy_success();
+        }
+        copy_ip_clicked => {
+            root.copy_ip_clicked();
         }
         show_settings: root.show_settings;
         settings_target_name: root.settings_distro_name;

@@ -136,6 +136,7 @@ monthly = "हर महीने"
 [dialog]
 confirm = "पुष्टि करें"
 copy_path = "पथ कॉपी करें"
+copy_ip = "IP कॉपी करें"
 save = "सहेजें"
 add = "जोड़ें"
 cancel = "रद्द करें"

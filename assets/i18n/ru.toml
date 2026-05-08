@@ -136,6 +136,7 @@ monthly = "Каждый месяц"
 [dialog]
 confirm = "Подтвердить"
 copy_path = "Копировать путь"
+copy_ip = "Копировать IP"
 save = "Сохранить"
 add = "Добавить"
 cancel = "Отмена"

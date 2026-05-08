@@ -136,6 +136,7 @@ monthly = "毎月"
 [dialog]
 confirm = "確認"
 copy_path = "パスをコピー"
+copy_ip = "IPをコピー"
 save = "保存"
 add = "追加"
 cancel = "キャンセル"

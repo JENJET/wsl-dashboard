@@ -136,6 +136,7 @@ monthly = "Mánaðarlega"
 [dialog]
 confirm = "Staðfesta"
 copy_path = "Afrita slóð"
+copy_ip = "Afrita IP"
 save = "Vista"
 add = "Bæta við"
 cancel = "Hætta við"

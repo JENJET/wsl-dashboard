@@ -136,6 +136,7 @@ monthly = "كل شهر"
 [dialog]
 confirm = "تأكيد"
 copy_path = "نسخ المسار"
+copy_ip = "نسخ عنوان IP"
 save = "حفظ"
 add = "إضافة"
 cancel = "إلغاء"

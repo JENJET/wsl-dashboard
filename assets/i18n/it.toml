@@ -136,6 +136,7 @@ monthly = "Ogni mese"
 [dialog]
 confirm = "Conferma"
 copy_path = "Copia percorso"
+copy_ip = "Copia IP"
 save = "Salva"
 add = "Aggiungi"
 cancel = "Annulla"

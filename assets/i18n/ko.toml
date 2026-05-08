@@ -136,6 +136,7 @@ monthly = "매달"
 [dialog]
 confirm = "확인"
 copy_path = "경로 복사"
+copy_ip = "IP 복사"
 save = "저장"
 add = "추가"
 cancel = "취소"

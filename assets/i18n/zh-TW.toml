@@ -136,6 +136,7 @@ monthly = "每月"
 [dialog]
 confirm = "確認"
 copy_path = "複製路徑"
+copy_ip = "複製 IP"
 save = "儲存"
 add = "添加"
 cancel = "取消"

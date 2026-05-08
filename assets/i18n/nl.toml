@@ -136,6 +136,7 @@ monthly = "Elke maand"
 [dialog]
 confirm = "Bevestigen"
 copy_path = "Pad kopiëren"
+copy_ip = "IP kopiëren"
 save = "Opslaan"
 add = "Toevoegen"
 cancel = "Annuleren"

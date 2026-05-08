@@ -13,6 +13,7 @@ component InfoRow inherits Rectangle {
     in property <bool> clickable: false;
     in property <bool> is_pill: false;
     in property <bool> show_copy_button: false;
+    in property <string> copy_button_tooltip: AppI18n.t("dialog.copy_path", [AppI18n.version]);
     callback clicked;
     callback copy_clicked;
     height: 24px;
@@ -73,7 +74,7 @@ component InfoRow inherits Rectangle {
             y: (parent.height - 24px) / 2;
             icon: "\u{E8C8}";
             is_font_icon: true;
-            tooltip: AppI18n.t("dialog.copy_path", [AppI18n.version]);
+            tooltip: root.copy_button_tooltip;
             clicked => {
                 root.copy_clicked();
             }
@@ -104,6 +105,7 @@ export component InformationDialog inherits Rectangle {
     callback open_path(string);
     callback copy_to_clipboard(string);
     callback show_copy_success();
+    callback copy_ip_clicked;
     
     // Background mask
     background: #00000080;
@@ -186,6 +188,11 @@ export component InformationDialog inherits Rectangle {
                         ? (AppI18n.t("distro.running", [AppI18n.version]) + (root.info.ip != "" ? " (IP: " + root.info.ip + " )" : "")) 
                         : AppI18n.t("distro.stopped", [AppI18n.version]);
                     value_color: root.info.status == "Running" ? #28a745 : Theme.text_primary;
+                    show_copy_button: root.info.status == "Running" && root.info.ip != "";
+                    copy_button_tooltip: AppI18n.t("dialog.copy_ip", [AppI18n.version]);
+                    copy_clicked => {
+                        root.copy_ip_clicked();
+                    }
                 }
 
                 InfoRow {

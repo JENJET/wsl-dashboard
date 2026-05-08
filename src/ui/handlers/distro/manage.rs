@@ -632,4 +632,33 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
             }
         });
     }
+
+    // Copy IP to clipboard
+    {
+        let ah = app_handle.clone();
+        app.on_copy_ip_clicked(move || {
+            if let Some(app) = ah.upgrade() {
+                let info = app.get_information();
+                let ip = info.ip.to_string();
+                if !ip.is_empty() {
+                    use crate::utils::system::copy_to_clipboard;
+                    match copy_to_clipboard(&ip) {
+                        Ok(_) => {
+                            tracing::info!("Copied IP to clipboard: {}", ip);
+                            // Reuse existing show_copy_success callback
+                            let ah_inner = ah.clone();
+                            let _ = slint::invoke_from_event_loop(move || {
+                                if let Some(app) = ah_inner.upgrade() {
+                                    app.invoke_show_copy_success();
+                                }
+                            });
+                        }
+                        Err(e) => {
+                            tracing::error!("Failed to copy IP to clipboard: {}", e);
+                        }
+                    }
+                }
+            }
+        });
+    }
 }

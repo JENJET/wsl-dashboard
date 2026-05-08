@@ -136,6 +136,7 @@ monthly = "Joka kuukausi"
 [dialog]
 confirm = "Vahvista"
 copy_path = "Kopioi polku"
+copy_ip = "Kopioi IP"
 save = "Tallenna"
 add = "Lisää"
 cancel = "Peruuta"

@@ -136,6 +136,7 @@ monthly = "Vsak mesec"
 [dialog]
 confirm = "Potrdi"
 copy_path = "Kopiraj pot"
+copy_ip = "Kopiraj IP"
 save = "Shrani"
 add = "Dodaj"
 cancel = "Prekliči"

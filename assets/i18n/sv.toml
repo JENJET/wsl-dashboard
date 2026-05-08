@@ -136,6 +136,7 @@ monthly = "Varje månad"
 [dialog]
 confirm = "Bekräfta"
 copy_path = "Kopiera sökväg"
+copy_ip = "Kopiera IP"
 save = "Spara"
 add = "Lägg till"
 cancel = "Avbryt"

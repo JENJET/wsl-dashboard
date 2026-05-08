@@ -136,6 +136,7 @@ monthly = "Hver måned"
 [dialog]
 confirm = "Bekræft"
 copy_path = "Kopiér sti"
+copy_ip = "Kopiér IP"
 save = "Gem"
 add = "Tilføj"
 cancel = "Annuller"
