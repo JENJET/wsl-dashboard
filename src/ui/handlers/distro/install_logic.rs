@@ -22,13 +22,12 @@ pub async fn perform_install(
     new_user_password: String,
     set_default_user: bool,
 ) {
-    // Helper to trigger scroll-to-bottom for both page and terminal
+    // Helper to trigger scroll-to-bottom for page
     fn trigger_scroll(ah: &slint::Weak<AppWindow>) {
         let ah = ah.clone();
         let _ = slint::invoke_from_event_loop(move || {
             if let Some(app) = ah.upgrade() {
-                app.set_add_page_vp_y(-99999.0);
-                app.set_add_term_vp_y(-99999.0);
+                app.set_page_vp_y(-99999.0);
             }
         });
     }
@@ -658,8 +657,6 @@ pub async fn perform_install(
                 app_typed.set_terminal_output(tb.into());
             }
         });
-        trigger_scroll(&ah);
-
         // Start the distro first to ensure it's fully initialized
         info!("Starting distro '{}' before setting password", final_name);
         let _ = executor.execute_command(&["-d", &final_name, "-u", "root", "-e", "/bin/true"]).await;
@@ -709,7 +706,6 @@ pub async fn perform_install(
                     app_typed.set_terminal_output(tb.into());
                 }
             });
-            trigger_scroll(&ah);
         } else {
             let pw_output = pw_result.output.clone();
             let pw_err = pw_result.error.unwrap_or_else(|| {
@@ -737,7 +733,6 @@ pub async fn perform_install(
                     app_typed.set_terminal_output(tb.into());
                 }
             });
-            trigger_scroll(&ah);
         }
     }
 
@@ -757,7 +752,6 @@ pub async fn perform_install(
                 app_typed.set_terminal_output(tb.into());
             }
         });
-        trigger_scroll(&ah);
 
         // Always use --badname to allow non-standard usernames, with fallbacks
         let create_cmd = format!(
@@ -792,7 +786,6 @@ pub async fn perform_install(
                     app_typed.set_terminal_output(tb.into());
                 }
             });
-            trigger_scroll(&ah);
         } else if !create_result.success {
             let err = if !create_result.error.as_ref().map_or(true, |e| e.trim().is_empty()) {
                 create_result.error.unwrap()
@@ -815,7 +808,6 @@ pub async fn perform_install(
                     app_typed.set_terminal_output(tb.into());
                 }
             });
-            trigger_scroll(&ah);
         } else {
             let done_text = i18n::tr("install.step_create_user_done", &[new_username.clone()]);
             let ah_ui = ah.clone();
@@ -827,7 +819,6 @@ pub async fn perform_install(
                     app_typed.set_terminal_output(tb.into());
                 }
             });
-            trigger_scroll(&ah);
         }
 
         // Set password and default user (if user creation succeeded or already existed)
@@ -845,7 +836,6 @@ pub async fn perform_install(
                         app_typed.set_terminal_output(tb.into());
                     }
                 });
-                trigger_scroll(&ah);
 
                 let pw_safe = new_user_password.replace('\\', "\\\\").replace('$', "\\$").replace('`', "\\`");
                 let pw_cmd = format!("/usr/sbin/chpasswd 2>/dev/null <<'PWEOF'\n{}:{}\nPWEOF\n", new_username, pw_safe);
@@ -873,7 +863,6 @@ pub async fn perform_install(
                                 app_typed.set_terminal_output(tb.into());
                             }
                         });
-                        trigger_scroll(&ah);
                     }
                 }
 
@@ -888,7 +877,6 @@ pub async fn perform_install(
                             app_typed.set_terminal_output(tb.into());
                         }
                     });
-                    trigger_scroll(&ah);
                 }
             }
 
@@ -905,7 +893,6 @@ pub async fn perform_install(
                         app_typed.set_terminal_output(tb.into());
                     }
                 });
-                trigger_scroll(&ah);
 
                 let uname = &new_username;
                 let wsl_conf_cmd = format!(
@@ -929,7 +916,6 @@ pub async fn perform_install(
                             app_typed.set_terminal_output(tb.into());
                         }
                     });
-                    trigger_scroll(&ah);
                 } else {
                     let def_done = i18n::tr("install.step_set_default_user_done", &[new_username.clone()]);
                     let ah_ui = ah.clone();
@@ -941,7 +927,6 @@ pub async fn perform_install(
                             app_typed.set_terminal_output(tb.into());
                         }
                     });
-                    trigger_scroll(&ah);
                 }
             }
         }
@@ -963,7 +948,6 @@ pub async fn perform_install(
             app_typed.set_is_installing(false);
         }
     });
-    trigger_scroll(&ah);
 
     // Force-terminate the distro after install to ensure clean state
     let _ = executor.execute_command(&["--terminate", &final_name]).await;

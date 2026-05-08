@@ -103,8 +103,7 @@ export component AppWindow inherits Window {
     in-out property <string> new_user_password: "";
     in-out property <bool> set_default_user: false;
     in-out property <bool> new_username_is_numeric: false;
-    in-out property <length> add_page_vp_y: 0px;
-    in-out property <length> add_term_vp_y: 0px;
+    in-out property <length> page_vp_y: 0px;
     in-out property <bool> show_vscode_startup: false;
     in-out property <string> ui_language: "auto";
     in property <string> system_language: "en"; // Injected by backend at startup
@@ -513,8 +512,7 @@ export component AppWindow inherits Window {
                                 new_user_password <=> root.new_user_password;
                                 set_default_user <=> root.set_default_user;
                                 new_username_is_numeric <=> root.new_username_is_numeric;
-                                page_vp_y <=> root.add_page_vp_y;
-                                term_vp_y <=> root.add_term_vp_y;
+                                page_vp_y <=> root.page_vp_y;
                                 source_selected(i) => {
                                     root.source_selected(i);
                                 }
