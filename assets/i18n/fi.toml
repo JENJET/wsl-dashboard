@@ -1,4 +1,4 @@
-[common]
+﻿[common]
 app_name = "WSL Dashboard"
 
 [sidebar]
@@ -34,7 +34,6 @@ rule_fw_on = "FW: Päällä"
 rule_fw_off = "FW: Pois"
 rule_apply_tooltip = "Käytä sääntöä"
 rule_cancel_tooltip = "Peruuta sääntö"
-nat_notice = "Huomautus: Käytät {0}-tilaa. Porttiohjaus vaaditaan yleensä vain NAT-tilassa."
 nat_mode_required = "Porttiohjaus on käytettävissä vain NAT-tilassa. Nykyinen tilasi on: {0}"
 no_rules = "Porttiohjausääntöjä ei ole määritetty"
 proxy_no_proxy = "Ei välityspalvelinta"
@@ -143,9 +142,6 @@ check_proxy_title = "Tarkista välityspalvelinyhteys"
 check_proxy_desc1 = "Syötä URL-osoite testataksesi välityspalvelimen yhteyttä."
 check_proxy_desc2 = "Sovellus lähettää pyynnön määritetyn välityspalvelimen kautta ja palauttaa HTTP-tilakoodin."
 add_network_rule_title = "Lisää porttiohjausääntö"
-initialize_task_title = "Alusta tehtävä"
-initialize_task_desc = "Automaattisen porttiohjauksen käynnistämiseksi luodaan ajoitettu tehtävä. Tämä vaatii järjestelmänvalvojan oikeudet."
-initialize_task_initialize = "Alusta"
 info = "Tiedot"
 error = "Virhe"
 delete_title = "{0} Poista"
@@ -287,7 +283,6 @@ step_set_default_user_failed = "Oletuskäyttäjän asettaminen epäonnistui: {0}
 step_set_root_password = "Asetetaan root-salasanaa jakelulle..."
 step_set_root_password_done = "Root-salasana on asetettu onnistuneesti."
 step_set_root_password_failed = "Root-salasanan asettaminen epäonnistui: {0}"
-step_set_root_password_skip = "Root-salasanaa ei asetettu (valintaruutua ei ole valittu)."
 
 [about]
 title = "Ohjelmiston esittely"
@@ -329,7 +324,6 @@ new_username_placeholder = "Anna uusi käyttäjänimi"
 new_user_password = "Uuden käyttäjän salasana"
 new_user_password_placeholder = "Anna uuden käyttäjän salasana"
 set_default_user = "Aseta oletuskirjautumiskäyttäjäksi"
-username_required = "Käyttäjänimi vaaditaan lisättäessä uutta käyttäjää"
 username_pure_numeric_warning = "Varoitus: Käyttäjänimi on täysin numeerinen, mikä voi aiheuttaa kirjautumisongelmia"
 
 

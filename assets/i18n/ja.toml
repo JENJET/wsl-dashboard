@@ -1,4 +1,4 @@
-[common]
+﻿[common]
 app_name = "WSL Dashboard"
 
 [sidebar]
@@ -34,7 +34,6 @@ rule_fw_on = "FW: 有効"
 rule_fw_off = "FW: 無効"
 rule_apply_tooltip = "ルールを適用"
 rule_cancel_tooltip = "ルールを取り消し"
-nat_notice = "注意: {0} モードを使用しています。ポート転送は通常 NAT モードでのみ必要です。"
 nat_mode_required = "ポート転送は NAT モードでのみ利用可能です。現在のモード: {0}"
 no_rules = "ポート転送ルールが設定されていません"
 proxy_no_proxy = "プロキシなし"
@@ -143,9 +142,6 @@ check_proxy_title = "プロキシ接続確認"
 check_proxy_desc1 = "プロキシの接続性をテストする URL を入力してください。"
 check_proxy_desc2 = "アプリケーションはプロキシ経由でリクエストを送信し、HTTP ステータスコードを返します。"
 add_network_rule_title = "ポート転送ルールを追加"
-initialize_task_title = "タスクの初期化"
-initialize_task_desc = "起動時の自動ポート転送を有効にするため、スケジュールタスクが作成されます。管理者権限が必要です。"
-initialize_task_initialize = "初期化"
 info = "情報"
 error = "エラー"
 delete_title = "{0} 削除"
@@ -287,7 +283,6 @@ step_set_default_user_failed = "デフォルトユーザーの設定に失敗し
 step_set_root_password = "ディストリビューションの root パスワードを設定中..."
 step_set_root_password_done = "root パスワードが正常に設定されました。"
 step_set_root_password_failed = "root パスワードの設定に失敗しました: {0}"
-step_set_root_password_skip = "root パスワードが設定されていません（チェックボックスがオフ）。"
 
 [about]
 title = "ソフトウェア紹介"
@@ -329,7 +324,6 @@ new_username_placeholder = "新規ユーザー名を入力"
 new_user_password = "新規ユーザーのパスワード"
 new_user_password_placeholder = "新規ユーザーのパスワードを入力"
 set_default_user = "デフォルトのログインユーザーとして設定"
-username_required = "新規ユーザーを追加するにはユーザー名が必要です"
 username_pure_numeric_warning = "警告：ユーザー名が数字のみのため、ログインに問題が発生する可能性があります"
 
 

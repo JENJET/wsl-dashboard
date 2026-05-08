@@ -1,4 +1,4 @@
-[common]
+﻿[common]
 app_name = "WSL Dashboard"
 
 [sidebar]
@@ -34,7 +34,6 @@ rule_fw_on = "FW: Açık"
 rule_fw_off = "FW: Kapalı"
 rule_apply_tooltip = "Kuralı uygula"
 rule_cancel_tooltip = "Kuralı iptal et"
-nat_notice = "Not: {0} modunu kullanıyorsunuz. Port yönlendirme genellikle yalnızca NAT modunda gereklidir."
 nat_mode_required = "Port yönlendirme yalnızca NAT modunda kullanılabilir. Geçerli mod: {0}"
 no_rules = "Yapılandırılmış port yönlendirme kuralı yok"
 proxy_no_proxy = "Proxy yok"
@@ -143,9 +142,6 @@ check_proxy_title = "Proxy bağlantısını kontrol et"
 check_proxy_desc1 = "Proxy bağlantısını test etmek için bir URL girin."
 check_proxy_desc2 = "Uygulama proxy üzerinden bir istek gönderecek ve HTTP durum kodunu döndürecektir."
 add_network_rule_title = "Port yönlendirme kuralı ekle"
-initialize_task_title = "Görevi başlat"
-initialize_task_desc = "Başlangıçta otomatik port yönlendirmeyi etkinleştirmek için zamanlanmış bir görev oluşturulacaktır. Yönetici ayrıcalıkları gereklidir."
-initialize_task_initialize = "Başlat"
 info = "Bilgi"
 error = "Hata"
 delete_title = "{0} Sil"
@@ -287,7 +283,6 @@ step_set_default_user_failed = "Varsayılan kullanıcı ayarlanamadı: {0}"
 step_set_root_password = "Dağıtım için root parolası belirleniyor..."
 step_set_root_password_done = "Root parolası başarıyla belirlendi."
 step_set_root_password_failed = "Root parolası belirlenemedi: {0}"
-step_set_root_password_skip = "Root parolası belirlenmedi (onay kutusu işaretli değil)."
 
 [about]
 title = "Yazılım Tanıtımı"
@@ -329,7 +324,6 @@ new_username_placeholder = "Yeni kullanıcı adını girin"
 new_user_password = "Yeni Kullanıcı Parolası"
 new_user_password_placeholder = "Yeni kullanıcı parolasını girin"
 set_default_user = "Varsayılan oturum açma kullanıcısı olarak ayarla"
-username_required = "Yeni kullanıcı eklerken kullanıcı adı gereklidir"
 username_pure_numeric_warning = "Uyarı: Kullanıcı adı tamamen sayısaldır, bu da oturum açma sorunlarına neden olabilir"
 
 

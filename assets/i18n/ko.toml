@@ -1,4 +1,4 @@
-[common]
+﻿[common]
 app_name = "WSL Dashboard"
 
 [sidebar]
@@ -34,7 +34,6 @@ rule_fw_on = "FW: 활성"
 rule_fw_off = "FW: 비활성"
 rule_apply_tooltip = "규칙 적용"
 rule_cancel_tooltip = "규칙 취소"
-nat_notice = "알림: {0} 모드를 사용 중입니다. 포트 포워딩은 일반적으로 NAT 모드에서만 필요합니다."
 nat_mode_required = "포트 포워딩은 NAT 모드에서만 사용 가능합니다. 현재 모드: {0}"
 no_rules = "포트 포워딩 규칙이 구성되지 않았습니다"
 proxy_no_proxy = "프록시 없음"
@@ -143,9 +142,6 @@ check_proxy_title = "프록시 연결 확인"
 check_proxy_desc1 = "프록시 연결을 테스트할 URL을 입력하십시오."
 check_proxy_desc2 = "애플리케이션이 프록시를 통해 요청을 보내고 HTTP 상태 코드를 반환합니다."
 add_network_rule_title = "포트 포워딩 규칙 추가"
-initialize_task_title = "작업 초기화"
-initialize_task_desc = "시작 시 자동 포트 포워딩을 활성화하기 위해 예약된 작업이 생성됩니다. 관리자 권한이 필요합니다."
-initialize_task_initialize = "초기화"
 info = "정보"
 error = "오류"
 delete_title = "{0} 삭제"
@@ -287,7 +283,6 @@ step_set_default_user_failed = "기본 사용자 설정 실패: {0}"
 step_set_root_password = "배포판의 root 비밀번호를 설정하는 중..."
 step_set_root_password_done = "root 비밀번호가 성공적으로 설정되었습니다."
 step_set_root_password_failed = "root 비밀번호 설정 실패: {0}"
-step_set_root_password_skip = "root 비밀번호가 설정되지 않음 (체크박스 선택 해제됨)."
 
 [about]
 title = "소프트웨어 소개"
@@ -329,7 +324,6 @@ new_username_placeholder = "새 사용자 이름 입력"
 new_user_password = "새 사용자 비밀번호"
 new_user_password_placeholder = "새 사용자 비밀번호 입력"
 set_default_user = "기본 로그인 사용자로 설정"
-username_required = "새 사용자를 추가할 때 사용자 이름이 필요합니다"
 username_pure_numeric_warning = "경고: 사용자 이름이 숫자로만 구성되어 있어 로그인 문제가 발생할 수 있습니다"
 
 

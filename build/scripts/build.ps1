@@ -1,5 +1,3 @@
-#!/usr/bin/env pwsh
-
 Write-Host "Building Windows executable for WSL Dashboard..." -ForegroundColor Green
 
 # Check rustup toolchain

@@ -1,4 +1,4 @@
-[common]
+﻿[common]
 app_name = "WSL Dashboard"
 
 [sidebar]
@@ -34,7 +34,6 @@ rule_fw_on = "FW: Ενεργό"
 rule_fw_off = "FW: Ανενεργό"
 rule_apply_tooltip = "Εφαρμογή κανόνα"
 rule_cancel_tooltip = "Ακύρωση κανόνα"
-nat_notice = "Σημείωση: Χρησιμοποιείτε τη λειτουργία {0}. Η προώθηση θυρών απαιτείται συνήθως μόνο σε λειτουργία NAT."
 nat_mode_required = "Η προώθηση θυρών είναι διαθέσιμη μόνο σε λειτουργία NAT. Η τρέχουσα λειτουργία είναι: {0}"
 no_rules = "Δεν έχουν ρυθμιστεί κανόνες προώθησης θυρών"
 proxy_no_proxy = "Χωρίς proxy"
@@ -143,9 +142,6 @@ check_proxy_title = "Έλεγχος σύνδεσης proxy"
 check_proxy_desc1 = "Εισάγετε μια διεύθυνση URL για έλεγχο συνδεσιμότητας proxy."
 check_proxy_desc2 = "Η εφαρμογή θα στείλει αίτημα μέσω του proxy και θα επιστρέψει τον κωδικό κατάστασης HTTP."
 add_network_rule_title = "Προσθήκη κανόνα προώθησης θυρών"
-initialize_task_title = "Αρχικοποίηση εργασίας"
-initialize_task_desc = "Για την ενεργοποίηση αυτόματης προώθησης θυρών κατά την εκκίνηση, θα δημιουργηθεί προγραμματισμένη εργασία. Απαιτούνται δικαιώματα διαχειριστή."
-initialize_task_initialize = "Αρχικοποίηση"
 info = "Πληροφορία"
 error = "Σφάλμα"
 delete_title = "{0} Διαγραφή"
@@ -287,7 +283,6 @@ step_set_default_user_failed = "Αποτυχία ορισμού προεπιλε
 step_set_root_password = "Ορισμός κωδικού root για τη διανομή..."
 step_set_root_password_done = "Ο κωδικός root ορίστηκε επιτυχώς."
 step_set_root_password_failed = "Αποτυχία ορισμού κωδικού root: {0}"
-step_set_root_password_skip = "Ο κωδικός root δεν ορίστηκε (το πλαίσιο ελέγχου δεν είναι επιλεγμένο)."
 
 [about]
 title = "Σχετικά με την εφαρμογή"
@@ -329,7 +324,6 @@ new_username_placeholder = "Εισαγάγετε νέο όνομα χρήστη"
 new_user_password = "Κωδικός νέου χρήστη"
 new_user_password_placeholder = "Εισαγάγετε κωδικό νέου χρήστη"
 set_default_user = "Ορισμός ως προεπιλεγμένου χρήστη σύνδεσης"
-username_required = "Απαιτείται όνομα χρήστη κατά την προσθήκη νέου χρήστη"
 username_pure_numeric_warning = "Προειδοποίηση: Το όνομα χρήστη είναι αμιγώς αριθμητικό, γεγονός που μπορεί να προκαλέσει προβλήματα σύνδεσης"
 
 
