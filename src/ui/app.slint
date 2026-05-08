@@ -273,6 +273,8 @@ export component AppWindow inherits Window {
     callback close_vscode_startup();
     callback close_task_status();
     callback configs_clicked(string);
+    callback copy_to_clipboard(string);
+    callback show_copy_success();
     callback save_wsl_config();
     callback save_wsl_config_and_restart();
     callback request_wsl_config_preview();
@@ -730,19 +732,6 @@ export component AppWindow inherits Window {
                             }
                         }
                     }
-
-                    TaskStatusToast {
-                        z: 10;
-                        opacity: root.task_status_visible ? 1 : 0;
-                        visible: root.task_status_visible;
-                        text: root.task_status_text;
-                        is_shown: root.task_status_visible;
-                        x: (parent.width - self.width) / 2;
-                        y: parent.height - self.height - 14px;
-                        close => {
-                            root.close_task_status();
-                        }
-                    }
                 }
             }
         }
@@ -855,6 +844,12 @@ export component AppWindow inherits Window {
         close_information => {
             root.show_information = false;
         }
+        copy_to_clipboard(text) => {
+            root.copy_to_clipboard(text);
+        }
+        show_copy_success => {
+            root.show_copy_success();
+        }
         show_settings: root.show_settings;
         settings_target_name: root.settings_distro_name;
         settings_terminal_dir <=> root.settings_terminal_dir;
@@ -942,6 +937,20 @@ export component AppWindow inherits Window {
         show_network_proxy_help <=> root.show_network_proxy_help;
         check_proxy_connection(url) => {
             root.check_proxy_connection(url);
+        }
+    }
+
+    // Task Status Toast - Topmost layer
+    TaskStatusToast {
+        z: 100;
+        opacity: root.task_status_visible ? 1 : 0;
+        visible: root.task_status_visible;
+        text: root.task_status_text;
+        is_shown: root.task_status_visible;
+        x: (parent.width - self.width) / 2;
+        y: parent.height - self.height - 14px;
+        close => {
+            root.close_task_status();
         }
     }
 

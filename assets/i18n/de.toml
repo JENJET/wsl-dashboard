@@ -135,6 +135,7 @@ monthly = "Monatlich"
 
 [dialog]
 confirm = "Bestätigen"
+copy_path = "Pfad kopieren"
 save = "Speichern"
 add = "Hinzufügen"
 cancel = "Abbrechen"
@@ -422,6 +423,7 @@ distro_busy = "Distro '{0}' führt gerade {1} aus. Bitte versuchen Sie es späte
 system_busy = "Das System ist mit einer anderen schweren Aufgabe beschäftigt (Exportieren, Verschieben, Klonen, Löschen oder Installieren). Bitte versuchen Sie es später noch einmal."
 default_set_success = "'{0}' wurde als Standard-Distro festgelegt."
 default_set_failed = "Fehler beim Festlegen von '{0}' als Standard: {1}"
+copy_success = "In Zwischenablage kopiert"
 
 [wsl_manage]
 status_title = "WSL-Status"

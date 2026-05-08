@@ -135,6 +135,7 @@ monthly = "Mánaðarlega"
 
 [dialog]
 confirm = "Staðfesta"
+copy_path = "Afrita slóð"
 save = "Vista"
 add = "Bæta við"
 cancel = "Hætta við"
@@ -422,6 +423,7 @@ distro_busy = "Dreifingin '{0}' er upptekin við að framkvæma: {1}. Vinsamlega
 system_busy = "Kerfið er upptekið við aðra þunga vinnu (útflutningur, flutningur, klónun, eyðing eða uppsetning). Vinsamlegast reyndu aftur síðar."
 default_set_success = "'{0}' hefur verið sett sem sjálfgefin dreifing."
 default_set_failed = "Mistókst að setja '{0}' sem sjálfgefið: {1}"
+copy_success = "Afritað á klemmuspjaldið"
 
 [wsl_manage]
 status_title = "WSL staða"

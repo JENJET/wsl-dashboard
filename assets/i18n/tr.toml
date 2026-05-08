@@ -135,6 +135,7 @@ monthly = "Her ay"
 
 [dialog]
 confirm = "Onayla"
+copy_path = "Yolu kopyala"
 save = "Kaydet"
 add = "Ekle"
 cancel = "İptal"
@@ -422,6 +423,7 @@ distro_busy = "Dağıtım '{0}' şu anda {1} işlemini gerçekleştiriyor. Lütf
 system_busy = "Sistem başka bir ağır işlemle (Dışa Aktarma, Taşıma, Klonlama, Silme veya Yükleme) meşgul. Lütfen daha sonra tekrar deneyin."
 default_set_success = "'{0}' varsayılan dağıtım olarak ayarlandı."
 default_set_failed = "'{0}' varsayılan olarak ayarlanamadı: {1}"
+copy_success = "Panoya kopyalandı"
 
 [wsl_manage]
 status_title = "WSL Durumu"

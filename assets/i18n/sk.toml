@@ -135,6 +135,7 @@ monthly = "Každý mesiac"
 
 [dialog]
 confirm = "Potvrdiť"
+copy_path = "Kopírovať cestu"
 save = "Uložiť"
 add = "Pridať"
 cancel = "Zrušiť"
@@ -422,6 +423,7 @@ distro_busy = "Distribúcia '{0}' je zaneprázdnená vykonávaním: {1}. Skúste
 system_busy = "Systém je zaneprázdnený inou náročnou úlohou (export, presun, klonovanie, odstránenie alebo inštalácia). Skúste to neskôr."
 default_set_success = "'{0}' bol nastavený ako predvolená distribúcia."
 default_set_failed = "Nepodarilo sa nastaviť '{0}' ako predvolené: {1}"
+copy_success = "Skopírované do schránky"
 
 [wsl_manage]
 status_title = "Stav WSL"

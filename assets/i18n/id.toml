@@ -135,6 +135,7 @@ monthly = "Setiap bulan"
 
 [dialog]
 confirm = "Konfirmasi"
+copy_path = "Salin jalur"
 save = "Simpan"
 add = "Tambah"
 cancel = "Batal"
@@ -422,6 +423,7 @@ distro_busy = "Distro '{0}' sedang sibuk melakukan: {1}. Silakan coba lagi nanti
 system_busy = "Sistem sedang sibuk dengan tugas berat lainnya (Ekspor, Pindah, Kloning, Hapus, atau Instal). Silakan coba lagi nanti."
 default_set_success = "'{0}' telah ditetapkan sebagai distro default."
 default_set_failed = "Gagal menetapkan '{0}' sebagai default: {1}"
+copy_success = "Disalin ke clipboard"
 
 [wsl_manage]
 status_title = "Status WSL"

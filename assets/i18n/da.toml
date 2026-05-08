@@ -135,6 +135,7 @@ monthly = "Hver måned"
 
 [dialog]
 confirm = "Bekræft"
+copy_path = "Kopiér sti"
 save = "Gem"
 add = "Tilføj"
 cancel = "Annuller"
@@ -422,6 +423,7 @@ distro_busy = "Distro '{0}' er optaget af at udføre: {1}. Prøv venligst igen s
 system_busy = "Systemet er optaget af en anden tung opgave (eksport, flytning, kloning, sletning eller installation). Prøv venligst igen senere."
 default_set_success = "'{0}' er blevet indstillet som standard distro."
 default_set_failed = "Kunne ikke indstille '{0}' som standard: {1}"
+copy_success = "Kopieret til udklipsholderen"
 
 [wsl_manage]
 status_title = "WSL-status"

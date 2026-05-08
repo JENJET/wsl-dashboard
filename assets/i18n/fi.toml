@@ -135,6 +135,7 @@ monthly = "Joka kuukausi"
 
 [dialog]
 confirm = "Vahvista"
+copy_path = "Kopioi polku"
 save = "Tallenna"
 add = "Lisää"
 cancel = "Peruuta"
@@ -422,6 +423,7 @@ distro_busy = "Distro '{0}' suorittaa tällä hetkellä tehtävää: {1}. Yritä
 system_busy = "Järjestelmä on varattu toisella raskaalla tehtävällä (vienti, siirto, kloonaus, poisto tai asennus). Yritä myöhemmin uudelleen."
 default_set_success = "'{0}' on asetettu oletusjakeluksi."
 default_set_failed = "'{0}' asettaminen oletukseksi epäonnistui: {1}"
+copy_success = "Kopioitu leikepöydälle"
 
 [wsl_manage]
 status_title = "WSL-tila"

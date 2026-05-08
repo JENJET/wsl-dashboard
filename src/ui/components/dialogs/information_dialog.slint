@@ -4,6 +4,7 @@ import {
     AppI18n,
     LayoutConstants,
 } from "../../theme.slint";
+import { ActionIcon } from "../common.slint";
 
 component InfoRow inherits Rectangle {
     in property <string> label;
@@ -11,7 +12,9 @@ component InfoRow inherits Rectangle {
     in property <color> value_color: Theme.text_primary;
     in property <bool> clickable: false;
     in property <bool> is_pill: false;
+    in property <bool> show_copy_button: false;
     callback clicked;
+    callback copy_clicked;
     height: 24px;
     Text {
         x: AppI18n.is-rtl ? parent.width - self.width : 0;
@@ -24,28 +27,55 @@ component InfoRow inherits Rectangle {
         horizontal-alignment: AppI18n.is-rtl ? right : left;
     }
 
-    if (!is_pill): touch_area := TouchArea {
+    if (!is_pill): Rectangle {
         x: AppI18n.is-rtl ? 0 : 122px;
         width: parent.width - 122px;
-        mouse-cursor: root.clickable ? pointer : default;
-        clicked => {
-            if (root.clickable) {
-                root.clicked();
+        height: parent.height;
+        
+        // Value text with click area
+        touch_area := TouchArea {
+            x: 0;
+            width: parent.width - (show_copy_button ? 32px : 0);
+            height: parent.height;
+            mouse-cursor: root.clickable ? pointer : default;
+            clicked => {
+                if (root.clickable) {
+                    root.clicked();
+                }
+            }
+            Rectangle {
+                background: (root.clickable && touch_area.has-hover) ? (Theme.dark_mode ? #2D2D30 : #F0F0F0) : transparent;
+                border-radius: 4px;
+                width: parent.width;
+                height: parent.height;
+                Rectangle {
+                    width: parent.width;
+                    height: parent.height;
+                    clip: true;
+                    Text {
+                        text: root.value;
+                        color: (root.clickable && touch_area.has-hover) ? Theme.accent : root.value_color;
+                        font-size: 13px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        font-weight: 500;
+                        vertical-alignment: center;
+                        horizontal-alignment: left;
+                        overflow: elide;
+                        width: parent.width;
+                    }
+                }
             }
         }
-        Rectangle {
-            background: (root.clickable && touch_area.has-hover) ? (Theme.dark_mode ? #2D2D30 : #F0F0F0) : transparent;
-            border-radius: 4px;
-            Text {
-                text: root.value;
-                color: (root.clickable && touch_area.has-hover) ? Theme.accent : root.value_color;
-                font-size: 13px * LayoutConstants.font-scale;
-                font-family: Theme.default_font;
-                font-weight: 500;
-                vertical-alignment: center;
-                horizontal-alignment: AppI18n.is-rtl ? left : left; // Keep values left-aligned for consistency
-                overflow: elide;
-                width: 100%;
+        
+        // Copy button
+        if (show_copy_button): ActionIcon {
+            x: parent.width - 28px;
+            y: (parent.height - 24px) / 2;
+            icon: "\u{E8C8}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("dialog.copy_path", [AppI18n.version]);
+            clicked => {
+                root.copy_clicked();
             }
         }
     }
@@ -72,6 +102,8 @@ export component InformationDialog inherits Rectangle {
     in property <Information> info;
     callback close;
     callback open_path(string);
+    callback copy_to_clipboard(string);
+    callback show_copy_success();
     
     // Background mask
     background: #00000080;
@@ -172,8 +204,13 @@ export component InformationDialog inherits Rectangle {
                     label: AppI18n.t("dialog.vhdx_location", [AppI18n.version]);
                     value: root.info.vhdx_path;
                     clickable: true;
+                    show_copy_button: true;
                     clicked => {
                         root.open_path(root.info.install_location);
+                    }
+                    copy_clicked => {
+                        root.copy_to_clipboard(root.info.vhdx_path);
+                        root.show_copy_success();
                     }
                 }
             }

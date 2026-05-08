@@ -135,6 +135,7 @@ monthly = "Elke maand"
 
 [dialog]
 confirm = "Bevestigen"
+copy_path = "Pad kopiëren"
 save = "Opslaan"
 add = "Toevoegen"
 cancel = "Annuleren"
@@ -422,6 +423,7 @@ distro_busy = "Distro '{0}' is bezig met: {1}. Probeer het later opnieuw."
 system_busy = "Systeem is bezig met een andere zware taak (exporteren, verplaatsen, kloneren, verwijderen of installeren). Probeer het later opnieuw."
 default_set_success = "'{0}' is ingesteld als standaard distro."
 default_set_failed = "Kan '{0}' niet instellen als standaard: {1}"
+copy_success = "Gekopieerd naar klembord"
 
 [wsl_manage]
 status_title = "WSL-status"

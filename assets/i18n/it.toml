@@ -135,6 +135,7 @@ monthly = "Ogni mese"
 
 [dialog]
 confirm = "Conferma"
+copy_path = "Copia percorso"
 save = "Salva"
 add = "Aggiungi"
 cancel = "Annulla"
@@ -422,6 +423,7 @@ distro_busy = "La distro '{0}' è impegnata in: {1}. Riprova più tardi."
 system_busy = "Il sistema è occupato con un'altra operazione pesante (esportazione, spostamento, clonazione, eliminazione o installazione). Riprova più tardi."
 default_set_success = "'{0}' è stato impostato come distribuzione predefinita."
 default_set_failed = "Impossibile impostare '{0}' come predefinito: {1}"
+copy_success = "Copiato negli appunti"
 
 [wsl_manage]
 status_title = "Stato WSL"

@@ -135,6 +135,7 @@ monthly = "Varje månad"
 
 [dialog]
 confirm = "Bekräfta"
+copy_path = "Kopiera sökväg"
 save = "Spara"
 add = "Lägg till"
 cancel = "Avbryt"
@@ -422,6 +423,7 @@ distro_busy = "Distron '{0}' är upptagen med att utföra: {1}. Försök igen se
 system_busy = "Systemet är upptaget med en annan tung uppgift (export, flytt, kloning, borttagning eller installation). Försök igen senare."
 default_set_success = "'{0}' har angetts som standarddistribution."
 default_set_failed = "Kunde inte ange '{0}' som standard: {1}"
+copy_success = "Kopierat till urklipp"
 
 [wsl_manage]
 status_title = "WSL-status"

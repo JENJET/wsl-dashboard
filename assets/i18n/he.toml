@@ -135,6 +135,7 @@ monthly = "בכל חודש"
 
 [dialog]
 confirm = "אישור"
+copy_path = "העתק נתיב"
 save = "שמור"
 add = "הוסף"
 cancel = "ביטול"
@@ -422,6 +423,7 @@ distro_busy = "ההפצה '{0}' עסוקה בביצוע: {1}. אנא נסה שו
 system_busy = "המערכת עסוקה במשימה כבדה אחרת (ייצוא, העברה, שכפול, מחיקה או התקנה). אנא נסה שוב מאוחר יותר."
 default_set_success = "'{0}' הוגדר כברירת המחדל."
 default_set_failed = "נכשל בהגדרת '{0}' כברירת מחדל: {1}"
+copy_success = "הועתק ללוח"
 
 [wsl_manage]
 status_title = "מצב WSL"

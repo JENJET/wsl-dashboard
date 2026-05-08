@@ -135,6 +135,7 @@ monthly = "Chaque mois"
 
 [dialog]
 confirm = "Confirmer"
+copy_path = "Copier le chemin"
 save = "Enregistrer"
 add = "Ajouter"
 cancel = "Annuler"
@@ -422,6 +423,7 @@ distro_busy = "La distribution '{0}' est occupée à effectuer : {1}. Veuillez r
 system_busy = "Le système est occupé par une autre tâche lourde (exportation, déplacement, clonage, suppression ou installation). Veuillez réessayer plus tard."
 default_set_success = "'{0}' a été défini comme distribution par défaut."
 default_set_failed = "Échec de la définition de '{0}' par défaut : {1}"
+copy_success = "Copié dans le presse-papiers"
 
 [wsl_manage]
 status_title = "État WSL"

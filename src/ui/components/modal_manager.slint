@@ -133,6 +133,8 @@ export component ModalManager inherits Rectangle {
     callback cancel_install_warn();
     callback close_expire();
     callback close_information();
+    callback copy_to_clipboard(string);
+    callback show_copy_success();
     callback confirm_settings(string, string, string, bool, bool, string, bool);
     callback close_settings();
     callback close_rootfs_help();
@@ -292,6 +294,12 @@ export component ModalManager inherits Rectangle {
         }
         open_path(url) => {
             root.open_url(url);
+        }
+        copy_to_clipboard(text) => {
+            root.copy_to_clipboard(text);
+        }
+        show_copy_success => {
+            root.show_copy_success();
         }
     }
     if (show_settings): SettingsDialog {

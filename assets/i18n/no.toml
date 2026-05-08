@@ -135,6 +135,7 @@ monthly = "Hver måned"
 
 [dialog]
 confirm = "Bekreft"
+copy_path = "Kopiér bane"
 save = "Lagre"
 add = "Legg til"
 cancel = "Avbryt"
@@ -422,6 +423,7 @@ distro_busy = "Distroen '{0}' er opptatt med å utføre: {1}. Prøv igjen senere
 system_busy = "Systemet er opptatt med en annen tung oppgave (eksport, flytting, kloning, sletting eller installasjon). Prøv igjen senere."
 default_set_success = "'{0}' er satt som standard distro."
 default_set_failed = "Kunne ikke sette '{0}' som standard: {1}"
+copy_success = "Kopiert til utklippstavlen"
 
 [wsl_manage]
 status_title = "WSL-status"

@@ -135,6 +135,7 @@ monthly = "每月"
 
 [dialog]
 confirm = "確認"
+copy_path = "複製路徑"
 save = "儲存"
 add = "添加"
 cancel = "取消"
@@ -422,6 +423,7 @@ distro_busy = "發行版 '{0}' 正在執行 {1} 操作。請稍後再試。"
 system_busy = "系統正在處理另一個繁重任務（匯出、移動、複製、刪除或安裝）。請稍後再試。"
 default_set_success = "'{0}' 已設定為預設發行版。"
 default_set_failed = "設定 '{0}' 為預設失敗：{1}"
+copy_success = "已複製到剪貼簿"
 
 [wsl_manage]
 status_title = "WSL 狀態"

@@ -135,6 +135,7 @@ monthly = "Minden hónapban"
 
 [dialog]
 confirm = "Megerősítés"
+copy_path = "Útvonal másolása"
 save = "Mentés"
 add = "Hozzáadás"
 cancel = "Mégse"
@@ -422,6 +423,7 @@ distro_busy = "A(z) '{0}' disztribúció éppen a következőt végzi: {1}. Kér
 system_busy = "A rendszer más nehéz feladattal foglalkozik (exportálás, áthelyezés, klónozás, törlés vagy telepítés). Kérjük, próbálja meg később."
 default_set_success = "A '{0}' alapértelmezett disztribúcióként lett beállítva."
 default_set_failed = "Nem sikerült beállítani a '{0}' alapértelmezettként: {1}"
+copy_success = "Vágólapra másolva"
 
 [wsl_manage]
 status_title = "WSL állapot"

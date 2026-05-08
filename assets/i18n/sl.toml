@@ -135,6 +135,7 @@ monthly = "Vsak mesec"
 
 [dialog]
 confirm = "Potrdi"
+copy_path = "Kopiraj pot"
 save = "Shrani"
 add = "Dodaj"
 cancel = "Prekliči"
@@ -422,6 +423,7 @@ distro_busy = "Distribucija '{0}' je zasedena z izvajanjem: {1}. Poskusite znova
 system_busy = "Sistem je zaseden z drugo težko nalogo (izvoz, premikanje, kloniranje, brisanje ali namestitev). Poskusite znova pozneje."
 default_set_success = "'{0}' je bil nastavljen kot privzeta distribucija."
 default_set_failed = "Ni mogoče nastaviti '{0}' kot privzeto: {1}"
+copy_success = "Kopirano v odložišče"
 
 [wsl_manage]
 status_title = "Stanje WSL"

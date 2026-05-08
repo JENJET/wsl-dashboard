@@ -593,4 +593,43 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
             });
         });
     }
+
+    // Copy to clipboard
+    {
+        app.on_copy_to_clipboard(move |text| {
+            use crate::utils::system::copy_to_clipboard;
+            let text_str = text.to_string();
+            match copy_to_clipboard(&text_str) {
+                Ok(_) => {
+                    tracing::info!("Copied to clipboard: {}", text_str);
+                }
+                Err(e) => {
+                    tracing::error!("Failed to copy to clipboard: {}", e);
+                }
+            }
+        });
+    }
+
+    // Show copy success toast
+    {
+        let ah = app_handle.clone();
+        app.on_show_copy_success(move || {
+            if let Some(app) = ah.upgrade() {
+                let msg = i18n::t("toast.copy_success");
+                app.set_task_status_text(msg.into());
+                app.set_task_status_visible(true);
+                
+                // Auto-hide toast after 3 seconds
+                let ah_inner = ah.clone();
+                tokio::spawn(async move {
+                    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah_inner.upgrade() {
+                            app.set_task_status_visible(false);
+                        }
+                    });
+                });
+            }
+        });
+    }
 }
