@@ -1,0 +1,16 @@
+[build]
+# Cargo 默认使用所有可用的 CPU 核心进行并行编译
+# 如果使用 sccache,取消下面这行的注释
+rustc-wrapper = "sccache"
+
+[target.x86_64-pc-windows-msvc]
+# Windows MSVC 链接器优化
+rustflags = [
+    "-C", "link-arg=/OPT:REF",
+    "-C", "link-arg=/OPT:ICF",
+    "-C", "link-arg=/STACK:8388608",
+]
+
+[net]
+# 使用 Git 协议而非 HTTPS,速度更快
+git-fetch-with-cli = true
