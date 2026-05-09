@@ -136,6 +136,7 @@ export component ModalManager inherits Rectangle {
     callback copy_to_clipboard(string);
     callback show_copy_success();
     callback copy_ip_clicked();
+    callback resize_vhdx_clicked();
     callback confirm_settings(string, string, string, bool, bool, string, bool);
     callback close_settings();
     callback close_rootfs_help();
@@ -304,6 +305,9 @@ export component ModalManager inherits Rectangle {
         }
         copy_ip_clicked => {
             root.copy_ip_clicked();
+        }
+        resize_vhdx_clicked => {
+            root.resize_vhdx_clicked();
         }
     }
     if (show_settings): SettingsDialog {

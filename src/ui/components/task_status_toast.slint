@@ -12,6 +12,7 @@ export component TaskStatusToast inherits Rectangle {
     border-color: Theme.border_color;
     drop-shadow-blur: 12px;
     drop-shadow-color: #00000030;
+    clip: true;
     animate y {
         duration: 250ms;
         easing: ease-out;
@@ -62,6 +63,7 @@ export component TaskStatusToast inherits Rectangle {
             vertical-alignment: center;
             horizontal-alignment: AppI18n.is-rtl ? right : left;
             horizontal-stretch: 1;
+            overflow: elide;
         }
 
         // Icon for RTL (at the end)

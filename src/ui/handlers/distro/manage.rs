@@ -334,6 +334,9 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                             slint_data.vhdx_size = data.vhdx_size.into();
                             slint_data.actual_used = data.actual_used.into();
                             slint_data.ip = data.ip.into();
+                            slint_data.vhdx_virtual_size = data.vhdx_virtual_size.into();
+                            slint_data.vhdx_type = data.vhdx_type.into();
+                            slint_data.vhdx_is_sparse = data.vhdx_is_sparse;
                             app.set_information(slint_data);
                             app.set_show_information(true);
                         }
@@ -659,6 +662,158 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     }
                 }
             }
+        });
+    }
+
+    // VHDX Resize - show dialog
+    {
+        let ah = app_handle.clone();
+        app.on_vhdx_resize_show(move |distro_name, vhdx_path| {
+            if let Some(app) = ah.upgrade() {
+                app.set_vhdx_resize_distro_name(distro_name);
+                app.set_vhdx_resize_path(vhdx_path);
+                app.set_vhdx_resize_new_size("".into());
+                app.set_vhdx_resize_error("".into());
+                app.set_vhdx_resize_output("".into());
+                app.set_vhdx_resize_is_error(false);
+                app.set_vhdx_resize_running(false);
+                app.set_show_vhdx_resize(true);
+            }
+        });
+    }
+
+    // VHDX Resize - cancel
+    {
+        let ah = app_handle.clone();
+        app.on_vhdx_resize_cancel(move || {
+            if let Some(app) = ah.upgrade() {
+                app.set_show_vhdx_resize(false);
+                app.set_vhdx_resize_error("".into());
+            }
+        });
+    }
+
+    // VHDX Resize - confirm
+    {
+        let ah_outer = app_handle.clone();
+        let as_outer = app_state.clone();
+        app.on_vhdx_resize_confirm(move |new_size_gb| {
+            let size_str = new_size_gb.to_string();
+            tracing::info!("VHDX resize confirm clicked, size: '{}'", size_str);
+
+            // Read UI properties NOW (on Slint event loop thread) before spawning
+            let (vhdx_path, distro_name) = {
+                if let Some(app) = ah_outer.upgrade() {
+                    (
+                        app.get_vhdx_resize_path().to_string(),
+                        app.get_vhdx_resize_distro_name().to_string(),
+                    )
+                } else {
+                    tracing::error!("VHDX resize: failed to get app handle from UI thread");
+                    return;
+                }
+            };
+
+            tracing::info!("VHDX resize: path={}, distro={}", vhdx_path, distro_name);
+
+            let ah = ah_outer.clone();
+            let as_ptr = as_outer.clone();
+
+            // Show running state and output area
+            {
+                if let Some(app) = ah.upgrade() {
+                    app.set_vhdx_resize_running(true);
+                    app.set_vhdx_resize_output("".into());
+                }
+            }
+
+            tokio::spawn(async move {
+                // Parse and validate size
+                let size_gb: f64 = match size_str.trim().parse() {
+                    Ok(v) if v > 0.0 => v,
+                    _ => {
+                        let ah2 = ah.clone();
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(app) = ah2.upgrade() {
+                                app.set_vhdx_resize_running(false);
+                                app.set_vhdx_resize_output(i18n::t("dialog.vhdx_resize_failed").into());
+                            }
+                        });
+                        return;
+                    }
+                };
+
+                // Check if distro is running
+                let is_running = {
+                    let state = as_ptr.lock().await;
+                    let distros = state.wsl_dashboard.get_distros().await;
+                    distros.iter().any(|d| d.name == distro_name && matches!(d.status, crate::wsl::models::WslStatus::Running))
+                };
+
+                if is_running {
+                    let ah2 = ah.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah2.upgrade() {
+                            app.set_vhdx_resize_running(false);
+                            app.set_vhdx_resize_output(i18n::t("dialog.vhdx_resize_running").into());
+                        }
+                    });
+                    return;
+                }
+
+                let new_size_bytes = (size_gb * 1024.0 * 1024.0 * 1024.0) as u64;
+
+                // Update output with progress
+                {
+                    let ah2 = ah.clone();
+                    let msg = i18n::tr("dialog.vhdx_resize_progress", &[format!("{:.0}", size_gb)]);
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah2.upgrade() {
+                            app.set_vhdx_resize_output(msg.into());
+                        }
+                    });
+                }
+
+                tracing::info!("VHDX resize: calling resize_vhdx with {} bytes", new_size_bytes);
+                let result = tokio::task::spawn_blocking(move || {
+                    crate::wsl::ops::vhdx::resize_vhdx(&vhdx_path, new_size_bytes)
+                }).await;
+
+                match result {
+                    Ok(Ok(())) => {
+                        let ah2 = ah.clone();
+                        let msg = i18n::tr("dialog.vhdx_resize_success", &[format!("{:.0}", size_gb)]);
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(app) = ah2.upgrade() {
+                                app.set_vhdx_resize_running(false);
+                                app.set_vhdx_resize_output(msg.into());
+                            }
+                        });
+                    }
+                    Ok(Err(e)) => {
+                        let ah2 = ah.clone();
+                        let msg = i18n::tr("dialog.vhdx_resize_failed", &[e]);
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(app) = ah2.upgrade() {
+                                app.set_vhdx_resize_running(false);
+                                app.set_vhdx_resize_is_error(true);
+                                app.set_vhdx_resize_output(msg.into());
+                            }
+                        });
+                    }
+                    Err(e) => {
+                        let ah2 = ah.clone();
+                        let msg = i18n::tr("dialog.vhdx_resize_failed", &[e.to_string()]);
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(app) = ah2.upgrade() {
+                                app.set_vhdx_resize_running(false);
+                                app.set_vhdx_resize_is_error(true);
+                                app.set_vhdx_resize_output(msg.into());
+                            }
+                        });
+                    }
+                }
+            });
         });
     }
 }

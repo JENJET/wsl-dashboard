@@ -99,9 +99,16 @@ pub async fn get_distro_information(executor: &WslCommandExecutor, distro_name: 
 
             if let Some(p) = vhdx_path {
                 information.vhdx_path = p.to_string_lossy().to_string();
-                if let Ok(metadata) = std::fs::metadata(p) {
+                if let Ok(metadata) = std::fs::metadata(&p) {
                     let size_gb = metadata.len() as f64 / (1024.0 * 1024.0 * 1024.0);
                     information.vhdx_size = format!("{:.2} GB", size_gb);
+                }
+                // Get VHDX metadata (virtual size, type, sparse)
+                let vhdx_path_str = p.to_string_lossy().to_string();
+                if let Some(vhdx_info) = super::vhdx::get_vhdx_info(&vhdx_path_str) {
+                    information.vhdx_virtual_size = vhdx_info.virtual_size;
+                    information.vhdx_type = vhdx_info.vhd_type;
+                    information.vhdx_is_sparse = vhdx_info.is_sparse;
                 }
             }
         }

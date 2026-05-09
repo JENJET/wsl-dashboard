@@ -32,7 +32,7 @@ component InfoRow inherits Rectangle {
         x: AppI18n.is-rtl ? 0 : 122px;
         width: parent.width - 122px;
         height: parent.height;
-        
+
         // Value text with click area
         touch_area := TouchArea {
             x: 0;
@@ -67,7 +67,7 @@ component InfoRow inherits Rectangle {
                 }
             }
         }
-        
+
         // Copy button
         if (show_copy_button): ActionIcon {
             x: parent.width - 28px;
@@ -106,10 +106,11 @@ export component InformationDialog inherits Rectangle {
     callback copy_to_clipboard(string);
     callback show_copy_success();
     callback copy_ip_clicked;
-    
+    callback resize_vhdx_clicked;
+
     // Background mask
     background: #00000080;
-    
+
     // Close on mask click
     TouchArea {
         clicked => {
@@ -119,8 +120,8 @@ export component InformationDialog inherits Rectangle {
 
     // Dialog Box
     Rectangle {
-        width: 440px;
-        height: 285px;
+        width: 500px;
+        height: 400px;
         background: Theme.card_bg;
         border-radius: 8px;
         border-width: 1px;
@@ -130,7 +131,7 @@ export component InformationDialog inherits Rectangle {
         VerticalLayout {
             padding: 24px;
             spacing: 12px;
-            
+
             // Header
             Rectangle {
                 height: 24px;
@@ -184,8 +185,8 @@ export component InformationDialog inherits Rectangle {
 
                 InfoRow {
                     label: AppI18n.t("dialog.state", [AppI18n.version]);
-                    value: (root.info.status == "Running") 
-                        ? (AppI18n.t("distro.running", [AppI18n.version]) + (root.info.ip != "" ? " (IP: " + root.info.ip + " )" : "")) 
+                    value: (root.info.status == "Running")
+                        ? (AppI18n.t("distro.running", [AppI18n.version]) + (root.info.ip != "" ? " (IP: " + root.info.ip + " )" : ""))
                         : AppI18n.t("distro.stopped", [AppI18n.version]);
                     value_color: root.info.status == "Running" ? #28a745 : Theme.text_primary;
                     show_copy_button: root.info.status == "Running" && root.info.ip != "";
@@ -201,9 +202,33 @@ export component InformationDialog inherits Rectangle {
                     is_pill: true;
                 }
 
+                // --- VHDX Section ---
+                Rectangle {
+                    height: 1px;
+                    background: Theme.border_color.with-alpha(50%);
+                }
+
                 InfoRow {
                     label: AppI18n.t("dialog.vhdx_usage", [AppI18n.version]);
                     value: root.info.vhdx_size;
+                    is_pill: true;
+                }
+
+                InfoRow {
+                    label: AppI18n.t("dialog.vhdx_virtual_size", [AppI18n.version]);
+                    value: root.info.vhdx_virtual_size;
+                    is_pill: true;
+                }
+
+                InfoRow {
+                    label: AppI18n.t("dialog.vhdx_type", [AppI18n.version]);
+                    value: root.info.vhdx_type;
+                    is_pill: true;
+                }
+
+                InfoRow {
+                    label: AppI18n.t("dialog.vhdx_sparse", [AppI18n.version]);
+                    value: root.info.vhdx_is_sparse ? AppI18n.t("dialog.vhdx_sparse_yes", [AppI18n.version]) : AppI18n.t("dialog.vhdx_sparse_no", [AppI18n.version]);
                     is_pill: true;
                 }
 
@@ -225,6 +250,28 @@ export component InformationDialog inherits Rectangle {
             // Footer
             HorizontalLayout {
                 alignment: AppI18n.is-rtl ? start : end;
+                spacing: 8px;
+                // Resize VHDX button (only for WSL2 with VHDX)
+                if (root.info.vhdx_path != ""): Rectangle {
+                    width: 130px;
+                    height: 32px;
+                    background: resize_btn_area.has-hover ? #e67e00.with-alpha(25%) : #e67e00.with-alpha(12%);
+                    border-radius: 6px;
+                    Text {
+                        text: AppI18n.t("dialog.vhdx_resize", [AppI18n.version]);
+                        color: #e67e00;
+                        font-size: 13px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        font-weight: 500;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                    resize_btn_area := TouchArea {
+                        clicked => {
+                            root.resize_vhdx_clicked();
+                        }
+                    }
+                }
                 Rectangle {
                     width: 90px;
                     height: 32px;

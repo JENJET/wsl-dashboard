@@ -35,6 +35,9 @@ pub struct WslInformation {
     pub actual_used: String,
     pub ip: String,
     pub package_family_name: String,
+    pub vhdx_virtual_size: String,
+    pub vhdx_type: String,
+    pub vhdx_is_sparse: bool,
 }
 
 impl WslDistro {
