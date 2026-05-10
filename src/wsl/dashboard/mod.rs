@@ -1,12 +1,12 @@
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
-use std::collections::HashMap;
 use tokio::sync::{Mutex, Notify};
 use tokio::time::Duration;
 use tracing::debug;
 
 use crate::wsl::command::WslCommandExecutor;
-use crate::wsl::models::{WslDistro, WslCommandResult, WslStatus};
+use crate::wsl::models::{WslCommandResult, WslDistro, WslStatus};
 
 // WSL state manager, responsible for managing and monitoring the status of WSL subsystems
 #[derive(Clone)]
@@ -108,7 +108,7 @@ impl WslDashboard {
                 let mut distros_lock = self.distros.lock().await;
                 let old_distros = distros_lock.clone();
                 *distros_lock = distros.clone();
-                
+
                 let mut has_changes = false;
                 if old_distros.len() != distros.len() {
                     has_changes = true;
@@ -120,7 +120,7 @@ impl WslDashboard {
                         }
                     }
                 }
-                
+
                 if has_changes {
                     tracing::debug!("WSL distribution list changed, notifying UI update");
                     self.state_changed.notify_one();
@@ -197,5 +197,5 @@ impl Default for WslDashboard {
     }
 }
 
-mod ops;
 pub mod operation_guard;
+mod ops;

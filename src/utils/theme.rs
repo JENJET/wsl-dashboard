@@ -1,8 +1,10 @@
-use windows::UI::ViewManagement::{UISettings, UIColorType};
-use windows::Foundation::TypedEventHandler;
 use slint::ComponentHandle;
 use tracing::info;
-use windows::Win32::System::Registry::{RegOpenKeyExW, RegQueryValueExW, HKEY_CURRENT_USER, KEY_READ, HKEY};
+use windows::Foundation::TypedEventHandler;
+use windows::UI::ViewManagement::{UIColorType, UISettings};
+use windows::Win32::System::Registry::{
+    HKEY, HKEY_CURRENT_USER, KEY_READ, RegOpenKeyExW, RegQueryValueExW,
+};
 use windows::core::PCWSTR;
 
 pub struct ThemeWatcher {
@@ -24,18 +26,20 @@ pub enum Theme {
 impl ThemeWatcher {
     pub fn new(handle: slint::Weak<crate::AppWindow>) -> windows::core::Result<Self> {
         let settings = UISettings::new()?;
-        
+
         let handler = TypedEventHandler::<UISettings, windows::core::IInspectable>::new({
             let handle = handle.clone();
             move |_, _| {
                 let theme = Self::get_current_theme();
                 info!("Windows theme changed: {:?}", theme);
-                
+
                 let dark_mode = theme == Theme::Dark;
                 let handle_clone = handle.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(app_instance) = handle_clone.upgrade() {
-                        app_instance.global::<crate::Theme>().set_dark_mode(dark_mode);
+                        app_instance
+                            .global::<crate::Theme>()
+                            .set_dark_mode(dark_mode);
                     }
                 });
                 Ok(())
@@ -45,7 +49,10 @@ impl ThemeWatcher {
         settings.ColorValuesChanged(&handler)?;
 
         let current = Self::get_current_theme();
-        info!("ThemeWatcher initialized. Current Windows theme: {:?}", current);
+        info!(
+            "ThemeWatcher initialized. Current Windows theme: {:?}",
+            current
+        );
 
         Ok(Self {
             _settings: settings,
@@ -60,7 +67,9 @@ impl ThemeWatcher {
             if let Ok(color) = settings.GetColorValue(UIColorType::Background) {
                 // Light mode background is typically white or very bright
                 // R:255, G:255, B:255
-                let brightness = (color.R as f32 * 0.299 + color.G as f32 * 0.587 + color.B as f32 * 0.114) / 255.0;
+                let brightness =
+                    (color.R as f32 * 0.299 + color.G as f32 * 0.587 + color.B as f32 * 0.114)
+                        / 255.0;
                 return if brightness < 0.5 {
                     Theme::Dark
                 } else {
@@ -81,15 +90,16 @@ impl ThemeWatcher {
 
     fn get_apps_use_light_theme_registry() -> windows::core::Result<u32> {
         unsafe {
-            let subkey = encode_wide("Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize");
+            let subkey =
+                encode_wide("Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize");
             let mut hkey = HKEY::default();
-            
+
             let status = RegOpenKeyExW(
                 HKEY_CURRENT_USER,
                 PCWSTR(subkey.as_ptr()),
                 0,
                 KEY_READ,
-                &mut hkey
+                &mut hkey,
             );
 
             if status.is_err() {
@@ -107,7 +117,7 @@ impl ThemeWatcher {
                 None,
                 None,
                 Some(&mut data as *mut u32 as *mut u8),
-                Some(&mut data_len)
+                Some(&mut data_len),
             );
 
             use windows::Win32::System::Registry::RegCloseKey;

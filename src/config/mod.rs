@@ -1,9 +1,9 @@
 use std::fs;
 use std::path::PathBuf;
-use tracing::{info, error};
+use tracing::{error, info};
 
-mod migration;
 pub mod instances;
+mod migration;
 pub mod models;
 
 pub use models::*;
@@ -37,7 +37,7 @@ impl ConfigManager {
     // Initialize configuration manager
     pub async fn new() -> Self {
         let config_path = Self::get_config_path();
-        
+
         // Check if configuration file exists
         if config_path.exists() {
             info!("Configuration file exists, loading...");
@@ -53,10 +53,11 @@ impl ConfigManager {
 
                     // Refresh basic information (startup_time, version)
                     // Force refresh system information if more than 7 days or data is missing
-                    let force_system = should_refresh_system || config.system.system_language.is_empty();
-                    
+                    let force_system =
+                        should_refresh_system || config.system.system_language.is_empty();
+
                     Self::refresh_system_info(&mut config, force_system).await;
-                    
+
                     // Ensure critical directories exist
                     let _ = fs::create_dir_all(&config.settings.distro_location);
                     let _ = fs::create_dir_all(&config.settings.logs_location);
@@ -66,14 +67,17 @@ impl ConfigManager {
                     if let Err(e) = Self::save_config(&config_path, &mut config) {
                         error!("Failed to save config: {}", e);
                     }
-                    
+
                     Self {
                         config_path,
                         config,
                     }
                 }
                 Err(e) => {
-                    error!("Failed to load configuration file: {}, using default configuration", e);
+                    error!(
+                        "Failed to load configuration file: {}, using default configuration",
+                        e
+                    );
                     let config = Self::create_default_config().await;
                     Self {
                         config_path,
@@ -84,7 +88,7 @@ impl ConfigManager {
         } else {
             info!("Configuration file does not exist, initializing...");
             let mut config = Self::create_default_config().await;
-            
+
             // Create configuration directory
             if let Some(parent) = config_path.parent() {
                 if let Err(e) = fs::create_dir_all(parent) {
@@ -96,14 +100,17 @@ impl ConfigManager {
                     let _ = fs::create_dir_all(&config.settings.temp_location);
                 }
             }
-            
+
             // Save configuration
             if let Err(e) = Self::save_config(&config_path, &mut config) {
                 error!("Failed to save initial configuration: {}", e);
             } else {
-                info!("✅ Configuration file initialized successfully: {}", config_path.display());
+                info!(
+                    "✅ Configuration file initialized successfully: {}",
+                    config_path.display()
+                );
             }
-            
+
             Self {
                 config_path,
                 config,
@@ -123,27 +130,32 @@ impl ConfigManager {
         // Update startup time field
         config.application.startup_time = chrono::Utc::now().timestamp_millis().to_string();
         config.application.app_version = env!("CARGO_PKG_VERSION").to_string();
-        
+
         if !refresh_system {
             info!("Skipping system environment query (less than 7 days since last update)");
             return;
         }
 
         info!("Refreshing system language and timezone information...");
-        
+
         config.system.system_language = crate::utils::registry::get_system_locale();
         config.system.timezone = crate::utils::registry::get_system_timezone();
     }
 
     // Load configuration file
-    async fn load_config(path: &PathBuf) -> Result<Config, Box<dyn std::error::Error + Send + Sync>> {
+    async fn load_config(
+        path: &PathBuf,
+    ) -> Result<Config, Box<dyn std::error::Error + Send + Sync>> {
         let content = fs::read_to_string(path)?;
         let config: Config = toml::from_str(&content)?;
         Ok(config)
     }
 
     // Save configuration file
-    fn save_config(path: &PathBuf, config: &mut Config) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    fn save_config(
+        path: &PathBuf,
+        config: &mut Config,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // Update modify-time each time saving
         config.settings.modify_time = chrono::Utc::now().timestamp_millis().to_string();
         let toml_string = toml::to_string_pretty(config)?;
@@ -162,7 +174,10 @@ impl ConfigManager {
     }
 
     // Update user settings and save
-    pub fn update_settings(&mut self, settings: UserSettings) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub fn update_settings(
+        &mut self,
+        settings: UserSettings,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         // Ensure new paths exist
         let _ = fs::create_dir_all(&settings.distro_location);
         let _ = fs::create_dir_all(&settings.logs_location);
@@ -170,7 +185,7 @@ impl ConfigManager {
 
         self.config.settings = settings;
         self.config.application.setting_version = SETTINGS_VERSION as u8;
-        
+
         Self::save_config(&self.config_path, &mut self.config)?;
         info!("✅ Configuration saved successfully");
         Ok(())
@@ -187,7 +202,10 @@ impl ConfigManager {
     }
 
     // Update tray settings and save
-    pub fn update_tray_settings(&mut self, tray: TraySettings) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub fn update_tray_settings(
+        &mut self,
+        tray: TraySettings,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         self.config.tray = tray;
         Self::save_config(&self.config_path, &mut self.config)?;
         info!("✅ Tray configuration saved successfully");
@@ -195,7 +213,10 @@ impl ConfigManager {
     }
 
     // Update sidebar settings and save
-    pub fn update_sidebar_settings(&mut self, sidebar: SidebarConfig) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub fn update_sidebar_settings(
+        &mut self,
+        sidebar: SidebarConfig,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         self.config.sidebar = sidebar;
         Self::save_config(&self.config_path, &mut self.config)?;
         info!("✅ Sidebar configuration saved successfully");
@@ -211,7 +232,7 @@ impl ConfigManager {
     }
 
     // --- Network Config Management ---
-    
+
     fn load_network_config() -> NetworkConfig {
         let path = Self::get_network_config_path();
         if path.exists() {
@@ -219,7 +240,10 @@ impl ConfigManager {
                 match toml::from_str::<NetworkConfig>(&content) {
                     Ok(config) => return config,
                     Err(e) => {
-                        error!("Failed to parse network.toml, falling back to default: {}", e);
+                        error!(
+                            "Failed to parse network.toml, falling back to default: {}",
+                            e
+                        );
                     }
                 }
             }
@@ -227,7 +251,9 @@ impl ConfigManager {
         NetworkConfig::default()
     }
 
-    fn save_network_config(network: &NetworkConfig) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    fn save_network_config(
+        network: &NetworkConfig,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let path = Self::get_network_config_path();
         let toml_string = toml::to_string_pretty(network)?;
         fs::write(path, toml_string)?;
@@ -238,11 +264,17 @@ impl ConfigManager {
         Self::load_network_config()
     }
 
-    pub fn update_network_config(&self, mut network: NetworkConfig) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub fn update_network_config(
+        &self,
+        mut network: NetworkConfig,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         network.common.modify_time = chrono::Utc::now().timestamp_millis().to_string();
         let rule_count = network.port_proxies.len();
         Self::save_network_config(&network)?;
-        info!("✅ Network configuration ({} rules) saved successfully to network.toml", rule_count);
+        info!(
+            "✅ Network configuration ({} rules) saved successfully to network.toml",
+            rule_count
+        );
         Ok(())
     }
 
@@ -252,7 +284,10 @@ impl ConfigManager {
         instances::load_instances(&Self::get_instances_path())
     }
 
-    fn save_instances_to_disk(path: &std::path::Path, container: &InstancesContainer) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    fn save_instances_to_disk(
+        path: &std::path::Path,
+        container: &InstancesContainer,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         instances::save_instances_to_disk(path, container)
     }
 
@@ -263,14 +298,20 @@ impl ConfigManager {
         } else {
             // Initialize with default if not found
             let default_config = DistroInstanceConfig::default();
-            container.instances.insert(distro_name.to_string(), default_config.clone());
+            container
+                .instances
+                .insert(distro_name.to_string(), default_config.clone());
             // Save immediately as requested
             let _ = self.update_instance_config(distro_name, default_config.clone());
             default_config
         }
     }
 
-    pub fn update_instance_config(&self, distro_name: &str, config: DistroInstanceConfig) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub fn update_instance_config(
+        &self,
+        distro_name: &str,
+        config: DistroInstanceConfig,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut container = Self::load_instances();
         container.instances.insert(distro_name.to_string(), config);
         container.common.modify_time = chrono::Utc::now().timestamp_millis().to_string();
@@ -278,11 +319,17 @@ impl ConfigManager {
 
         let path = Self::get_instances_path();
         Self::save_instances_to_disk(&path, &container)?;
-        info!("✅ Instance configuration for '{}' saved successfully", distro_name);
+        info!(
+            "✅ Instance configuration for '{}' saved successfully",
+            distro_name
+        );
         Ok(())
     }
 
-    pub fn remove_instance_config(&self, distro_name: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub fn remove_instance_config(
+        &self,
+        distro_name: &str,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut container = Self::load_instances();
         if container.instances.remove(distro_name).is_some() {
             container.common.modify_time = chrono::Utc::now().timestamp_millis().to_string();
@@ -298,7 +345,10 @@ impl ConfigManager {
         container.last_distros
     }
 
-    pub fn update_cached_distros(&self, distros: Vec<CachedDistro>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub fn update_cached_distros(
+        &self,
+        distros: Vec<CachedDistro>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let mut container = Self::load_instances();
         container.last_distros = distros;
         container.common.modify_time = chrono::Utc::now().timestamp_millis().to_string();
@@ -314,18 +364,26 @@ impl ConfigManager {
     }
 
     #[allow(dead_code)]
-    pub fn update_usb_config(&mut self, usb: UsbConfig) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    pub fn update_usb_config(
+        &mut self,
+        usb: UsbConfig,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         self.config.usb = usb;
         Self::save_config(&self.config_path, &mut self.config)?;
         info!("✅ USB configuration saved successfully");
         Ok(())
     }
 
-    pub fn toggle_usb_auto_attach(&mut self, bus_id: &str, vid_pid: &str, distro: &str) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+    pub fn toggle_usb_auto_attach(
+        &mut self,
+        bus_id: &str,
+        vid_pid: &str,
+        distro: &str,
+    ) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
         let list = &mut self.config.usb.auto_attach_list;
         // Use bus_id for exact matching during toggle as the click is specific to a bus-id
         let index = list.iter().position(|d| d.bus_id == bus_id);
-        
+
         let is_enabled = if let Some(i) = index {
             list.remove(i);
             false
@@ -337,9 +395,13 @@ impl ConfigManager {
             });
             true
         };
-        
+
         Self::save_config(&self.config_path, &mut self.config)?;
-        info!("USB auto-attach for {} is now {}", bus_id, if is_enabled { "enabled" } else { "disabled" });
+        info!(
+            "USB auto-attach for {} is now {}",
+            bus_id,
+            if is_enabled { "enabled" } else { "disabled" }
+        );
         Ok(is_enabled)
     }
 }

@@ -291,6 +291,7 @@ export component AppWindow inherits Window {
     callback copy_to_clipboard(string);
     callback show_copy_success();
     callback copy_ip_clicked();
+    callback copy_distro_ip(string);
     callback save_wsl_config();
     callback save_wsl_config_and_restart();
     callback request_wsl_config_preview();
@@ -505,6 +506,9 @@ export component AppWindow inherits Window {
                                 }
                                 delete_clicked(n) => {
                                     root.delete_clicked(n);
+                                }
+                                copy_distro_ip(n) => {
+                                    root.copy_distro_ip(n);
                                 }
                             }
 

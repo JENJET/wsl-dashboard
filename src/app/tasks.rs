@@ -1,9 +1,9 @@
+use crate::config::models::CachedDistro;
+use crate::ui::data::refresh_distros_ui;
+use crate::{AppState, AppWindow};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::debug;
-use crate::{AppState, AppWindow};
-use crate::ui::data::refresh_distros_ui;
-use crate::config::models::CachedDistro;
 
 // Start WSL status monitoring task
 pub fn spawn_wsl_monitor(app_handle: slint::Weak<AppWindow>, app_state: Arc<Mutex<AppState>>) {
@@ -61,11 +61,12 @@ pub fn spawn_state_listener(app_handle: slint::Weak<AppWindow>, app_state: Arc<M
     tokio::spawn(async move {
         let mut last_refresh = std::time::Instant::now();
         const MIN_REFRESH_INTERVAL: std::time::Duration = std::time::Duration::from_millis(1000);
-        
+
         loop {
             {
                 let lock_timeout = std::time::Duration::from_millis(500);
-                let state_changed = match tokio::time::timeout(lock_timeout, app_state.lock()).await {
+                let state_changed = match tokio::time::timeout(lock_timeout, app_state.lock()).await
+                {
                     Ok(state) => state.wsl_dashboard.state_changed().clone(),
                     Err(_) => {
                         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
@@ -74,39 +75,44 @@ pub fn spawn_state_listener(app_handle: slint::Weak<AppWindow>, app_state: Arc<M
                 };
                 state_changed.notified().await;
             }
-            
+
             // Debounce: limit minimum refresh interval to reduce memory pressure
             let now = std::time::Instant::now();
             let elapsed = now.duration_since(last_refresh);
             if elapsed < MIN_REFRESH_INTERVAL {
                 tokio::time::sleep(MIN_REFRESH_INTERVAL - elapsed).await;
             }
-            
+
             debug!("WSL state changed, updating UI...");
             let _ = refresh_distros_ui(app_handle.clone(), app_state.clone()).await;
-            
+
             // Save updated distro list to cache for fast startup next time
             let app_state_for_cache = app_state.clone();
             tokio::spawn(async move {
                 let lock_timeout = std::time::Duration::from_millis(500);
-                let (distros, config_manager) = match tokio::time::timeout(lock_timeout, app_state_for_cache.lock()).await {
-                    Ok(state) => (state.wsl_dashboard.get_distros().await, state.config_manager.clone()),
-                    Err(_) => return,
-                };
-                
-                let cached: Vec<CachedDistro> = distros.into_iter().map(|d| {
-                    CachedDistro {
+                let (distros, config_manager) =
+                    match tokio::time::timeout(lock_timeout, app_state_for_cache.lock()).await {
+                        Ok(state) => (
+                            state.wsl_dashboard.get_distros().await,
+                            state.config_manager.clone(),
+                        ),
+                        Err(_) => return,
+                    };
+
+                let cached: Vec<CachedDistro> = distros
+                    .into_iter()
+                    .map(|d| CachedDistro {
                         name: d.name,
                         status: format!("{:?}", d.status),
                         version: format!("{:?}", d.version),
                         is_default: d.is_default,
-                    }
-                }).collect();
-                
+                    })
+                    .collect();
+
                 let _ = config_manager.update_cached_distros(cached);
                 debug!("WSL distro list cache updated.");
             });
-            
+
             last_refresh = std::time::Instant::now();
         }
     });

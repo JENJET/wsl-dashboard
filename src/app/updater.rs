@@ -1,7 +1,7 @@
+use semver::Version;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use semver::Version;
-use tracing::{info, debug};
+use tracing::{debug, info};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OfficialGroupItem {
@@ -55,21 +55,22 @@ pub async fn fetch_base_config(timezone: &str) -> Result<StaticConfigResponse, S
                 std::thread::sleep(Duration::from_secs(2));
             }
             match ureq::get(&url).timeout(Duration::from_secs(5)).call() {
-                Ok(resp) => {
-                    match resp.into_json::<StaticConfigResponse>() {
-                        Ok(config) => {
-                            response_body = Some(config);
-                            break;
-                        }
-                        Err(e) => {
-                            last_err = Some(format!("Failed to parse JSON: {}", e));
-                        }
+                Ok(resp) => match resp.into_json::<StaticConfigResponse>() {
+                    Ok(config) => {
+                        response_body = Some(config);
+                        break;
                     }
-                }
+                    Err(e) => {
+                        last_err = Some(format!("Failed to parse JSON: {}", e));
+                    }
+                },
                 Err(e) => {
                     let e_str = e.to_string();
                     let e_lower = e_str.to_lowercase();
-                    if e_lower.contains("timed out") || e_lower.contains("timeout") || e_lower.contains("10060") {
+                    if e_lower.contains("timed out")
+                        || e_lower.contains("timeout")
+                        || e_lower.contains("10060")
+                    {
                         last_err = Some("RequestTimeOut".to_string());
                     } else {
                         last_err = Some(format!("Request error: {}", e));
@@ -84,7 +85,10 @@ pub async fn fetch_base_config(timezone: &str) -> Result<StaticConfigResponse, S
     .map_err(|e| format!("Task panicked: {}", e))?
 }
 
-pub async fn check_update(current_version_str: &str, timezone: &str) -> Result<UpdateResult, String> {
+pub async fn check_update(
+    current_version_str: &str,
+    timezone: &str,
+) -> Result<UpdateResult, String> {
     let current_version_str = current_version_str.to_string();
     let timezone_str = timezone.to_string();
 
@@ -94,8 +98,12 @@ pub async fn check_update(current_version_str: &str, timezone: &str) -> Result<U
     let current_v_clean = current_version_str.trim_start_matches('v');
     let latest_v_clean = config.latest.trim_start_matches('v');
 
-    let current = Version::parse(current_v_clean)
-        .map_err(|e| format!("Failed to parse current version {}: {}", current_version_str, e))?;
+    let current = Version::parse(current_v_clean).map_err(|e| {
+        format!(
+            "Failed to parse current version {}: {}",
+            current_version_str, e
+        )
+    })?;
     let latest = Version::parse(latest_v_clean)
         .map_err(|e| format!("Failed to parse latest version {}: {}", config.latest, e))?;
 

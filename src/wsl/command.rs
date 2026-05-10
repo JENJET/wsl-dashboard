@@ -1,6 +1,6 @@
-use crate::wsl::models::{WslCommandResult, WslDistro, WslInformation};
-pub use crate::wsl::executor::WslCommandExecutor;
 use crate::config::ConfigManager;
+pub use crate::wsl::executor::WslCommandExecutor;
+use crate::wsl::models::{WslCommandResult, WslDistro, WslInformation};
 
 impl WslCommandExecutor {
     // Get WSL subsystem list
@@ -24,7 +24,11 @@ impl WslCommandExecutor {
     }
 
     // Delete specified WSL subsystem
-    pub async fn delete_distro(&self, config_manager: &ConfigManager, distro_name: &str) -> WslCommandResult<String> {
+    pub async fn delete_distro(
+        &self,
+        config_manager: &ConfigManager,
+        distro_name: &str,
+    ) -> WslCommandResult<String> {
         crate::wsl::ops::lifecycle::delete_distro(self, config_manager, distro_name).await
     }
 
@@ -32,17 +36,27 @@ impl WslCommandExecutor {
     pub async fn move_distro(&self, distro_name: &str, new_path: &str) -> WslCommandResult<String> {
         crate::wsl::ops::lifecycle::move_distro(self, distro_name, new_path).await
     }
-    
+
     // Export specified WSL subsystem
-    pub async fn export_distro(&self, distro_name: &str, file_path: &str) -> WslCommandResult<String> {
+    pub async fn export_distro(
+        &self,
+        distro_name: &str,
+        file_path: &str,
+    ) -> WslCommandResult<String> {
         crate::wsl::ops::transfer::export_distro(self, distro_name, file_path).await
     }
-    
+
     // Import WSL subsystem
-    pub async fn import_distro(&self, distro_name: &str, install_location: &str, file_path: &str) -> WslCommandResult<String> {
-        crate::wsl::ops::transfer::import_distro(self, distro_name, install_location, file_path).await
+    pub async fn import_distro(
+        &self,
+        distro_name: &str,
+        install_location: &str,
+        file_path: &str,
+    ) -> WslCommandResult<String> {
+        crate::wsl::ops::transfer::import_distro(self, distro_name, install_location, file_path)
+            .await
     }
-    
+
     // Probe for optimal download source
     pub async fn detect_fastest_source(&self) -> bool {
         crate::wsl::ops::info::detect_fastest_source(self).await
@@ -59,22 +73,39 @@ impl WslCommandExecutor {
     }
 
     // Open VS Code in distribution
-    pub async fn open_distro_vscode(&self, distro_name: &str, working_dir: &str) -> WslCommandResult<String> {
+    pub async fn open_distro_vscode(
+        &self,
+        distro_name: &str,
+        working_dir: &str,
+    ) -> WslCommandResult<String> {
         crate::wsl::ops::ui::open_distro_vscode(self, distro_name, working_dir).await
     }
 
     // Open terminal in distribution
-    pub async fn open_distro_terminal(&self, distro_name: &str, working_dir: &str, proxy_exports: Option<Vec<(String, String)>>) -> WslCommandResult<String> {
-        crate::wsl::ops::ui::open_distro_terminal(self, distro_name, working_dir, proxy_exports).await
+    pub async fn open_distro_terminal(
+        &self,
+        distro_name: &str,
+        working_dir: &str,
+        proxy_exports: Option<Vec<(String, String)>>,
+    ) -> WslCommandResult<String> {
+        crate::wsl::ops::ui::open_distro_terminal(self, distro_name, working_dir, proxy_exports)
+            .await
     }
 
     // Open specified path in distribution
-    pub async fn open_distro_folder_path(&self, distro_name: &str, sub_path: &str) -> WslCommandResult<String> {
+    pub async fn open_distro_folder_path(
+        &self,
+        distro_name: &str,
+        sub_path: &str,
+    ) -> WslCommandResult<String> {
         crate::wsl::ops::ui::open_distro_folder_path(self, distro_name, sub_path).await
     }
 
     // Get information of distribution
-    pub async fn get_distro_information(&self, distro_name: &str) -> WslCommandResult<WslInformation> {
+    pub async fn get_distro_information(
+        &self,
+        distro_name: &str,
+    ) -> WslCommandResult<WslInformation> {
         crate::wsl::ops::info::get_distro_information(self, distro_name).await
     }
 

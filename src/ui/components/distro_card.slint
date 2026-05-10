@@ -5,8 +5,9 @@ import { Theme, Distro, AppI18n, LayoutConstants } from "../theme.slint";
 component DistroInfo inherits VerticalLayout {
     in property <Distro> distro;
     in property <bool> is-rtl;
+    callback copy_distro_ip();
     spacing: 0px;
-    alignment: center; // Vertically center
+    alignment: center;
     
     Text {
         text: distro.name;
@@ -30,7 +31,6 @@ component DistroInfo inherits VerticalLayout {
             horizontal-alignment: is-rtl ? right : left;
         }
         
-        // WSL version badge
         if (distro.version != ""): Rectangle {
             background: Theme.dark_mode ? #3E3E42 : #E0E0E0;
             border-radius: 3px;
@@ -47,7 +47,6 @@ component DistroInfo inherits VerticalLayout {
             }
         }
         
-        // Default indicator
         if (distro.is_default): Rectangle {
             background: Theme.accent;
             border-radius: 3px;
@@ -59,6 +58,29 @@ component DistroInfo inherits VerticalLayout {
                 font-size: 10px * LayoutConstants.font-scale;
                 font-family: Theme.default_font;
                 color: #FFFFFF;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+
+        if (distro.status == "Running" && distro.ip != ""): Rectangle {
+            background: Theme.dark_mode ? #2b3c4e : #e6f4ff98;
+            border-radius: 3px;
+            width: ip_text.width + 8px;
+            height: 16px;
+            
+            ip_touch := TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.copy_distro_ip();
+                }
+            }
+
+            ip_text := Text {
+                text: distro.ip;
+                font-size: 10px * LayoutConstants.font-scale;
+                font-family: Theme.default_font;
+                color: ip_touch.has-hover ? Theme.accent : Theme.text_secondary;
                 horizontal-alignment: center;
                 vertical-alignment: center;
             }
@@ -338,6 +360,7 @@ export component DistroCard inherits Rectangle {
     callback configs_clicked;
     callback expand_clicked;
     callback set_default_clicked();
+    callback copy_distro_ip();
     height: expanded ? 96px : 48px;
     background: (distro.is_default && !sole_distro) ? (Theme.dark_mode ? #2b3c4e : #e6f4ff98) : Theme.card_bg;
     border-radius: 6px;
@@ -388,6 +411,9 @@ export component DistroCard inherits Rectangle {
                     DistroInfo {
                         distro: root.distro;
                         is-rtl: true;
+                        copy_distro_ip => {
+                            root.copy_distro_ip();
+                        }
                     }
 
                     DistroBadge {
@@ -425,6 +451,9 @@ export component DistroCard inherits Rectangle {
                     DistroInfo {
                         distro: root.distro;
                         is-rtl: false;
+                        copy_distro_ip => {
+                            root.copy_distro_ip();
+                        }
                     }
                 }
                 if (!AppI18n.is-rtl): Rectangle {

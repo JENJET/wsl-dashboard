@@ -1,10 +1,11 @@
+use crate::ui::data::refresh_distros_ui;
+use crate::ui::handlers::instance;
+use crate::{AppState, AppWindow, i18n};
+use slint::Model;
+use std::os::windows::process::CommandExt;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::info;
-use slint::Model;
-use crate::{AppWindow, AppState, i18n};
-use crate::ui::data::refresh_distros_ui;
-use crate::ui::handlers::instance;
 
 pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc<Mutex<AppState>>) {
     // Handle message link click
@@ -16,7 +17,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 if link.is_empty() {
                     link = app.get_current_message_link().to_string();
                 }
-                
+
                 if link.starts_with("http://") || link.starts_with("https://") {
                     let _ = open::that(link);
                 } else {
@@ -56,8 +57,6 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     return;
                 }
 
-
-
                 {
                     let lock_timeout = std::time::Duration::from_millis(500);
                     if let Ok(app_state) = tokio::time::timeout(lock_timeout, as_ptr.lock()).await {
@@ -65,29 +64,43 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                         let instance_config = app_state.config_manager.get_instance_config(&name);
                         let working_dir = instance_config.terminal_dir.clone();
                         let terminal_proxy_enabled = instance_config.terminal_proxy;
-                        let proxy_config = app_state.config_manager.get_network_config().proxy.clone();
+                        let proxy_config =
+                            app_state.config_manager.get_network_config().proxy.clone();
                         drop(app_state);
-                        
+
                         let mut proxy_exports: Option<Vec<(String, String)>> = None;
-                        if terminal_proxy_enabled && proxy_config.is_enabled && !proxy_config.host.is_empty() && !proxy_config.port.is_empty() {
-                            let auth = if proxy_config.auth_enabled && !proxy_config.username.is_empty() && !proxy_config.password.is_empty() {
+                        if terminal_proxy_enabled
+                            && proxy_config.is_enabled
+                            && !proxy_config.host.is_empty()
+                            && !proxy_config.port.is_empty()
+                        {
+                            let auth = if proxy_config.auth_enabled
+                                && !proxy_config.username.is_empty()
+                                && !proxy_config.password.is_empty()
+                            {
                                 format!("{}:{}@", proxy_config.username, proxy_config.password)
                             } else {
                                 "".to_string()
                             };
-                            let proxy_url = format!("http://{}{}:{}", auth, proxy_config.host, proxy_config.port);
-                            
+                            let proxy_url = format!(
+                                "http://{}{}:{}",
+                                auth, proxy_config.host, proxy_config.port
+                            );
+
                             let mut exports = Vec::new();
                             exports.push(("HTTP_PROXY".to_string(), proxy_url.clone()));
                             exports.push(("HTTPS_PROXY".to_string(), proxy_url.clone()));
-                            
+
                             if !proxy_config.no_proxy.is_empty() {
-                                exports.push(("NO_PROXY".to_string(), proxy_config.no_proxy.clone()));
+                                exports
+                                    .push(("NO_PROXY".to_string(), proxy_config.no_proxy.clone()));
                             }
                             proxy_exports = Some(exports);
                         }
-                        
-                        let _ = executor.open_distro_terminal(&name, &working_dir, proxy_exports).await;
+
+                        let _ = executor
+                            .open_distro_terminal(&name, &working_dir, proxy_exports)
+                            .await;
                     }
                 }
                 refresh_distros_ui(ah, as_ptr).await;
@@ -120,8 +133,6 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     return;
                 }
 
-
-
                 {
                     let lock_timeout = std::time::Duration::from_millis(500);
                     if let Ok(app_state) = tokio::time::timeout(lock_timeout, as_ptr.lock()).await {
@@ -150,7 +161,10 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     app_state.wsl_dashboard.clone()
                 };
                 if let Some(op) = manager.get_active_op(&distro_name).await {
-                    let msg = i18n::tr("toast.distro_busy", &[distro_name.to_string(), op.to_string()]);
+                    let msg = i18n::tr(
+                        "toast.distro_busy",
+                        &[distro_name.to_string(), op.to_string()],
+                    );
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(app) = ah.upgrade() {
                             app.set_current_message(msg.into());
@@ -160,7 +174,10 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     return;
                 }
                 let result = crate::wsl::ops::info::get_distro_install_location(
-                    &manager.executor(), &distro_name).await;
+                    &manager.executor(),
+                    &distro_name,
+                )
+                .await;
                 if let Some(location) = result.data {
                     if !location.is_empty() {
                         let _ = open::that(&location);
@@ -207,7 +224,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                         let state = as_ptr.lock().await;
                         state.config_manager.get_instance_config(&name).vscode_dir
                     };
-                    
+
                     let _ = executor.open_distro_vscode(&name, &working_dir).await;
                     refresh_distros_ui(ah, as_ptr).await;
 
@@ -282,14 +299,32 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
 
     // Information
     {
+        static IS_FETCHING_INFO: std::sync::atomic::AtomicBool =
+            std::sync::atomic::AtomicBool::new(false);
         let ah_outer = app_handle.clone();
         let as_outer = app_state.clone();
         app.on_information_clicked(move |name| {
+            if IS_FETCHING_INFO
+                .compare_exchange(
+                    false,
+                    true,
+                    std::sync::atomic::Ordering::SeqCst,
+                    std::sync::atomic::Ordering::SeqCst,
+                )
+                .is_err()
+            {
+                return;
+            }
+
             info!("Operation: Information clicked - {}", name);
             let ah = ah_outer.clone();
             let as_ptr = as_outer.clone();
             let name = name.to_string();
             let _ = slint::spawn_local(async move {
+                let _guard = scopeguard::guard((), |_| {
+                    IS_FETCHING_INFO.store(false, std::sync::atomic::Ordering::SeqCst);
+                });
+
                 let (dashboard, name_str) = {
                     let app_state = as_ptr.lock().await;
                     (app_state.wsl_dashboard.clone(), name.clone())
@@ -314,8 +349,6 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     return;
                 }
 
-
-
                 if let Some(app) = ah.upgrade() {
                     app.set_task_status_text(i18n::t("operation.fetching_info").into());
                     app.set_task_status_visible(true);
@@ -325,6 +358,8 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     app.set_task_status_visible(false);
                     if result.success {
                         if let Some(data) = result.data {
+                            let is_running = data.status == "Running";
+                            let distro_name_for_async = data.distro_name.clone();
                             let mut slint_data = app.get_information();
                             slint_data.distro_name = data.distro_name.into();
                             slint_data.wsl_version = data.wsl_version.into();
@@ -332,13 +367,81 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                             slint_data.install_location = data.install_location.into();
                             slint_data.vhdx_path = data.vhdx_path.into();
                             slint_data.vhdx_size = data.vhdx_size.into();
-                            slint_data.actual_used = data.actual_used.into();
-                            slint_data.ip = data.ip.into();
+                            slint_data.actual_used = Default::default();
+                            slint_data.ip = Default::default();
                             slint_data.vhdx_virtual_size = data.vhdx_virtual_size.into();
                             slint_data.vhdx_type = data.vhdx_type.into();
                             slint_data.vhdx_is_sparse = data.vhdx_is_sparse;
                             app.set_information(slint_data);
                             app.set_show_information(true);
+
+                            if is_running {
+                                let ah_async = ah.clone();
+                                tokio::task::spawn_blocking(move || {
+                                    let mut ip_val = String::new();
+                                    let mut used_val = String::new();
+
+                                    match crate::network::tracker::get_distro_ip(
+                                        &distro_name_for_async,
+                                        Some(1),
+                                    ) {
+                                        Ok(ip) => ip_val = ip,
+                                        Err(e) => tracing::debug!(
+                                            "Failed to fetch IP for info dialog: {}",
+                                            e
+                                        ),
+                                    }
+
+                                    let df_output = std::process::Command::new("wsl")
+                                        .env("WSL_UTF8", "1")
+                                        .args(&[
+                                            "-d",
+                                            &distro_name_for_async,
+                                            "--exec",
+                                            "df",
+                                            "-B1M",
+                                            "/",
+                                        ])
+                                        .creation_flags(0x08000000)
+                                        .output();
+
+                                    if let Ok(out) = df_output {
+                                        if out.status.success() {
+                                            let stdout =
+                                                crate::wsl::decoder::decode_output(&out.stdout)
+                                                    .trim()
+                                                    .to_string();
+                                            if let Some(second_line) = stdout.lines().nth(1) {
+                                                let parts: Vec<&str> =
+                                                    second_line.split_whitespace().collect();
+                                                if parts.len() >= 3 {
+                                                    if let Ok(mb_val) = parts[2].parse::<f64>() {
+                                                        let gb_val = mb_val / 1024.0;
+                                                        used_val = format!("{:.2} GB", gb_val);
+                                                    } else {
+                                                        used_val = format!("{} MB", parts[2]);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    if !ip_val.is_empty() || !used_val.is_empty() {
+                                        let _ = slint::invoke_from_event_loop(move || {
+                                            if let Some(app) = ah_async.upgrade() {
+                                                let mut info = app.get_information();
+                                                if !ip_val.is_empty() {
+                                                    info.ip = ip_val.into();
+                                                }
+                                                if !used_val.is_empty() {
+                                                    info.actual_used = used_val.into();
+                                                }
+                                                app.set_information(info);
+                                            }
+                                        });
+                                    }
+                                });
+                            }
                         }
                     } else {
                         let err = result.error.unwrap_or_else(|| i18n::t("dialog.error"));
@@ -392,7 +495,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                         let state = as_ptr.lock().await;
                         state.config_manager.get_instance_config(&name)
                     };
-                    
+
                     app.set_settings_distro_name(name.clone().into());
                     app.set_settings_is_default(is_default);
                     app.set_settings_lock_default(is_default);
@@ -423,18 +526,37 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
     {
         let ah_outer = app_handle.clone();
         let as_outer = app_state.clone();
-        app.on_confirm_distro_settings(move |name, terminal_dir, vscode_dir, is_default, autostart, startup_script, terminal_proxy| {
-            let ah = ah_outer.clone();
-            let as_ptr = as_outer.clone();
-            let name = name.to_string();
-            let terminal_dir = terminal_dir.to_string();
-            let vscode_dir = vscode_dir.to_string();
-            let startup_script = startup_script.to_string();
+        app.on_confirm_distro_settings(
+            move |name,
+                  terminal_dir,
+                  vscode_dir,
+                  is_default,
+                  autostart,
+                  startup_script,
+                  terminal_proxy| {
+                let ah = ah_outer.clone();
+                let as_ptr = as_outer.clone();
+                let name = name.to_string();
+                let terminal_dir = terminal_dir.to_string();
+                let vscode_dir = vscode_dir.to_string();
+                let startup_script = startup_script.to_string();
 
-            let _ = slint::spawn_local(async move {
-                super::settings_logic::perform_save_settings(ah, as_ptr, name, terminal_dir, vscode_dir, is_default, autostart, startup_script, terminal_proxy).await;
-            });
-        });
+                let _ = slint::spawn_local(async move {
+                    super::settings_logic::perform_save_settings(
+                        ah,
+                        as_ptr,
+                        name,
+                        terminal_dir,
+                        vscode_dir,
+                        is_default,
+                        autostart,
+                        startup_script,
+                        terminal_proxy,
+                    )
+                    .await;
+                });
+            },
+        );
     }
 
     // WSL Config click
@@ -566,7 +688,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 // Execute the command to set default
                 let executor = manager.executor().clone();
                 let result = executor.execute_command(&["--set-default", &name]).await;
-                
+
                 if result.success {
                     let msg = i18n::tr("toast.default_set_success", &[name.to_string()]);
                     let ah_clone = ah.clone();
@@ -576,7 +698,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                             app.set_show_message_dialog(true);
                         }
                     });
-                    
+
                     // Refresh distros UI immediately after successful operation
                     refresh_distros_ui(ah.clone(), as_ptr.clone()).await;
                 } else {
@@ -589,7 +711,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                             app.set_show_message_dialog(true);
                         }
                     });
-                    
+
                     // Also refresh UI even on failure to ensure consistency
                     refresh_distros_ui(ah.clone(), as_ptr.clone()).await;
                 }
@@ -621,7 +743,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 let msg = i18n::t("toast.copy_success");
                 app.set_task_status_text(msg.into());
                 app.set_task_status_visible(true);
-                
+
                 // Auto-hide toast after 3 seconds
                 let ah_inner = ah.clone();
                 tokio::spawn(async move {
@@ -648,7 +770,6 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     match copy_to_clipboard(&ip) {
                         Ok(_) => {
                             tracing::info!("Copied IP to clipboard: {}", ip);
-                            // Reuse existing show_copy_success callback
                             let ah_inner = ah.clone();
                             let _ = slint::invoke_from_event_loop(move || {
                                 if let Some(app) = ah_inner.upgrade() {
@@ -660,6 +781,32 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                             tracing::error!("Failed to copy IP to clipboard: {}", e);
                         }
                     }
+                }
+            }
+        });
+    }
+
+    // Copy distro IP to clipboard (from distro card)
+    {
+        let ah = app_handle.clone();
+        app.on_copy_distro_ip(move |ip| {
+            let ip_str = ip.to_string();
+            if ip_str.is_empty() {
+                return;
+            }
+            use crate::utils::system::copy_to_clipboard;
+            match copy_to_clipboard(&ip_str) {
+                Ok(_) => {
+                    tracing::info!("Copied distro IP to clipboard: {}", ip_str);
+                    let ah_inner = ah.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah_inner.upgrade() {
+                            app.invoke_show_copy_success();
+                        }
+                    });
+                }
+                Err(e) => {
+                    tracing::error!("Failed to copy distro IP to clipboard: {}", e);
                 }
             }
         });
@@ -736,7 +883,9 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(app) = ah2.upgrade() {
                                 app.set_vhdx_resize_running(false);
-                                app.set_vhdx_resize_output(i18n::t("dialog.vhdx_resize_failed").into());
+                                app.set_vhdx_resize_output(
+                                    i18n::t("dialog.vhdx_resize_failed").into(),
+                                );
                             }
                         });
                         return;
@@ -747,7 +896,10 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 let is_running = {
                     let state = as_ptr.lock().await;
                     let distros = state.wsl_dashboard.get_distros().await;
-                    distros.iter().any(|d| d.name == distro_name && matches!(d.status, crate::wsl::models::WslStatus::Running))
+                    distros.iter().any(|d| {
+                        d.name == distro_name
+                            && matches!(d.status, crate::wsl::models::WslStatus::Running)
+                    })
                 };
 
                 if is_running {
@@ -755,7 +907,9 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(app) = ah2.upgrade() {
                             app.set_vhdx_resize_running(false);
-                            app.set_vhdx_resize_output(i18n::t("dialog.vhdx_resize_running").into());
+                            app.set_vhdx_resize_output(
+                                i18n::t("dialog.vhdx_resize_running").into(),
+                            );
                         }
                     });
                     return;
@@ -774,15 +928,20 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     });
                 }
 
-                tracing::info!("VHDX resize: calling resize_vhdx with {} bytes", new_size_bytes);
+                tracing::info!(
+                    "VHDX resize: calling resize_vhdx with {} bytes",
+                    new_size_bytes
+                );
                 let result = tokio::task::spawn_blocking(move || {
                     crate::wsl::ops::vhdx::resize_vhdx(&vhdx_path, new_size_bytes)
-                }).await;
+                })
+                .await;
 
                 match result {
                     Ok(Ok(())) => {
                         let ah2 = ah.clone();
-                        let msg = i18n::tr("dialog.vhdx_resize_success", &[format!("{:.0}", size_gb)]);
+                        let msg =
+                            i18n::tr("dialog.vhdx_resize_success", &[format!("{:.0}", size_gb)]);
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(app) = ah2.upgrade() {
                                 app.set_vhdx_resize_running(false);

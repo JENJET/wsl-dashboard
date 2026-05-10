@@ -1,8 +1,8 @@
-use ini::Ini;
-use tracing::{info, warn, error};
-use std::sync::Mutex;
-use once_cell::sync::Lazy;
 use crate::wsl::executor::WslCommandExecutor;
+use ini::Ini;
+use once_cell::sync::Lazy;
+use std::sync::Mutex;
+use tracing::{error, info, warn};
 
 static VERSION_CACHE: Lazy<Mutex<Option<WslVersionMeta>>> = Lazy::new(|| Mutex::new(None));
 
@@ -117,7 +117,9 @@ pub struct TimeSection {
 
 impl Default for TimeSection {
     fn default() -> Self {
-        Self { use_windows_timezone: None }
+        Self {
+            use_windows_timezone: None,
+        }
     }
 }
 
@@ -154,9 +156,8 @@ pub struct ValidationResult {
 // ===== Parsing =====
 
 fn parse_bool_opt(ini: &Ini, section: &str, key: &str) -> Option<bool> {
-    ini.get_from(Some(section), key).map(|v| {
-        v.eq_ignore_ascii_case("true") || v == "1" || v.eq_ignore_ascii_case("yes")
-    })
+    ini.get_from(Some(section), key)
+        .map(|v| v.eq_ignore_ascii_case("true") || v == "1" || v.eq_ignore_ascii_case("yes"))
 }
 
 fn parse_string_opt(ini: &Ini, section: &str, key: &str) -> Option<String> {
@@ -220,10 +221,18 @@ pub fn serialize_wsl_conf(conf: &WslConf, version_meta: &WslVersionMeta) -> Stri
 
     // [automount] - always supported
     if let Some(v) = conf.automount.enabled {
-        ini.set_to(Some("automount"), "enabled".to_string(), bool_to_ini(v).to_string());
+        ini.set_to(
+            Some("automount"),
+            "enabled".to_string(),
+            bool_to_ini(v).to_string(),
+        );
     }
     if let Some(v) = conf.automount.mount_fs_tab {
-        ini.set_to(Some("automount"), "mountFsTab".to_string(), bool_to_ini(v).to_string());
+        ini.set_to(
+            Some("automount"),
+            "mountFsTab".to_string(),
+            bool_to_ini(v).to_string(),
+        );
     }
     if let Some(ref v) = conf.automount.root {
         if !v.is_empty() {
@@ -238,10 +247,18 @@ pub fn serialize_wsl_conf(conf: &WslConf, version_meta: &WslVersionMeta) -> Stri
 
     // [network] - always supported
     if let Some(v) = conf.network.generate_hosts {
-        ini.set_to(Some("network"), "generateHosts".to_string(), bool_to_ini(v).to_string());
+        ini.set_to(
+            Some("network"),
+            "generateHosts".to_string(),
+            bool_to_ini(v).to_string(),
+        );
     }
     if let Some(v) = conf.network.generate_resolv_conf {
-        ini.set_to(Some("network"), "generateResolvConf".to_string(), bool_to_ini(v).to_string());
+        ini.set_to(
+            Some("network"),
+            "generateResolvConf".to_string(),
+            bool_to_ini(v).to_string(),
+        );
     }
     if let Some(ref v) = conf.network.hostname {
         if !v.is_empty() {
@@ -251,10 +268,18 @@ pub fn serialize_wsl_conf(conf: &WslConf, version_meta: &WslVersionMeta) -> Stri
 
     // [interop] - always supported
     if let Some(v) = conf.interop.enabled {
-        ini.set_to(Some("interop"), "enabled".to_string(), bool_to_ini(v).to_string());
+        ini.set_to(
+            Some("interop"),
+            "enabled".to_string(),
+            bool_to_ini(v).to_string(),
+        );
     }
     if let Some(v) = conf.interop.append_windows_path {
-        ini.set_to(Some("interop"), "appendWindowsPath".to_string(), bool_to_ini(v).to_string());
+        ini.set_to(
+            Some("interop"),
+            "appendWindowsPath".to_string(),
+            bool_to_ini(v).to_string(),
+        );
     }
 
     // [user] - always supported
@@ -268,7 +293,11 @@ pub fn serialize_wsl_conf(conf: &WslConf, version_meta: &WslVersionMeta) -> Stri
     if version_meta.boot_supported {
         // Note: systemd is read-only in UI, we preserve its original value
         if let Some(v) = conf.boot.systemd {
-            ini.set_to(Some("boot"), "systemd".to_string(), bool_to_ini(v).to_string());
+            ini.set_to(
+                Some("boot"),
+                "systemd".to_string(),
+                bool_to_ini(v).to_string(),
+            );
         }
         if let Some(ref v) = conf.boot.command {
             if !v.is_empty() {
@@ -276,21 +305,33 @@ pub fn serialize_wsl_conf(conf: &WslConf, version_meta: &WslVersionMeta) -> Stri
             }
         }
         if let Some(v) = conf.boot.protect_binfmt {
-            ini.set_to(Some("boot"), "protectBinfmt".to_string(), bool_to_ini(v).to_string());
+            ini.set_to(
+                Some("boot"),
+                "protectBinfmt".to_string(),
+                bool_to_ini(v).to_string(),
+            );
         }
     }
 
     // [gpu] - requires newer WSL
     if version_meta.gpu_supported {
         if let Some(v) = conf.gpu.enabled {
-            ini.set_to(Some("gpu"), "enabled".to_string(), bool_to_ini(v).to_string());
+            ini.set_to(
+                Some("gpu"),
+                "enabled".to_string(),
+                bool_to_ini(v).to_string(),
+            );
         }
     }
 
     // [time] - requires newer WSL
     if version_meta.time_supported {
         if let Some(v) = conf.time.use_windows_timezone {
-            ini.set_to(Some("time"), "useWindowsTimezone".to_string(), bool_to_ini(v).to_string());
+            ini.set_to(
+                Some("time"),
+                "useWindowsTimezone".to_string(),
+                bool_to_ini(v).to_string(),
+            );
         }
     }
 
@@ -308,12 +349,17 @@ pub fn serialize_wsl_conf(conf: &WslConf, version_meta: &WslVersionMeta) -> Stri
 /// Read /etc/wsl.conf from a distribution
 pub async fn get_wsl_conf(executor: &WslCommandExecutor, distro_name: &str) -> WslConf {
     info!("Reading wsl.conf for '{}'", distro_name);
-    let result = executor.execute_command(&["-d", distro_name, "-e", "cat", "/etc/wsl.conf"]).await;
+    let result = executor
+        .execute_command(&["-d", distro_name, "-e", "cat", "/etc/wsl.conf"])
+        .await;
 
     if result.success && !result.output.trim().is_empty() {
         parse_wsl_conf(&result.output)
     } else {
-        info!("wsl.conf not found or empty for '{}', using defaults", distro_name);
+        info!(
+            "wsl.conf not found or empty for '{}', using defaults",
+            distro_name
+        );
         WslConf::default()
     }
 }
@@ -333,7 +379,9 @@ pub async fn validate_wsl_conf(
     // Validate [user].default - check if user exists
     if let Some(ref username) = conf.user.default {
         if !username.is_empty() {
-            let check = executor.execute_command(&["-d", distro_name, "-e", "id", "-u", username]).await;
+            let check = executor
+                .execute_command(&["-d", distro_name, "-e", "id", "-u", username])
+                .await;
             if !check.success {
                 result.success = false;
                 result.user_error = Some(format!("User '{}' does not exist", username));
@@ -348,15 +396,32 @@ pub async fn validate_wsl_conf(
             let cmd_path = command.split_whitespace().next().unwrap_or("");
             if !cmd_path.is_empty() {
                 // Check if file exists
-                let check = executor.execute_command(&[
-                    "-d", distro_name, "-u", "root", "-e", "test", "-e", cmd_path
-                ]).await;
+                let check = executor
+                    .execute_command(&[
+                        "-d",
+                        distro_name,
+                        "-u",
+                        "root",
+                        "-e",
+                        "test",
+                        "-e",
+                        cmd_path,
+                    ])
+                    .await;
                 if !check.success {
                     // Also try `command -v` for built-in commands
-                    let check2 = executor.execute_command(&[
-                        "-d", distro_name, "-u", "root", "-e", "sh", "-c",
-                        &format!("command -v {}", cmd_path)
-                    ]).await;
+                    let check2 = executor
+                        .execute_command(&[
+                            "-d",
+                            distro_name,
+                            "-u",
+                            "root",
+                            "-e",
+                            "sh",
+                            "-c",
+                            &format!("command -v {}", cmd_path),
+                        ])
+                        .await;
                     if !check2.success {
                         result.success = false;
                         result.command_error = Some(format!("Command '{}' not found", cmd_path));
@@ -395,13 +460,14 @@ pub async fn check_wsl_version_support(executor: &WslCommandExecutor) -> WslVers
     let output = result.output.trim().to_string();
 
     // Parse the WSL version line: "WSL version: x.y.z.w"
-    let version_string = output.lines()
+    let version_string = output
+        .lines()
         .find(|line| {
             let lower = line.to_lowercase();
             // Look for lines that contain 'wsl' but NOT 'wslg' or 'kernel' or 'windows' or 'direct3d' etc.
             // The goal is to find the line that explicitly describes the WSL version itself.
-            lower.contains("wsl") 
-                && !lower.contains("wslg") 
+            lower.contains("wsl")
+                && !lower.contains("wslg")
                 && !lower.contains("kernel")
                 && !lower.contains("windows")
                 && !lower.contains("direct3d")
@@ -412,7 +478,8 @@ pub async fn check_wsl_version_support(executor: &WslCommandExecutor) -> WslVers
             // Find the token that looks like a version number (contains dots and digits)
             line.split(|c: char| !c.is_ascii_digit() && c != '.')
                 .find(|token| {
-                    token.contains('.') && token.chars().all(|c| c.is_ascii_digit() || c == '.')
+                    token.contains('.')
+                        && token.chars().all(|c| c.is_ascii_digit() || c == '.')
                         && token.split('.').all(|part| !part.is_empty())
                 })
                 .map(|s| s.to_string())
@@ -490,13 +557,24 @@ pub async fn save_wsl_conf(
     info!("Saving wsl.conf for '{}'", distro_name);
 
     // 1. Create backup
-    let backup_result = executor.execute_command(&[
-        "-d", distro_name, "-u", "root", "-e", "sh", "-c",
-        "[ -f /etc/wsl.conf ] && cp /etc/wsl.conf /etc/wsl.conf.bak || true"
-    ]).await;
+    let backup_result = executor
+        .execute_command(&[
+            "-d",
+            distro_name,
+            "-u",
+            "root",
+            "-e",
+            "sh",
+            "-c",
+            "[ -f /etc/wsl.conf ] && cp /etc/wsl.conf /etc/wsl.conf.bak || true",
+        ])
+        .await;
 
     if !backup_result.success {
-        warn!("Failed to create backup of wsl.conf for '{}': {:?}", distro_name, backup_result.error);
+        warn!(
+            "Failed to create backup of wsl.conf for '{}': {:?}",
+            distro_name, backup_result.error
+        );
         // Continue anyway - backup failure shouldn't block save
     }
 
@@ -510,12 +588,23 @@ pub async fn save_wsl_conf(
         content.trim_end()
     );
 
-    let write_result = executor.execute_command(&[
-        "-d", distro_name, "-u", "root", "-e", "sh", "-c", &write_cmd
-    ]).await;
+    let write_result = executor
+        .execute_command(&[
+            "-d",
+            distro_name,
+            "-u",
+            "root",
+            "-e",
+            "sh",
+            "-c",
+            &write_cmd,
+        ])
+        .await;
 
     if !write_result.success {
-        let err = write_result.error.unwrap_or_else(|| "Unknown error".to_string());
+        let err = write_result
+            .error
+            .unwrap_or_else(|| "Unknown error".to_string());
         error!("Failed to save wsl.conf for '{}': {}", distro_name, err);
         return Err(err);
     }

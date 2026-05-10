@@ -1,8 +1,8 @@
+use crate::ui::data::refresh_distros_ui;
+use crate::{AppState, AppWindow};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::{info, error};
-use crate::{AppState, AppWindow};
-use crate::ui::data::refresh_distros_ui;
+use tracing::{error, info};
 
 pub async fn perform_save_settings(
     ah: slint::Weak<AppWindow>,
@@ -31,16 +31,19 @@ pub async fn perform_save_settings(
     // Check if it was already default
     let was_default = {
         let distros = executor.list_distros().await;
-        distros.data.map(|list| list.iter().any(|d| d.name == name && d.is_default)).unwrap_or(false)
+        distros
+            .data
+            .map(|list| list.iter().any(|d| d.name == name && d.is_default))
+            .unwrap_or(false)
     };
 
     if let Some(app) = ah.upgrade() {
         let mut has_error = false;
-        
+
         // 1. Validate paths and default status
         let terminal_exists = executor.check_path_exists(&name, &terminal_dir).await;
         let vscode_exists = executor.check_path_exists(&name, &vscode_dir).await;
-        
+
         if !terminal_exists {
             app.set_settings_terminal_dir_error(crate::i18n::t("dialog.path_not_found").into());
             has_error = true;
@@ -58,15 +61,23 @@ pub async fn perform_save_settings(
         if autostart && !startup_script.trim().is_empty() {
             let startup_script_trimmed = startup_script.trim();
             if startup_script_trimmed == crate::app::WSL_INIT_SCRIPT {
-                app.set_settings_startup_script_error(crate::i18n::t("dialog.startup_script_forbidden").into());
+                app.set_settings_startup_script_error(
+                    crate::i18n::t("dialog.startup_script_forbidden").into(),
+                );
                 has_error = true;
             } else {
-                let (exists, executable) = executor.check_file_executable(&name, startup_script_trimmed).await;
+                let (exists, executable) = executor
+                    .check_file_executable(&name, startup_script_trimmed)
+                    .await;
                 if !exists {
-                    app.set_settings_startup_script_error(crate::i18n::t("dialog.script_not_found").into());
+                    app.set_settings_startup_script_error(
+                        crate::i18n::t("dialog.script_not_found").into(),
+                    );
                     has_error = true;
                 } else if !executable {
-                    app.set_settings_startup_script_error(crate::i18n::t("dialog.script_not_executable").into());
+                    app.set_settings_startup_script_error(
+                        crate::i18n::t("dialog.script_not_executable").into(),
+                    );
                     has_error = true;
                 } else {
                     app.set_settings_startup_script_error("".into());
@@ -113,15 +124,25 @@ pub async fn perform_save_settings(
         let mut script_content = String::from("#! /bin/sh\\n\\n");
         if !startup_script.trim().is_empty() {
             script_content.push_str("# Execute user script in background\\n");
-            script_content.push_str(&format!("( {} ) > /dev/null 2>&1 &\\n\\n", startup_script.trim()));
+            script_content.push_str(&format!(
+                "( {} ) > /dev/null 2>&1 &\\n\\n",
+                startup_script.trim()
+            ));
         }
 
         script_content.push_str("# WSL Dashboard Keep-alive\\n");
         script_content.push_str("exec sleep infinity\\n");
 
-        let setup_cmd = format!("printf '{}' > {} && chmod +x {}", script_content, crate::app::WSL_INIT_SCRIPT, crate::app::WSL_INIT_SCRIPT);
-        let _ = executor.execute_command(&["-d", &name, "-u", "root", "-e", "sh", "-c", &setup_cmd]).await;
-        
+        let setup_cmd = format!(
+            "printf '{}' > {} && chmod +x {}",
+            script_content,
+            crate::app::WSL_INIT_SCRIPT,
+            crate::app::WSL_INIT_SCRIPT
+        );
+        let _ = executor
+            .execute_command(&["-d", &name, "-u", "root", "-e", "sh", "-c", &setup_cmd])
+            .await;
+
         // 5. Check and register task if needed
         if !crate::network::scheduler::check_task_exists() {
             info!("Auto-start task not found, attempting to register with elevation...");
@@ -134,13 +155,16 @@ pub async fn perform_save_settings(
                         if let Some(app) = ah_toast.upgrade() {
                             app.set_task_status_text("Task successfully scheduled".into());
                             app.set_task_status_visible(true);
-                            
+
                             let ah_hide = ah_toast.clone();
-                            slint::Timer::single_shot(std::time::Duration::from_secs(3), move || {
-                                if let Some(app_h) = ah_hide.upgrade() {
-                                    app_h.set_task_status_visible(false);
-                                }
-                            });
+                            slint::Timer::single_shot(
+                                std::time::Duration::from_secs(3),
+                                move || {
+                                    if let Some(app_h) = ah_hide.upgrade() {
+                                        app_h.set_task_status_visible(false);
+                                    }
+                                },
+                            );
                         }
                     });
                 }
@@ -157,20 +181,22 @@ pub async fn perform_save_settings(
                         if let Some(app) = ah_toast.upgrade() {
                             app.set_task_status_text(err_msg.into());
                             app.set_task_status_visible(true);
-                            
+
                             let ah_hide = ah_toast.clone();
-                            slint::Timer::single_shot(std::time::Duration::from_secs(3), move || {
-                                if let Some(app_h) = ah_hide.upgrade() {
-                                    app_h.set_task_status_visible(false);
-                                }
-                            });
+                            slint::Timer::single_shot(
+                                std::time::Duration::from_secs(3),
+                                move || {
+                                    if let Some(app_h) = ah_hide.upgrade() {
+                                        app_h.set_task_status_visible(false);
+                                    }
+                                },
+                            );
                         }
                     });
                 }
             }
         }
     }
-
 
     refresh_distros_ui(ah, as_ptr).await;
 }

@@ -1,4 +1,4 @@
-use super::models::{NetworkInterface};
+use super::models::NetworkInterface;
 
 /// Get the list of Windows network interfaces (Internal IPs recommended)
 pub fn get_physical_interfaces() -> Vec<NetworkInterface> {
@@ -12,10 +12,10 @@ pub fn get_physical_interfaces() -> Vec<NetworkInterface> {
             let ip = iface.ip();
             let is_loopback = ip.is_loopback();
             let is_v4 = ip.is_ipv4();
-            
+
             if is_v4 {
                 let name_lower = iface.name.to_lowercase();
-                let is_virtual = name_lower.contains("wsl") 
+                let is_virtual = name_lower.contains("wsl")
                     || name_lower.contains("virtual")
                     || name_lower.contains("veth")
                     || name_lower.contains("vmware")

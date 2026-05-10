@@ -1,15 +1,15 @@
-use std::sync::Arc;
+use slint::{ComponentHandle, Model, ModelRc, VecModel};
 use std::rc::Rc;
-use tokio::sync::Mutex;
-use tracing::{trace,debug, error};
-use slint::{ModelRc, VecModel, Model, ComponentHandle};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use tokio::sync::Mutex;
+use tracing::{debug, error, trace};
 
 // Import Slint UI components
-use crate::{AppState, AppWindow, Distro, InstallableDistro, SettingsStrings, wsl};
 use crate::i18n;
+use crate::{AppState, AppWindow, Distro, InstallableDistro, SettingsStrings, wsl};
 use once_cell::sync::Lazy;
-use std::time::{Instant, Duration};
+use std::time::{Duration, Instant};
 
 /// Helper to show a message dialog from async contexts
 pub fn show_message(app_handle: &slint::Weak<AppWindow>, message: &str) {
@@ -23,8 +23,10 @@ pub fn show_message(app_handle: &slint::Weak<AppWindow>, message: &str) {
     });
 }
 
-static LAST_WSL_REFRESH: Lazy<std::sync::Mutex<Option<Instant>>> = Lazy::new(|| std::sync::Mutex::new(None));
-static LAST_USB_REFRESH: Lazy<std::sync::Mutex<Option<Instant>>> = Lazy::new(|| std::sync::Mutex::new(None));
+static LAST_WSL_REFRESH: Lazy<std::sync::Mutex<Option<Instant>>> =
+    Lazy::new(|| std::sync::Mutex::new(None));
+static LAST_USB_REFRESH: Lazy<std::sync::Mutex<Option<Instant>>> =
+    Lazy::new(|| std::sync::Mutex::new(None));
 
 pub fn should_refresh_wsl(reason: &str, is_visible: bool) -> bool {
     let mut last = LAST_WSL_REFRESH.lock().unwrap();
@@ -32,14 +34,20 @@ pub fn should_refresh_wsl(reason: &str, is_visible: bool) -> bool {
         let elapsed = t.elapsed();
         // Allow manual trigger to bypass the 4s debounce
         if reason != "manual trigger" && elapsed < Duration::from_secs(4) {
-            trace!("WSL refresh skipped (reason: {}, elapsed: {:?})", reason, elapsed);
+            trace!(
+                "WSL refresh skipped (reason: {}, elapsed: {:?})",
+                reason, elapsed
+            );
             return false;
         }
     }
 
     // Manual triggers represent explicit user intent and should bypass visibility checks
     if !is_visible && reason != "manual trigger" {
-        trace!("WSL refresh skipped (reason: {}, window hidden in tray)", reason);
+        trace!(
+            "WSL refresh skipped (reason: {}, window hidden in tray)",
+            reason
+        );
         return false;
     }
 
@@ -54,14 +62,20 @@ pub fn should_refresh_usb(reason: &str, is_visible: bool) -> bool {
         let elapsed = t.elapsed();
         // Allow manual trigger to bypass the 4s debounce
         if reason != "manual trigger" && elapsed < Duration::from_secs(4) {
-            trace!("USB refresh skipped (reason: {}, elapsed: {:?})", reason, elapsed);
+            trace!(
+                "USB refresh skipped (reason: {}, elapsed: {:?})",
+                reason, elapsed
+            );
             return false;
         }
     }
 
     // Manual triggers represent explicit user intent and should bypass visibility checks
     if !is_visible && reason != "manual trigger" {
-        trace!("USB refresh skipped (reason: {}, window hidden in tray)", reason);
+        trace!(
+            "USB refresh skipped (reason: {}, window hidden in tray)",
+            reason
+        );
         return false;
     }
 
@@ -119,10 +133,10 @@ pub async fn refresh_data(app_handle: slint::Weak<AppWindow>, app_state: Arc<Mut
     debug!("refresh_data: Starting background data refresh");
     let ah = app_handle.clone();
     let as_ptr = app_state.clone();
-    
+
     // 1. Show cached list immediately (warm start)
     refresh_distros_ui(ah, as_ptr).await;
-    
+
     // 2. Trigger initial background refresh to get live WSL data
     // Mark as refreshed NOW to prevent periodic monitor from triggering immediately
     {
@@ -141,7 +155,7 @@ pub async fn refresh_data(app_handle: slint::Weak<AppWindow>, app_state: Arc<Mut
         debug!("refresh_data: Triggering initial live WSL sync...");
         let _ = dashboard.refresh_distros().await;
     });
-    
+
     debug!("refresh_data: Background data refresh scheduled");
 }
 
@@ -149,13 +163,22 @@ pub async fn refresh_data(app_handle: slint::Weak<AppWindow>, app_state: Arc<Mut
 static IS_REFRESHING: AtomicBool = AtomicBool::new(false);
 
 // Global static snapshot to prevent redundant refreshes across all threads
-static LAST_REFRESH_SNAPSHOT: Lazy<std::sync::Mutex<Option<Vec<(String, String, String, bool, Option<&'static str>)>>>> = Lazy::new(|| std::sync::Mutex::new(None));
-static LAST_INSTALLABLE_SNAPSHOT: Lazy<std::sync::Mutex<Option<Vec<String>>>> = Lazy::new(|| std::sync::Mutex::new(None));
+static LAST_REFRESH_SNAPSHOT: Lazy<
+    std::sync::Mutex<Option<Vec<(String, String, String, bool, Option<&'static str>)>>>,
+> = Lazy::new(|| std::sync::Mutex::new(None));
+static LAST_INSTALLABLE_SNAPSHOT: Lazy<std::sync::Mutex<Option<Vec<String>>>> =
+    Lazy::new(|| std::sync::Mutex::new(None));
 
 // Refresh UI list of installed distributions
-pub async fn refresh_distros_ui(app_handle: slint::Weak<AppWindow>, app_state: Arc<Mutex<AppState>>) {
+pub async fn refresh_distros_ui(
+    app_handle: slint::Weak<AppWindow>,
+    app_state: Arc<Mutex<AppState>>,
+) {
     // Basic debounce: if already refreshing, skip this request
-    if IS_REFRESHING.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
+    if IS_REFRESHING
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
         return;
     }
 
@@ -170,7 +193,10 @@ pub async fn refresh_distros_ui(app_handle: slint::Weak<AppWindow>, app_state: A
         match tokio::time::timeout(lock_timeout, app_state.lock()).await {
             Ok(app_state_lock) => {
                 let mut distros = app_state_lock.wsl_dashboard.get_distros().await;
-                debug!("refresh_distros_ui: Found {} installed distributions", distros.len());
+                debug!(
+                    "refresh_distros_ui: Found {} installed distributions",
+                    distros.len()
+                );
                 // Sort by: 1. Default first, 2. Name A-Z
                 distros.sort_by(|a, b| {
                     if a.is_default != b.is_default {
@@ -193,20 +219,25 @@ pub async fn refresh_distros_ui(app_handle: slint::Weak<AppWindow>, app_state: A
     };
 
     // Quick check: has the actual data changed before we do heavy icon loading?
-    let current_snapshot: Vec<(String, String, String, bool, Option<&'static str>)> = distros.iter().map(|d| {
-        (
-            d.name.clone(),
-            format!("{:?}", d.status),
-            format!("{:?}", d.version),
-            d.is_default,
-            crate::utils::icon_mapper::map_name_to_icon_key(&d.name)
-        )
-    }).collect();
+    let current_snapshot: Vec<(String, String, String, bool, Option<&'static str>)> = distros
+        .iter()
+        .map(|d| {
+            (
+                d.name.clone(),
+                format!("{:?}", d.status),
+                format!("{:?}", d.version),
+                d.is_default,
+                crate::utils::icon_mapper::map_name_to_icon_key(&d.name),
+            )
+        })
+        .collect();
 
     let data_changed = {
         let mut last = LAST_REFRESH_SNAPSHOT.lock().unwrap();
         if let Some(ref l) = *last {
-            if l.len() != current_snapshot.len() || l.iter().zip(current_snapshot.iter()).any(|(a, b)| a != b) {
+            if l.len() != current_snapshot.len()
+                || l.iter().zip(current_snapshot.iter()).any(|(a, b)| a != b)
+            {
                 *last = Some(current_snapshot);
                 true
             } else {
@@ -224,16 +255,20 @@ pub async fn refresh_distros_ui(app_handle: slint::Weak<AppWindow>, app_state: A
 
     let mut intermediate_distros = Vec::new();
     if data_changed {
-        debug!("refresh_distros_ui: Data changed, proceeding with icon loading (count: {})", distros.len());
+        debug!(
+            "refresh_distros_ui: Data changed, proceeding with icon loading (count: {})",
+            distros.len()
+        );
         let mut needs_background_icon_check = Vec::new();
 
         for d in distros {
-            let icon_key: Option<&'static str> = crate::utils::icon_mapper::map_name_to_icon_key(&d.name);
-            
+            let icon_key: Option<&'static str> =
+                crate::utils::icon_mapper::map_name_to_icon_key(&d.name);
+
             if icon_key.is_none() && d.status == wsl::models::WslStatus::Running {
-                 if !crate::utils::icon_mapper::is_distro_probed(&d.name) {
+                if !crate::utils::icon_mapper::is_distro_probed(&d.name) {
                     needs_background_icon_check.push(d.name.clone());
-                 }
+                }
             }
 
             intermediate_distros.push((
@@ -250,6 +285,7 @@ pub async fn refresh_distros_ui(app_handle: slint::Weak<AppWindow>, app_state: A
                 icon_key,
                 crate::utils::icon_mapper::get_initial(&d.name),
                 icon_key.and_then(crate::utils::icon_mapper::load_icon_data),
+                d.status == wsl::models::WslStatus::Running,
             ));
         }
 
@@ -263,23 +299,34 @@ pub async fn refresh_distros_ui(app_handle: slint::Weak<AppWindow>, app_state: A
                     if !crate::utils::icon_mapper::start_probing(name.clone()) {
                         continue; // Already probing or probed
                     }
-                    
-                    let result = exec.execute_command(&["-d", &name, "--exec", "cat", "/etc/os-release"]).await;
+
+                    let result = exec
+                        .execute_command(&["-d", &name, "--exec", "cat", "/etc/os-release"])
+                        .await;
                     if result.success {
                         // Mark as probed so we don't retry constantly even if we don't find a match
                         crate::utils::icon_mapper::mark_distro_probed(name.clone());
-                        
+
                         for line in result.output.lines() {
                             let line = line.trim();
-                            if line.is_empty() { continue; }
+                            if line.is_empty() {
+                                continue;
+                            }
                             if let Some(eq_pos) = line.find('=') {
                                 let key = line[..eq_pos].trim().to_lowercase();
                                 let value = line[eq_pos + 1..].trim().trim_matches('"').trim();
                                 if !value.is_empty() {
                                     match key.as_str() {
                                         "id" | "id_like" | "name" | "pretty_name" => {
-                                            if let Some(icon_key) = crate::utils::icon_mapper::map_name_to_icon_key(value) {
-                                                crate::utils::icon_mapper::add_dynamic_mapping(name.clone(), icon_key);
+                                            if let Some(icon_key) =
+                                                crate::utils::icon_mapper::map_name_to_icon_key(
+                                                    value,
+                                                )
+                                            {
+                                                crate::utils::icon_mapper::add_dynamic_mapping(
+                                                    name.clone(),
+                                                    icon_key,
+                                                );
                                                 found_any = true;
                                                 break;
                                             }
@@ -292,7 +339,7 @@ pub async fn refresh_distros_ui(app_handle: slint::Weak<AppWindow>, app_state: A
                     } else {
                         // If failed, also mark as probed to avoid infinite retry loop if distro is temporarily broken
                         // or we could retry with backoff, but for now safe approach:
-                         crate::utils::icon_mapper::mark_distro_probed(name.clone());
+                        crate::utils::icon_mapper::mark_distro_probed(name.clone());
                     }
                 }
                 if found_any {
@@ -301,10 +348,58 @@ pub async fn refresh_distros_ui(app_handle: slint::Weak<AppWindow>, app_state: A
                 }
             });
         }
+
+        // Background IP fetch for running distros
+        let running_distros: Vec<String> = intermediate_distros
+            .iter()
+            .filter(|(_, _, _, _, _, _, _, is_running)| *is_running)
+            .map(|(name, _, _, _, _, _, _, _)| name.clone())
+            .collect();
+
+        if !running_distros.is_empty() {
+            let ah = app_handle.clone();
+            tokio::task::spawn_blocking(move || {
+                let mut ip_results: Vec<(String, String)> = Vec::new();
+                for name in &running_distros {
+                    match crate::network::tracker::get_distro_ip(name, Some(1)) {
+                        Ok(ip) => {
+                            debug!("Fetched IP for {}: {}", name, ip);
+                            ip_results.push((name.clone(), ip));
+                        }
+                        Err(e) => {
+                            debug!("Failed to fetch IP for {}: {}", name, e);
+                        }
+                    }
+                }
+
+                if !ip_results.is_empty() {
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah.upgrade() {
+                            let model = app.get_distros();
+                            for i in 0..model.row_count() {
+                                if let Some(mut distro) = model.row_data(i) {
+                                    if let Some((_, ip)) =
+                                        ip_results.iter().find(|(name, _)| distro.name == *name)
+                                    {
+                                        if distro.ip != ip.as_str() {
+                                            distro.ip = ip.into();
+                                            model.set_row_data(i, distro);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            });
+        }
     }
 
     static IS_UI_UPDATING: AtomicBool = AtomicBool::new(false);
-    if IS_UI_UPDATING.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
+    if IS_UI_UPDATING
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
         return;
     }
 
@@ -315,43 +410,67 @@ pub async fn refresh_distros_ui(app_handle: slint::Weak<AppWindow>, app_state: A
 
         if let Some(app) = app_handle.upgrade() {
             if data_changed {
-                let slint_distros: Vec<Distro> = intermediate_distros.into_iter().map(|(name, status, version, is_default, icon_key, initial, preloaded_icon)| {
-                    let mut image = slint::Image::default();
-                    let mut has_icon = false;
-                    
-                    if let Some(icon_data) = preloaded_icon {
-                        let cache_key = icon_key.map(|s| s.to_string()).unwrap_or_else(|| name.clone());
-                        if let Some(img) = crate::utils::icon_mapper::load_image_from_data(cache_key, icon_data) {
-                            image = img;
-                            has_icon = true;
-                        }
-                    }
+                let slint_distros: Vec<Distro> = intermediate_distros
+                    .into_iter()
+                    .map(
+                        |(
+                            name,
+                            status,
+                            version,
+                            is_default,
+                            icon_key,
+                            initial,
+                            preloaded_icon,
+                            _is_running,
+                        )| {
+                            let mut image = slint::Image::default();
+                            let mut has_icon = false;
 
-                    Distro {
-                        name: name.into(),
-                        status: status.into(),
-                        version: version.into(),
-                        is_default,
-                        icon: image,
-                        has_icon,
-                        initial: initial.into(),
-                        distro_display_name: crate::utils::icon_mapper::get_display_name(icon_key).into(),
-                    }
-                }).collect();
+                            if let Some(icon_data) = preloaded_icon {
+                                let cache_key = icon_key
+                                    .map(|s| s.to_string())
+                                    .unwrap_or_else(|| name.clone());
+                                if let Some(img) = crate::utils::icon_mapper::load_image_from_data(
+                                    cache_key, icon_data,
+                                ) {
+                                    image = img;
+                                    has_icon = true;
+                                }
+                            }
+
+                            Distro {
+                                name: name.into(),
+                                status: status.into(),
+                                version: version.into(),
+                                is_default,
+                                icon: image,
+                                has_icon,
+                                initial: initial.into(),
+                                distro_display_name: crate::utils::icon_mapper::get_display_name(
+                                    icon_key,
+                                )
+                                .into(),
+                                ip: Default::default(),
+                            }
+                        },
+                    )
+                    .collect();
 
                 // Try to update existing model in-place if possible to minimize Repeater churn
                 let existing_model = app.get_distros();
                 let needs_full_rebuild = existing_model.row_count() != slint_distros.len();
-                
+
                 let mut data_actually_changed = true;
                 if !needs_full_rebuild {
                     data_actually_changed = false;
                     for (i, new_distro) in slint_distros.iter().enumerate() {
                         if let Some(old_distro) = existing_model.row_data(i) {
-                            if old_distro.name != new_distro.name 
+                            if old_distro.name != new_distro.name
                                 || old_distro.status != new_distro.status
-                                || old_distro.is_default != new_distro.is_default 
-                                || old_distro.has_icon != new_distro.has_icon {
+                                || old_distro.is_default != new_distro.is_default
+                                || old_distro.has_icon != new_distro.has_icon
+                                || old_distro.ip != new_distro.ip
+                            {
                                 data_actually_changed = true;
                                 break;
                             }
@@ -361,14 +480,14 @@ pub async fn refresh_distros_ui(app_handle: slint::Weak<AppWindow>, app_state: A
                         }
                     }
                 }
-                
+
                 if data_actually_changed {
                     let model = VecModel::from(slint_distros);
                     let model_rc = ModelRc::from(Rc::new(model));
                     app.set_distros(model_rc);
                 }
             }
-            
+
             if !is_manual_op && app.get_task_status_visible() {
                 app.set_task_status_visible(false);
             }
@@ -376,19 +495,25 @@ pub async fn refresh_distros_ui(app_handle: slint::Weak<AppWindow>, app_state: A
     });
 }
 
-
 // Refresh UI list of installable distributions
-pub async fn refresh_installable_distros(app_handle: slint::Weak<AppWindow>, app_state: Arc<Mutex<AppState>>) {
+pub async fn refresh_installable_distros(
+    app_handle: slint::Weak<AppWindow>,
+    app_state: Arc<Mutex<AppState>>,
+) {
     let result = {
         let app_state = app_state.lock().await;
-        app_state.wsl_dashboard.executor().list_available_distros().await
+        app_state
+            .wsl_dashboard
+            .executor()
+            .list_available_distros()
+            .await
     };
 
     if result.success {
         let mut available = wsl::parser::parse_available_distros(&result.output);
         // Sort by distribution name Z-A (Reverse order as requested)
         available.sort_by(|a, b| b.1.to_lowercase().cmp(&a.1.to_lowercase()));
-        
+
         let current_names: Vec<String> = available.iter().map(|(n, _)| n.clone()).collect();
         let unchanged = {
             let mut last = LAST_INSTALLABLE_SNAPSHOT.lock().unwrap();
@@ -409,30 +534,34 @@ pub async fn refresh_installable_distros(app_handle: slint::Weak<AppWindow>, app
             return;
         }
 
-        let slint_installables: Vec<InstallableDistro> = available.iter().map(|(name, friendly)| {
-            InstallableDistro {
+        let slint_installables: Vec<InstallableDistro> = available
+            .iter()
+            .map(|(name, friendly)| InstallableDistro {
                 name: name.clone().into(),
                 friendly_name: friendly.clone().into(),
-            }
-        }).collect();
+            })
+            .collect();
 
-        let friendly_names: Vec<slint::SharedString> = available.iter().map(|(_, friendly)| {
-            friendly.clone().into()
-        }).collect();
+        let friendly_names: Vec<slint::SharedString> = available
+            .iter()
+            .map(|(_, friendly)| friendly.clone().into())
+            .collect();
 
         let _ = slint::invoke_from_event_loop(move || {
             let model = VecModel::from(slint_installables);
             let model_rc = ModelRc::from(Rc::new(model));
-            
+
             let names_model = VecModel::from(friendly_names);
             let names_rc = ModelRc::from(Rc::new(names_model));
-            
+
             if let Some(app) = app_handle.upgrade() {
                 app.set_installable_distros(model_rc);
                 app.set_installable_distro_names(names_rc);
-                
+
                 // If no selection, default to first item and sync UI fields
-                if app.get_selected_install_distro().is_empty() && app.get_installable_distro_names().row_count() > 0 {
+                if app.get_selected_install_distro().is_empty()
+                    && app.get_installable_distro_names().row_count() > 0
+                {
                     if let Some(first) = app.get_installable_distro_names().row_data(0) {
                         app.set_selected_install_distro(first.clone());
                         // Trigger the synchronization logic for Instance Name and Path
@@ -445,21 +574,33 @@ pub async fn refresh_installable_distros(app_handle: slint::Weak<AppWindow>, app
 }
 
 // Load configuration to UI
-pub async fn load_settings_to_ui(app: &AppWindow, app_state: &Arc<Mutex<AppState>>, settings: &crate::config::UserSettings, tray: &crate::config::TraySettings) {
+pub async fn load_settings_to_ui(
+    app: &AppWindow,
+    app_state: &Arc<Mutex<AppState>>,
+    settings: &crate::config::UserSettings,
+    tray: &crate::config::TraySettings,
+) {
     app.set_ui_language(settings.ui_language.clone().into());
     app.set_distro_location(settings.distro_location.clone().into());
     app.set_new_instance_path(settings.distro_location.clone().into());
     app.set_logs_location(settings.logs_location.clone().into());
     app.set_auto_shutdown(settings.auto_shutdown);
     app.set_system_color(settings.system_color);
-    app.global::<crate::Theme>().set_system_color(settings.system_color);
+    app.global::<crate::Theme>()
+        .set_system_color(settings.system_color);
     app.set_sidebar_collapsed(settings.sidebar_collapsed);
     app.set_tray_autostart(tray.autostart);
     app.set_tray_start_minimized(tray.start_minimized);
     app.set_tray_close_to_tray(tray.close_to_tray);
     app.set_log_level(settings.log_level as i32);
 
-    let sidebar = app_state.lock().await.config_manager.get_config().sidebar.clone();
+    let sidebar = app_state
+        .lock()
+        .await
+        .config_manager
+        .get_config()
+        .sidebar
+        .clone();
     app.set_sidebar_add(sidebar.add);
     app.set_sidebar_wsl_manage(sidebar.wsl_manage);
     app.set_sidebar_usb(sidebar.usb);
@@ -468,10 +609,11 @@ pub async fn load_settings_to_ui(app: &AppWindow, app_state: &Arc<Mutex<AppState
 
     // Set RTL mode based on current resolved language
     let current_lang = i18n::current_lang();
-    app.global::<crate::AppI18n>().set_is_rtl(i18n::is_rtl(&current_lang));
+    app.global::<crate::AppI18n>()
+        .set_is_rtl(i18n::is_rtl(&current_lang));
     // Refresh localized strings to apply translations immediately
     refresh_localized_strings(app);
-    
+
     // Validate and set log retention days
     let mut log_days = settings.log_days;
     if !vec![7, 15, 30].contains(&log_days) {
@@ -483,7 +625,10 @@ pub async fn load_settings_to_ui(app: &AppWindow, app_state: &Arc<Mutex<AppState
     // Validate and set check_update interval
     let mut check_update = settings.check_update;
     if !vec![1, 7, 15, 30].contains(&check_update) {
-        debug!("Invalid check-update value ({}), resetting to 7", check_update);
+        debug!(
+            "Invalid check-update value ({}), resetting to 7",
+            check_update
+        );
         check_update = 7;
     }
     app.set_check_update_interval(check_update as i32);
@@ -496,15 +641,21 @@ pub async fn load_settings_to_ui(app: &AppWindow, app_state: &Arc<Mutex<AppState
         settings_mut.check_update = check_update;
         let _ = state_mut.config_manager.update_settings(settings_mut);
     }
-    
-    app.global::<crate::Theme>().set_dark_mode(settings.dark_mode);
-    
+
+    app.global::<crate::Theme>()
+        .set_dark_mode(settings.dark_mode);
+
     // Set default font based on language to fix Chinese rendering issues
     let font_family = if crate::app::is_chinese_lang(&settings.ui_language) {
         crate::app::constants::FONT_ZH
     } else if settings.ui_language == "auto" {
         let state = app_state.lock().await;
-        let sys_lang = state.config_manager.get_config().system.system_language.clone();
+        let sys_lang = state
+            .config_manager
+            .get_config()
+            .system
+            .system_language
+            .clone();
         drop(state);
         if crate::app::is_chinese_lang(&sys_lang) {
             crate::app::constants::FONT_ZH
@@ -514,8 +665,14 @@ pub async fn load_settings_to_ui(app: &AppWindow, app_state: &Arc<Mutex<AppState
     } else {
         crate::app::constants::FONT_EN_FALLBACK
     };
-    app.global::<crate::Theme>().set_default_font(font_family.into());
+    app.global::<crate::Theme>()
+        .set_default_font(font_family.into());
 
-    debug!("Configuration loaded to UI (Language: {}, Mode: {}, LogLevel: {}, LogDays: {})", 
-          settings.ui_language, if settings.dark_mode { "Dark" } else { "Light" }, settings.log_level, log_days);
+    debug!(
+        "Configuration loaded to UI (Language: {}, Mode: {}, LogLevel: {}, LogDays: {})",
+        settings.ui_language,
+        if settings.dark_mode { "Dark" } else { "Light" },
+        settings.log_level,
+        log_days
+    );
 }

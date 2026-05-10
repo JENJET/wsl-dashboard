@@ -1,7 +1,7 @@
-use std::path::Path;
-use crate::config::models::{InstancesContainer, INSTANCES_VERSION};
 use crate::config::migration;
+use crate::config::models::{INSTANCES_VERSION, InstancesContainer};
 use std::fs;
+use std::path::Path;
 
 pub fn load_instances(path: &Path) -> InstancesContainer {
     if path.exists() {
@@ -9,7 +9,7 @@ pub fn load_instances(path: &Path) -> InstancesContainer {
             if let Ok(mut container) = toml::from_str::<InstancesContainer>(&content) {
                 let old_version = container.common.setting_version;
                 migration::migrate_instances_config(&mut container);
-                
+
                 // If version was upgraded, save it back immediately to complete fields
                 if old_version < INSTANCES_VERSION {
                     let _ = save_instances_to_disk(path, &container);
@@ -21,15 +21,18 @@ pub fn load_instances(path: &Path) -> InstancesContainer {
     InstancesContainer::new()
 }
 
-pub fn save_instances_to_disk(path: &Path, container: &InstancesContainer) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub fn save_instances_to_disk(
+    path: &Path,
+    container: &InstancesContainer,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     if let Some(parent) = path.parent() {
         let _ = fs::create_dir_all(parent);
     }
 
     let mut toml_string = toml::to_string_pretty(container)?;
-    // Ensure UNIX line endings 
+    // Ensure UNIX line endings
     toml_string = toml_string.replace("\r\n", "\n");
-    
+
     fs::write(path, toml_string)?;
     Ok(())
 }

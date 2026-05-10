@@ -1,16 +1,23 @@
+use crate::utils::system::copy_to_clipboard;
+use crate::{AppI18n, AppState, AppWindow, UsbDevice};
+use serde_json::json;
+use slint::ComponentHandle;
+use std::future::Future;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use slint::ComponentHandle;
-use crate::{AppWindow, AppState, UsbDevice, AppI18n};
-use tracing::{info, error};
-use std::future::Future;
-use serde_json::json;
-use crate::utils::system::copy_to_clipboard;
+use tracing::{error, info};
 
 /// Convert backend USB device model to Slint model
-fn to_slint_device(dev: &crate::usb::UsbDeviceModel, auto_attach_list: &[crate::config::models::UsbAutoAttachDevice]) -> UsbDevice {
+fn to_slint_device(
+    dev: &crate::usb::UsbDeviceModel,
+    auto_attach_list: &[crate::config::models::UsbAutoAttachDevice],
+) -> UsbDevice {
     let full_instance_id = dev.instance_id.clone().unwrap_or_default();
-    let sn_part = full_instance_id.split('\\').last().unwrap_or("").to_string();
+    let sn_part = full_instance_id
+        .split('\\')
+        .last()
+        .unwrap_or("")
+        .to_string();
     let is_real_sn = !sn_part.contains('&') && !sn_part.is_empty();
     let persisted_guid = dev.persisted_guid.clone().unwrap_or_default();
 
@@ -49,11 +56,15 @@ fn to_slint_device(dev: &crate::usb::UsbDeviceModel, auto_attach_list: &[crate::
 
     // Determine if auto-attach is enabled in our configuration
     // Use Bus ID for exact mapping as the user interacts with specific instances
-    let vid_pid = format!("{}:{}", vid.as_deref().unwrap_or(""), pid.as_deref().unwrap_or(""));
-    let is_in_config = auto_attach_list.iter().any(|a| {
-        a.bus_id == dev.bus_id.as_deref().unwrap_or_default()
-    });
-    
+    let vid_pid = format!(
+        "{}:{}",
+        vid.as_deref().unwrap_or(""),
+        pid.as_deref().unwrap_or("")
+    );
+    let is_in_config = auto_attach_list
+        .iter()
+        .any(|a| a.bus_id == dev.bus_id.as_deref().unwrap_or_default());
+
     // Auto-attach only works if the device is currently Shared or Attached.
     // If it's NotShared, the 'Auto' tag shouldn't be effectively 'active'.
     let is_auto = is_in_config && status != "NotShared";
@@ -94,7 +105,7 @@ where
     tokio::spawn(async move {
         // Run the async task
         let result = task_fn().await;
-        
+
         let ah_inner = ah.clone();
         let _ = slint::invoke_from_event_loop(move || {
             match result {
@@ -107,7 +118,8 @@ where
                     // Check for cancellation:
                     // 1. Windows HRESULT 0x800704C7 (The operation was canceled by the user)
                     // 2. Generic "cancel" string from underlying tools/OS
-                    let is_canceled = e.contains("0x800704C7") || e.to_lowercase().contains("cancel");
+                    let is_canceled =
+                        e.contains("0x800704C7") || e.to_lowercase().contains("cancel");
 
                     if is_canceled {
                         info!("USB operation canceled by user: {}", e);
@@ -143,20 +155,22 @@ where
     });
 }
 
-
-
 pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc<Mutex<AppState>>) {
     // Refresh USB device list — runs usbipd on background thread
     let ah = app_handle.clone();
     let as_ptr = app_state.clone();
     app.on_refresh_usb(move |is_manual| {
-        let reason = if is_manual { "manual trigger" } else { "periodic trigger" };
+        let reason = if is_manual {
+            "manual trigger"
+        } else {
+            "periodic trigger"
+        };
         let is_visible = if let Some(app) = ah.upgrade() {
             app.get_is_window_visible()
         } else {
             true
         };
-        
+
         if !crate::ui::data::should_refresh_usb(reason, is_visible) {
             return;
         }
@@ -176,18 +190,22 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
             // Get current auto-attach list from config
             let auto_attach_list = {
                 let state = as_ptr.lock().await;
-                state.config_manager.get_usb_config().auto_attach_list.clone()
+                state
+                    .config_manager
+                    .get_usb_config()
+                    .auto_attach_list
+                    .clone()
             };
             // First check version
             let version_res = crate::usb::UsbManager::get_version().await;
-            
+
             let (version, is_outdated) = match version_res {
                 Ok(v) => {
                     // Check if version is < 4.0.0
                     let is_old = if let Some(first_char) = v.chars().next() {
-                         first_char < '4' && first_char.is_ascii_digit()
+                        first_char < '4' && first_char.is_ascii_digit()
                     } else {
-                         false
+                        false
                     };
                     (v, is_old)
                 }
@@ -214,40 +232,50 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     app.set_usbipd_version(version.into());
                     app.set_is_usbipd_outdated(is_outdated);
                     app.set_usb_loading(false);
-                    
+
                     match result {
                         Ok(mut devices) => {
                             // Sort devices by BusId naturally (e.g., 1-1 before 1-10)
                             devices.sort_by(|a, b| {
                                 let a_bus = a.bus_id.as_deref().unwrap_or("");
                                 let b_bus = b.bus_id.as_deref().unwrap_or("");
-                                
-                                let a_parts: Vec<&str> = a_bus.split(|c| c == '-' || c == '.').collect();
-                                let b_parts: Vec<&str> = b_bus.split(|c| c == '-' || c == '.').collect();
-                                
+
+                                let a_parts: Vec<&str> =
+                                    a_bus.split(|c| c == '-' || c == '.').collect();
+                                let b_parts: Vec<&str> =
+                                    b_bus.split(|c| c == '-' || c == '.').collect();
+
                                 for (p1, p2) in a_parts.iter().zip(b_parts.iter()) {
                                     let n1 = p1.parse::<u32>();
                                     let n2 = p2.parse::<u32>();
-                                    
+
                                     match (n1, n2) {
                                         (Ok(num1), Ok(num2)) => {
-                                            if num1 != num2 { return num1.cmp(&num2); }
+                                            if num1 != num2 {
+                                                return num1.cmp(&num2);
+                                            }
                                         }
                                         _ => {
-                                            if p1 != p2 { return p1.cmp(p2); }
+                                            if p1 != p2 {
+                                                return p1.cmp(p2);
+                                            }
                                         }
                                     }
                                 }
                                 a_parts.len().cmp(&b_parts.len())
                             });
 
-                            let slint_devices: Vec<UsbDevice> = devices.iter()
+                            let slint_devices: Vec<UsbDevice> = devices
+                                .iter()
                                 .filter(|d| d.bus_id.is_some())
                                 .map(|d| to_slint_device(d, &auto_attach_list))
                                 .collect();
                             let model = std::rc::Rc::new(slint::VecModel::from(slint_devices));
                             app.set_usb_devices(model.into());
-                            info!("USB device list refreshed: {} devices found (sorted by BusId)", devices.len());
+                            info!(
+                                "USB device list refreshed: {} devices found (sorted by BusId)",
+                                devices.len()
+                            );
                         }
                         Err(e) => {
                             error!("Failed to list USB devices: {}", e);
@@ -268,7 +296,9 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
     app.on_usb_bind(move |bus_id| {
         let bus_id = bus_id.to_string();
         info!("USB bind requested for {}", bus_id);
-        if let Some(app) = ah.upgrade() { app.set_usb_loading(true); }
+        if let Some(app) = ah.upgrade() {
+            app.set_usb_loading(true);
+        }
         spawn_usb_task(ah.clone(), move || async move {
             crate::usb::UsbManager::bind(&bus_id).await
         });
@@ -279,7 +309,9 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
     app.on_usb_unbind(move |bus_id| {
         let bus_id = bus_id.to_string();
         info!("USB unbind requested for {}", bus_id);
-        if let Some(app) = ah.upgrade() { app.set_usb_loading(true); }
+        if let Some(app) = ah.upgrade() {
+            app.set_usb_loading(true);
+        }
         spawn_usb_task(ah.clone(), move || async move {
             crate::usb::UsbManager::unbind(&bus_id).await
         });
@@ -290,7 +322,9 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
     app.on_usb_attach(move |bus_id| {
         let bus_id = bus_id.to_string();
         info!("USB attach requested for {}", bus_id);
-        if let Some(app) = ah.upgrade() { app.set_usb_loading(true); }
+        if let Some(app) = ah.upgrade() {
+            app.set_usb_loading(true);
+        }
         spawn_usb_task(ah.clone(), move || async move {
             crate::usb::UsbManager::attach(&bus_id, "").await
         });
@@ -301,7 +335,9 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
     app.on_usb_detach(move |bus_id| {
         let bus_id = bus_id.to_string();
         info!("USB detach requested for {}", bus_id);
-        if let Some(app) = ah.upgrade() { app.set_usb_loading(true); }
+        if let Some(app) = ah.upgrade() {
+            app.set_usb_loading(true);
+        }
         spawn_usb_task(ah.clone(), move || async move {
             crate::usb::UsbManager::detach(&bus_id).await
         });
@@ -315,9 +351,9 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
         let ah = ah.clone();
         let as_ptr = as_ptr.clone();
         let bus_id_str = bus_id.to_string(); // Clone as String for the async task
-        
+
         info!("USB toggle auto-attach requested for {}", bus_id_str);
-        
+
         spawn_usb_task(ah.clone(), move || async move {
             // 1. Get device details (VID:PID) asynchronously
             let devices = crate::usb::UsbManager::list_devices().await?;
@@ -326,7 +362,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 let mut vid = dev.vid.clone();
                 let mut pid = dev.pid.clone();
                 let full_instance_id = dev.instance_id.clone().unwrap_or_default();
-                
+
                 if (vid.is_none() || pid.is_none()) && full_instance_id.contains("VID_") {
                     if let Some(v_start) = full_instance_id.find("VID_") {
                         if full_instance_id.len() >= v_start + 8 {
@@ -339,7 +375,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                         }
                     }
                 }
-                
+
                 let vp = format!("{}:{}", vid.as_deref().unwrap_or(""), pid.as_deref().unwrap_or(""));
                 (vp, "".to_string())
             } else {
@@ -355,7 +391,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     error!("Failed to register scheduled task: {}", e);
                     // We continue anyway so the preference is still saved even if task creation fails/cancels
                 }
-                
+
                 // Update UI state regardless of result to reflect current reality
                 let exists_now = crate::network::scheduler::check_task_exists();
                 let ah_ui = ah.clone();
@@ -371,7 +407,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                let mut state = as_ptr.lock().await;
                let _ = state.config_manager.toggle_usb_auto_attach(&bus_id_str, &target_vid_pid, &target_distro);
             }
-            
+
             // 3. Trigger refresh on UI thread
             if let Some(app) = ah.upgrade() {
                  app.invoke_refresh_usb(true);
@@ -400,7 +436,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     let msg = app.global::<AppI18n>().invoke_t("usb.copy_success".into(), slint::ModelRc::from(std::rc::Rc::new(slint::VecModel::from(vec![device.bus_id.clone()]))));
                     app.set_task_status_text(msg);
                     app.set_task_status_visible(true);
-                    
+
                     // Auto-hide toast after 3 seconds
                     let ah_inner = ah.clone();
                     tokio::spawn(async move {

@@ -1,5 +1,5 @@
-use slint::ComponentHandle;
 use crate::AppWindow;
+use slint::ComponentHandle;
 use tracing::info;
 
 pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>) {
@@ -55,7 +55,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>) {
             let pos = app.window().position();
             app.window().set_position(slint::PhysicalPosition::new(
                 pos.x + dx as i32,
-                pos.y + dy as i32
+                pos.y + dy as i32,
             ));
         }
     });

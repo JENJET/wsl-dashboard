@@ -1,27 +1,28 @@
-use std::sync::Arc;
-use tokio::sync::Mutex;
+use crate::{AppState, AppWindow, i18n};
 use rand::{Rng, distr::Alphanumeric};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use crate::{AppWindow, AppState, i18n};
+use tokio::sync::Mutex;
 use uuid;
 
-pub mod lifecycle;
-pub mod manage;
-pub mod export;
 pub mod clone;
 pub mod clone_logic;
+pub mod config_logic;
+pub mod export;
 pub mod install;
 pub mod install_logic;
+pub mod lifecycle;
+pub mod manage;
 pub mod move_distro;
 pub mod move_logic;
 pub mod settings_logic;
-pub mod config_logic;
 
 pub fn sanitize_instance_name(name: &str) -> String {
-    let mut sanitized: String = name.chars()
+    let mut sanitized: String = name
+        .chars()
         .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_' || *c == '.')
         .collect();
-    
+
     if sanitized.len() > 25 {
         sanitized.truncate(25);
     }
@@ -60,20 +61,20 @@ pub fn spawn_file_size_monitor(
             } else {
                 0
             };
-            
+
             let ah_inner = ah.clone();
             let distro_name_inner = distro_name.clone();
             let i18n_key_inner = i18n_key.clone();
-            
+
             let size_str = format!("{} MB", size_mb);
-            
+
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(app) = ah_inner.upgrade() {
                     let msg = i18n::tr(&i18n_key_inner, &[distro_name_inner, size_str]);
                     app.set_task_status_text(msg.into());
                 }
             });
-            
+
             tokio::time::sleep(std::time::Duration::from_millis(500)).await;
         }
     });
@@ -88,7 +89,10 @@ pub async fn resolve_temp_path(
     let (config_temp, distro_loc) = {
         let state = as_ptr.lock().await;
         let settings = state.config_manager.get_settings();
-        (settings.temp_location.clone(), settings.distro_location.clone())
+        (
+            settings.temp_location.clone(),
+            settings.distro_location.clone(),
+        )
     };
 
     // 1. Get distro size
@@ -129,7 +133,7 @@ pub async fn resolve_temp_path(
 
     // 2. Check C: drive space
     let c_free_bytes = crate::utils::system::get_c_drive_free_space();
-    
+
     // Safety margin (e.g., 1GB) since the export might be slightly larger or we want to leave some space
     let required_bytes = vhdx_bytes + 1024 * 1024 * 1024;
 

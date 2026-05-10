@@ -11,13 +11,16 @@ pub fn get_wsl_networking_mode() -> String {
             return "nat".to_string();
         }
     };
-    
+
     let wsl_config_path = home_dir.join(".wslconfig");
     if !wsl_config_path.exists() {
-        debug!(".wslconfig not found at {:?}, defaulting networkingMode to 'nat'", wsl_config_path);
+        debug!(
+            ".wslconfig not found at {:?}, defaulting networkingMode to 'nat'",
+            wsl_config_path
+        );
         return "nat".to_string();
     }
-    
+
     match Ini::load_from_file(&wsl_config_path) {
         Ok(ini) => {
             if let Some(section) = ini.section(Some("wsl2")) {
@@ -31,7 +34,10 @@ pub fn get_wsl_networking_mode() -> String {
             "nat".to_string()
         }
         Err(e) => {
-            warn!("Failed to parse .wslconfig at {:?}: {}, defaulting networkingMode to 'nat'", wsl_config_path, e);
+            warn!(
+                "Failed to parse .wslconfig at {:?}: {}, defaulting networkingMode to 'nat'",
+                wsl_config_path, e
+            );
             "nat".to_string()
         }
     }

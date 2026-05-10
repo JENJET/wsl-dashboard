@@ -43,7 +43,7 @@ pub struct WslInformation {
 impl WslDistro {
     // Check if two WSL subsystems are logically equal (ignore startup time)
     pub fn business_equals(&self, other: &WslDistro) -> bool {
-        self.name == other.name 
+        self.name == other.name
             && self.status == other.status
             && self.version == other.version
             && self.is_default == other.is_default

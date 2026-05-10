@@ -1,11 +1,11 @@
+use crate::{AppState, AppWindow};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::{AppState, AppWindow};
 
 pub mod utils;
 pub use utils::*;
-pub mod rules;
 pub mod proxy;
+pub mod rules;
 pub mod service;
 
 pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc<Mutex<AppState>>) {

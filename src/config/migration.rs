@@ -1,8 +1,8 @@
-use tracing::info;
 use super::{Config, SETTINGS_VERSION};
+use tracing::info;
 
 // Record new or changed fields for each version to implement global configuration control
-// 
+//
 // v1 global field list (2026-01-10):
 //   [application]
 //   - name: String
@@ -28,12 +28,15 @@ use super::{Config, SETTINGS_VERSION};
 
 pub fn migrate_config(config: &mut Config) {
     let old_version = config.application.setting_version as u32;
-    
+
     if old_version >= SETTINGS_VERSION {
         return;
     }
 
-    info!("Detected configuration version v{}, upgrading to v{}...", old_version, SETTINGS_VERSION);
+    info!(
+        "Detected configuration version v{}, upgrading to v{}...",
+        old_version, SETTINGS_VERSION
+    );
 
     // v0 -> v1 logic
     if old_version < 1 {
@@ -66,22 +69,32 @@ pub fn migrate_config(config: &mut Config) {
     }
 
     config.application.setting_version = SETTINGS_VERSION as u8;
-    info!("✅ Configuration migration complete, current version: v{}", SETTINGS_VERSION);
+    info!(
+        "✅ Configuration migration complete, current version: v{}",
+        SETTINGS_VERSION
+    );
 }
 
 pub fn migrate_instances_config(container: &mut super::InstancesContainer) {
     let old_version = container.common.setting_version;
-    
+
     if old_version >= super::INSTANCES_VERSION {
         return;
     }
 
-    info!("Detected instances configuration version v{}, upgrading to v{}...", old_version, super::INSTANCES_VERSION);
+    info!(
+        "Detected instances configuration version v{}, upgrading to v{}...",
+        old_version,
+        super::INSTANCES_VERSION
+    );
 
     if old_version < 2 {
         info!("Upgrading instances config to v2: adding terminal-proxy field (default enabled)");
     }
-    
+
     container.common.setting_version = super::INSTANCES_VERSION;
-    info!("✅ Instances configuration migration complete, current version: v{}", super::INSTANCES_VERSION);
+    info!(
+        "✅ Instances configuration migration complete, current version: v{}",
+        super::INSTANCES_VERSION
+    );
 }

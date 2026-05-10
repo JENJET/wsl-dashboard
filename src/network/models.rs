@@ -18,7 +18,6 @@ pub struct PortProxyRule {
     pub enable_firewall: bool,
 }
 
-
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct HttpProxyConfig {
     #[serde(default)]

@@ -1,11 +1,4 @@
-
-use tracing::{info, warn, debug};
-
-
-
-
-
-
+use tracing::{debug, info, warn};
 
 #[cfg(windows)]
 
@@ -20,16 +13,13 @@ pub fn get_startup_dir() -> Result<std::path::PathBuf, Box<dyn std::error::Error
     Ok(path)
 }
 
-
-
-
-
-
-
 /// Sets the dashboard itself to start automatically on Windows logon using the registry (HKCU).
 /// If start_minimized is true, adds /silent parameter to the command line.
 /// Fallbacks to VBS in Startup folder if registry access is denied.
-pub async fn set_dashboard_autostart(enable: bool, start_minimized: bool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+pub async fn set_dashboard_autostart(
+    enable: bool,
+    start_minimized: bool,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let exe_path = std::env::current_exe()?;
     let path_str = exe_path.to_str().ok_or("Invalid executable path")?;
     let run_subkey = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
@@ -41,9 +31,13 @@ pub async fn set_dashboard_autostart(enable: bool, start_minimized: bool) -> Res
         } else {
             format!("\"{}\"", path_str)
         };
-        
+
         // 1. Check if it's already set to the same value to avoid redundant writes
-        if let Some(current_val) = crate::utils::registry::read_reg_string_ext(windows::Win32::System::Registry::HKEY_CURRENT_USER, run_subkey, value_name) {
+        if let Some(current_val) = crate::utils::registry::read_reg_string_ext(
+            windows::Win32::System::Registry::HKEY_CURRENT_USER,
+            run_subkey,
+            value_name,
+        ) {
             if current_val == command {
                 debug!("Dashboard autostart is already correctly set in registry, skipping write.");
                 return Ok(());
@@ -52,7 +46,12 @@ pub async fn set_dashboard_autostart(enable: bool, start_minimized: bool) -> Res
 
         info!("Enabling dashboard autostart in registry: {}", command);
         // Try native registry first
-        match crate::utils::registry::write_reg_string(windows::Win32::System::Registry::HKEY_CURRENT_USER, run_subkey, value_name, &command) {
+        match crate::utils::registry::write_reg_string(
+            windows::Win32::System::Registry::HKEY_CURRENT_USER,
+            run_subkey,
+            value_name,
+            &command,
+        ) {
             Ok(_) => {
                 info!("✅ Dashboard autostart set in registry.");
                 Ok(())
@@ -64,8 +63,12 @@ pub async fn set_dashboard_autostart(enable: bool, start_minimized: bool) -> Res
         }
     } else {
         info!("Disabling dashboard autostart in registry...");
-        let reg_res = crate::utils::registry::delete_reg_value(windows::Win32::System::Registry::HKEY_CURRENT_USER, run_subkey, value_name);
-        
+        let reg_res = crate::utils::registry::delete_reg_value(
+            windows::Win32::System::Registry::HKEY_CURRENT_USER,
+            run_subkey,
+            value_name,
+        );
+
         if let Err(e) = reg_res {
             let err_msg = e.to_string();
             if !err_msg.contains("not found") && !err_msg.contains("system cannot find the file") {
@@ -78,10 +81,9 @@ pub async fn set_dashboard_autostart(enable: bool, start_minimized: bool) -> Res
     }
 }
 
-
-
-
-pub fn check_autostart_valid(start_minimized: bool) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+pub fn check_autostart_valid(
+    start_minimized: bool,
+) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
     let exe_path = std::env::current_exe()?;
     let path_str = exe_path.to_str().ok_or("Invalid executable path")?;
     let run_subkey = "Software\\Microsoft\\Windows\\CurrentVersion\\Run";
@@ -93,7 +95,11 @@ pub fn check_autostart_valid(start_minimized: bool) -> Result<bool, Box<dyn std:
         format!("\"{}\"", path_str)
     };
 
-    if let Some(current_val) = crate::utils::registry::read_reg_string_ext(windows::Win32::System::Registry::HKEY_CURRENT_USER, run_subkey, value_name) {
+    if let Some(current_val) = crate::utils::registry::read_reg_string_ext(
+        windows::Win32::System::Registry::HKEY_CURRENT_USER,
+        run_subkey,
+        value_name,
+    ) {
         Ok(current_val == target_command)
     } else {
         Ok(false)
@@ -112,7 +118,9 @@ pub async fn repair_autostart_path(autostart_enabled: bool, start_minimized: boo
                 // Path is valid, do nothing
             }
             _ => {
-                info!("System check: Autostart is enabled but path is invalid or missing, updating...");
+                info!(
+                    "System check: Autostart is enabled but path is invalid or missing, updating..."
+                );
                 if let Err(e) = set_dashboard_autostart(true, start_minimized).await {
                     warn!("Failed to repair autostart path: {}", e);
                 }

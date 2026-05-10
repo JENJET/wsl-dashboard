@@ -1,7 +1,7 @@
+use crate::{AppState, AppWindow};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
-use crate::{AppWindow, AppState};
 use tracing::debug;
 
 /// Interval (seconds) for auto-refreshing WSL management data while the tab is active
@@ -33,14 +33,18 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
 
                         let current_name = app.get_new_instance_name().to_string();
                         let final_path = if !current_name.is_empty() {
-                            std::path::Path::new(&location).join(&current_name).to_string_lossy().to_string()
+                            std::path::Path::new(&location)
+                                .join(&current_name)
+                                .to_string_lossy()
+                                .to_string()
                         } else {
                             location
                         };
 
                         app.set_new_instance_path(final_path.into());
                     }
-                }).unwrap();
+                })
+                .unwrap();
             }
 
             // Tab 2 is "USB Devices"
@@ -77,9 +81,9 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
 
                 // Start periodic refresh in tokio (off UI thread)
                 let task = tokio::spawn(async move {
-                    let mut interval = tokio::time::interval(
-                        std::time::Duration::from_secs(WSL_MANAGE_REFRESH_INTERVAL_SECS)
-                    );
+                    let mut interval = tokio::time::interval(std::time::Duration::from_secs(
+                        WSL_MANAGE_REFRESH_INTERVAL_SECS,
+                    ));
                     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
                     loop {

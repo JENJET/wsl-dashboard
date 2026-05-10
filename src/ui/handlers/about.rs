@@ -1,15 +1,19 @@
+use crate::app::updater::OfficialGroupItem;
+use crate::{AppState, AppWindow};
+use std::io::Read;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::io::Read;
 use tokio::sync::Mutex;
 use tracing::{debug, warn};
-use crate::{AppWindow, AppState};
-use crate::app::updater::OfficialGroupItem;
 
 /// Ensure the BASE_API request is triggered only once during the application's lifecycle
 static FETCHED: AtomicBool = AtomicBool::new(false);
 
-pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, _app_state: Arc<Mutex<AppState>>) {
+pub fn setup(
+    app: &AppWindow,
+    app_handle: slint::Weak<AppWindow>,
+    _app_state: Arc<Mutex<AppState>>,
+) {
     let ah = app_handle.clone();
 
     // group_clicked: pop up only when the image is ready, otherwise no response
@@ -24,7 +28,10 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, _app_state: Ar
 }
 
 /// Called when the user opens the About page for the first time (from the select_tab hook in common.rs)
-pub fn trigger_fetch_if_needed(app_handle: slint::Weak<AppWindow>, app_state: Arc<Mutex<AppState>>) {
+pub fn trigger_fetch_if_needed(
+    app_handle: slint::Weak<AppWindow>,
+    app_state: Arc<Mutex<AppState>>,
+) {
     // AtomicBool ensures it triggers only once, preventing duplicate requests even with rapid switching to the About page
     if FETCHED.swap(true, Ordering::SeqCst) {
         debug!("about: BASE_API already fetched, skipping");
@@ -37,12 +44,18 @@ pub fn trigger_fetch_if_needed(app_handle: slint::Weak<AppWindow>, app_state: Ar
         let (timezone, sys_lang) = {
             let state = app_state.lock().await;
             let cfg = state.config_manager.get_config();
-            (cfg.system.timezone.clone(), cfg.system.system_language.clone())
+            (
+                cfg.system.timezone.clone(),
+                cfg.system.system_language.clone(),
+            )
         };
 
         match crate::app::updater::fetch_base_config(&timezone).await {
             Ok(resp) => {
-                debug!("about: fetch_base_config success, official-group count={}", resp.official_group.len());
+                debug!(
+                    "about: fetch_base_config success, official-group count={}",
+                    resp.official_group.len()
+                );
                 if let Some(item) = match_group(&resp.official_group, &sys_lang, &timezone) {
                     let pic_url = build_pic_url(&item.pic, &timezone);
                     debug!("about: matched group='{}', pic_url={}", item.name, pic_url);
@@ -53,7 +66,8 @@ pub fn trigger_fetch_if_needed(app_handle: slint::Weak<AppWindow>, app_state: Ar
                         Ok((pixels, w, h)) => {
                             let _ = slint::invoke_from_event_loop(move || {
                                 if let Some(app) = app_handle.upgrade() {
-                                    let buf = slint::SharedPixelBuffer::clone_from_slice(&pixels, w, h);
+                                    let buf =
+                                        slint::SharedPixelBuffer::clone_from_slice(&pixels, w, h);
                                     let img = slint::Image::from_rgba8(buf);
                                     app.set_about_group_pic(img);
                                     app.set_about_group_pic_ready(true);
@@ -80,9 +94,7 @@ pub fn trigger_fetch_if_needed(app_handle: slint::Weak<AppWindow>, app_state: Ar
 /// Standardize language code: to lowercase + remove hyphens and underscores
 /// Example: zh-CN / zh_CN / zh-cn => zhcn
 fn normalize_lang(s: &str) -> String {
-    s.to_lowercase()
-        .replace('-', "")
-        .replace('_', "")
+    s.to_lowercase().replace('-', "").replace('_', "")
 }
 
 /// Match an appropriate entry from the official-group array
@@ -100,9 +112,7 @@ fn match_group<'a>(
     // Priority: both language && timezone are non-empty, perform AND match
     for item in items {
         if !item.system_language.is_empty() && !item.timezone.is_empty() {
-            if normalize_lang(&item.system_language) == nl
-                && item.timezone.to_lowercase() == nt
-            {
+            if normalize_lang(&item.system_language) == nl && item.timezone.to_lowercase() == nt {
                 return Some(item);
             }
         }

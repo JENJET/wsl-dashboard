@@ -1,8 +1,8 @@
+use super::utils::{refresh_network_view_data, show_toast};
+use crate::network;
+use crate::{AppState, AppWindow};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::{AppState, AppWindow};
-use crate::network;
-use super::utils::{refresh_network_view_data, show_toast};
 
 pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc<Mutex<AppState>>) {
     let ah_open = app_handle.clone();
@@ -24,7 +24,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
     app.on_add_network_rule(move |distro, ip, lport, tport, fw| {
         let ah = ah_add.clone();
         let as_ptr = as_add.clone();
-        
+
         let lport_str = lport.to_string();
         let tport_str = tport.to_string();
 
@@ -54,7 +54,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
             // 1. Check for duplicates
             let current_config = state.config_manager.get_network_config();
             let listen_port_num = lport.parse::<u16>().unwrap_or(0);
-            
+
             let is_duplicate = current_config.port_proxies.iter().any(|r| {
                 r.listen_address == ip.as_str() && r.listen_port == listen_port_num
             });
@@ -84,7 +84,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 let log_lport = rule.listen_port;
                 let log_tport = rule.target_port;
                 let log_fw = rule.enable_firewall;
-                
+
                 net_config.port_proxies.push(rule);
                 if let Err(e) = state.config_manager.update_network_config(net_config) {
                     tracing::error!("Failed to save network configuration: {}", e);
@@ -98,16 +98,16 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     return;
                 } else {
                     tracing::info!("Added network rule to config: {} {}:{} -> {}", log_distro, log_addr, log_lport, log_tport);
-                    
+
                     // INSTANT APPLY: Trigger single elevation for BOTH proxy and firewall
                     // Scenario A: If distro is NOT started, we don't start it, don't get IP, don't call netsh portproxy.
                     // Scenario B: If distro IS started, execute existing logic.
                     let is_running = state.wsl_dashboard.is_distro_running(&log_distro).await;
                     if is_running {
-                        match network::tracker::get_distro_ip(&log_distro) {
+                        match network::tracker::get_distro_ip(&log_distro, None) {
                             Ok(target_ip) => {
                                 let _ = network::port_proxy::add_port_proxy_and_firewall_elevated(
-                                    &log_addr, log_lport, &target_ip, log_tport, 
+                                    &log_addr, log_lport, &target_ip, log_tport,
                                     log_fw, &log_distro
                                 );
                                 tracing::info!("Instant rule apply initiated (Distro Running) for {}:{}", log_addr, log_lport);
@@ -130,7 +130,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
             drop(state);
             let ah_finish = ah.clone();
             refresh_network_view_data(ah, as_ptr).await;
-            
+
             // Success: Close the dialog
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(app) = ah_finish.upgrade() {
@@ -159,24 +159,50 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
 
                 // 1. Check if distro is running using app state (Home list logic)
                 if !dashboard.is_distro_running(&distro_name).await {
-                    let err_msg = crate::i18n::tr("network.rules_error_not_running", &[distro_name.to_string()]);
+                    let err_msg = crate::i18n::tr(
+                        "network.rules_error_not_running",
+                        &[distro_name.to_string()],
+                    );
                     show_toast(ah, err_msg);
                     return;
                 }
 
                 // 2. Get current IP if running
-                tracing::info!("Manually applying rule for {}:{} -> target distro: {}", listen_addr, listen_port, distro_name);
-                match network::tracker::get_distro_ip(&distro_name) {
+                tracing::info!(
+                    "Manually applying rule for {}:{} -> target distro: {}",
+                    listen_addr,
+                    listen_port,
+                    distro_name
+                );
+                match network::tracker::get_distro_ip(&distro_name, None) {
                     Ok(ip) => {
-                        match network::port_proxy::add_port_proxy_elevated(&listen_addr, listen_port, &ip, target_port, enable_fw, &distro_name) {
+                        match network::port_proxy::add_port_proxy_elevated(
+                            &listen_addr,
+                            listen_port,
+                            &ip,
+                            target_port,
+                            enable_fw,
+                            &distro_name,
+                        ) {
                             Ok(_) => {
-                                tracing::info!("Applied port proxy: {}:{} -> {}:{} (Firewall: {})", listen_addr, listen_port, ip, target_port, enable_fw);
-                                let success_msg = crate::i18n::tr("network.rules_apply_success", &[listen_port.to_string(), ip.to_string()]);
+                                tracing::info!(
+                                    "Applied port proxy: {}:{} -> {}:{} (Firewall: {})",
+                                    listen_addr,
+                                    listen_port,
+                                    ip,
+                                    target_port,
+                                    enable_fw
+                                );
+                                let success_msg = crate::i18n::tr(
+                                    "network.rules_apply_success",
+                                    &[listen_port.to_string(), ip.to_string()],
+                                );
                                 show_toast(ah.clone(), success_msg);
                                 refresh_network_view_data(ah, as_ptr).await;
-                            },
+                            }
                             Err(e) => {
-                                let msg = if e.contains("InvalidOperation") || e.contains("denied") {
+                                let msg = if e.contains("InvalidOperation") || e.contains("denied")
+                                {
                                     crate::i18n::t("network.error_uac")
                                 } else {
                                     crate::i18n::tr("network.error_uac_detail", &[e.to_string()])
@@ -184,9 +210,12 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                                 show_toast(ah, msg);
                             }
                         }
-                    },
+                    }
                     Err(_e) => {
-                        let err_msg = crate::i18n::tr("network.rules_error_no_ip", &[distro_name.to_string()]);
+                        let err_msg = crate::i18n::tr(
+                            "network.rules_error_no_ip",
+                            &[distro_name.to_string()],
+                        );
                         show_toast(ah, err_msg);
                     }
                 }
@@ -202,10 +231,14 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
         tokio::spawn(async move {
             let state = as_ptr.lock().await;
             let mut net_config = state.config_manager.get_network_config();
-            
+
             // Physical deletion from Windows with UAC
             if let Some(rule) = net_config.port_proxies.iter().find(|r| r.id == id.as_str()) {
-                let _ = network::port_proxy::delete_port_proxy_and_firewall_elevated(&rule.listen_address, rule.listen_port, &rule.distro_name);
+                let _ = network::port_proxy::delete_port_proxy_and_firewall_elevated(
+                    &rule.listen_address,
+                    rule.listen_port,
+                    &rule.distro_name,
+                );
             }
 
             net_config.port_proxies.retain(|r| r.id != id.as_str());
@@ -234,11 +267,20 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 let distro_name = rule.distro_name.clone();
                 drop(state);
 
-                tracing::info!("Canceling active rule for {}:{} (distro: {})", listen_addr, listen_port, distro_name);
-                match network::port_proxy::delete_port_proxy_elevated(&listen_addr, listen_port, &distro_name) {
+                tracing::info!(
+                    "Canceling active rule for {}:{} (distro: {})",
+                    listen_addr,
+                    listen_port,
+                    distro_name
+                );
+                match network::port_proxy::delete_port_proxy_elevated(
+                    &listen_addr,
+                    listen_port,
+                    &distro_name,
+                ) {
                     Ok(_) => {
                         refresh_network_view_data(ah, as_ptr).await;
-                    },
+                    }
                     Err(e) => {
                         let msg = if e.contains("InvalidOperation") || e.contains("denied") {
                             crate::i18n::t("network.error_uac")
@@ -261,29 +303,41 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
             let active_ports = network::port_proxy::get_active_listen_ports().unwrap_or_default();
             let (net_config, ah_clone, dashboard) = {
                 let state = as_ptr.lock().await;
-                (state.config_manager.get_network_config().clone(), ah.clone(), state.wsl_dashboard.clone())
+                (
+                    state.config_manager.get_network_config().clone(),
+                    ah.clone(),
+                    state.wsl_dashboard.clone(),
+                )
             };
-            
+
             let mut rules_to_apply = Vec::new();
             for rule in net_config.port_proxies {
                 if !active_ports.contains(&(rule.listen_address.clone(), rule.listen_port)) {
                     // Check if distro is running before trying to get IP (Avoid starting the distro)
                     if dashboard.is_distro_running(&rule.distro_name).await {
-                        if let Ok(ip) = network::tracker::get_distro_ip(&rule.distro_name) {
+                        if let Ok(ip) = network::tracker::get_distro_ip(&rule.distro_name, None) {
                             rules_to_apply.push((rule.clone(), ip));
                         }
                     } else {
-                        tracing::info!("Skipping apply all for {}:{} because distro {} is not running.", rule.listen_address, rule.listen_port, rule.distro_name);
+                        tracing::info!(
+                            "Skipping apply all for {}:{} because distro {} is not running.",
+                            rule.listen_address,
+                            rule.listen_port,
+                            rule.distro_name
+                        );
                     }
                 }
             }
-            
+
             if rules_to_apply.is_empty() {
                 tracing::info!("Apply all: No inactive rules to apply.");
                 return;
             }
-            
-            tracing::info!("Applying all inactive rules (count: {})", rules_to_apply.len());
+
+            tracing::info!(
+                "Applying all inactive rules (count: {})",
+                rules_to_apply.len()
+            );
             match network::port_proxy::apply_port_proxies_elevated(rules_to_apply) {
                 Ok(_) => {
                     refresh_network_view_data(ah_clone, as_ptr).await;
@@ -309,22 +363,28 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
             let active_ports = network::port_proxy::get_active_listen_ports().unwrap_or_default();
             let (net_config, ah_clone) = {
                 let state = as_ptr.lock().await;
-                (state.config_manager.get_network_config().clone(), ah.clone())
+                (
+                    state.config_manager.get_network_config().clone(),
+                    ah.clone(),
+                )
             };
-            
+
             let mut rules_to_cancel = Vec::new();
             for rule in net_config.port_proxies {
                 if active_ports.contains(&(rule.listen_address.clone(), rule.listen_port)) {
                     rules_to_cancel.push(rule.clone());
                 }
             }
-            
+
             if rules_to_cancel.is_empty() {
                 tracing::info!("Cancel all: No active rules to cancel.");
                 return;
             }
-            
-            tracing::info!("Canceling all active rules (count: {})", rules_to_cancel.len());
+
+            tracing::info!(
+                "Canceling all active rules (count: {})",
+                rules_to_cancel.len()
+            );
             let rules_count = rules_to_cancel.len();
             match network::port_proxy::delete_port_proxies_elevated(rules_to_cancel) {
                 Ok(_) => {

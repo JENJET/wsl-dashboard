@@ -1,7 +1,7 @@
+use crate::{AppState, AppWindow, i18n};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::info;
-use crate::{AppWindow, AppState, i18n};
 
 pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc<Mutex<AppState>>) {
     // Start
@@ -29,8 +29,6 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     });
                     return;
                 }
-
-
 
                 let ah_status = ah.clone();
                 let _ = slint::invoke_from_event_loop(move || {
@@ -77,8 +75,6 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     return;
                 }
 
-
-
                 let ah_status = ah.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(app) = ah_status.upgrade() {
@@ -124,8 +120,6 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     return;
                 }
 
-
-
                 let ah_status = ah.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(app) = ah_status.upgrade() {
@@ -153,11 +147,14 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
             info!("Operation: Delete distribution - {}", name);
             let ah = ah_outer.clone();
             let as_ptr = as_outer.clone();
-            
+
             tokio::spawn(async move {
                 let (dashboard, config_manager) = {
                     let app_state = as_ptr.lock().await;
-                    (app_state.wsl_dashboard.clone(), app_state.config_manager.clone())
+                    (
+                        app_state.wsl_dashboard.clone(),
+                        app_state.config_manager.clone(),
+                    )
                 };
 
                 // Sentinel Check: Distro busy?
@@ -183,7 +180,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     });
                     return;
                 }
-                
+
                 let ah_init = ah.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(app) = ah_init.upgrade() {
@@ -193,7 +190,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 });
 
                 dashboard.delete_distro(&config_manager, &name).await;
-                
+
                 let ah_final = ah.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(app) = ah_final.upgrade() {

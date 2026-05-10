@@ -1,16 +1,16 @@
+use crate::ui::data::refresh_distros_ui;
+use crate::{AppState, AppWindow, i18n};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::{info, warn};
-use crate::{AppWindow, AppState, i18n};
-use crate::ui::data::refresh_distros_ui;
 
 pub fn run_move_process(
-    ah_move: slint::Weak<AppWindow>, 
-    as_ptr: Arc<Mutex<AppState>>, 
-    source_name: String, 
-    target_name: String, 
-    target_path: String, 
-    version: String
+    ah_move: slint::Weak<AppWindow>,
+    as_ptr: Arc<Mutex<AppState>>,
+    source_name: String,
+    target_name: String,
+    target_path: String,
+    version: String,
 ) {
     let _ = slint::spawn_local(async move {
         if let Some(app) = ah_move.upgrade() {
@@ -24,24 +24,32 @@ pub fn run_move_process(
         dashboard.set_manual_operation(true);
 
         if let Some(app) = ah_move.upgrade() {
-            let msg = i18n::tr("operation.moving_wsl2_msg", &[source_name.clone(), i18n::t("dialog.processing")]);
+            let msg = i18n::tr(
+                "operation.moving_wsl2_msg",
+                &[source_name.clone(), i18n::t("dialog.processing")],
+            );
             app.set_task_status_text(msg.into());
         }
 
         let mut size_str = "0 MB".to_string();
         if version == "2" {
-             let info_res = crate::wsl::ops::info::get_distro_information(dashboard.executor(), &source_name).await;
-             if info_res.success {
-                 if let Some(info) = info_res.data {
-                     if !info.vhdx_size.is_empty() {
-                         size_str = info.vhdx_size;
-                     }
-                 }
-             }
+            let info_res =
+                crate::wsl::ops::info::get_distro_information(dashboard.executor(), &source_name)
+                    .await;
+            if info_res.success {
+                if let Some(info) = info_res.data {
+                    if !info.vhdx_size.is_empty() {
+                        size_str = info.vhdx_size;
+                    }
+                }
+            }
         }
-        
+
         if let Some(app) = ah_move.upgrade() {
-            let msg = i18n::tr("operation.moving_wsl2_msg", &[source_name.clone(), size_str.clone()]);
+            let msg = i18n::tr(
+                "operation.moving_wsl2_msg",
+                &[source_name.clone(), size_str.clone()],
+            );
             app.set_task_status_text(msg.into());
         }
 
@@ -52,12 +60,19 @@ pub fn run_move_process(
             let _ = dashboard.stop_distro(&source_name).await;
             tokio::time::sleep(std::time::Duration::from_millis(2000)).await;
         }
-        
-        let old_install_location = dashboard.executor().get_distro_install_location(&source_name).await.data;
+
+        let old_install_location = dashboard
+            .executor()
+            .get_distro_install_location(&source_name)
+            .await
+            .data;
 
         let result = if version == "2" {
             if let Some(app) = ah_move.upgrade() {
-                let msg = i18n::tr("operation.moving_wsl2_msg", &[source_name.clone(), size_str]);
+                let msg = i18n::tr(
+                    "operation.moving_wsl2_msg",
+                    &[source_name.clone(), size_str],
+                );
                 app.set_task_status_text(msg.into());
             }
 
@@ -67,22 +82,31 @@ pub fn run_move_process(
                     info!("WSL 2 Move: Retry attempt {} after delay...", attempt);
                     tokio::time::sleep(std::time::Duration::from_millis(3000)).await;
                 }
-                
+
                 // Yield to keep UI responsive during retries
                 tokio::task::yield_now().await;
                 move_res = dashboard.move_distro(&source_name, &target_path).await;
-                
+
                 if move_res.success {
                     break;
                 }
-                
-                if move_res.output.contains("ERROR_SHARING_VIOLATION") || move_res.output.contains("0x80070020") {
+
+                if move_res.output.contains("ERROR_SHARING_VIOLATION")
+                    || move_res.output.contains("0x80070020")
+                {
                     continue;
                 }
             }
             move_res
         } else {
-            move_wsl1(ah_move.clone(), as_ptr.clone(), &source_name, &target_name, &target_path).await
+            move_wsl1(
+                ah_move.clone(),
+                as_ptr.clone(),
+                &source_name,
+                &target_name,
+                &target_path,
+            )
+            .await
         };
 
         if let Some(app) = ah_move.upgrade() {
@@ -95,23 +119,27 @@ pub fn run_move_process(
                     if ico_src.exists() {
                         let ico_dst = std::path::Path::new(&target_path).join("shortcut.ico");
                         if ico_src != ico_dst {
-                           info!("Moving shortcut.ico from {:?} to {:?}", ico_src, ico_dst);
-                           let _ = std::fs::rename(ico_src, ico_dst);
+                            info!("Moving shortcut.ico from {:?} to {:?}", ico_src, ico_dst);
+                            let _ = std::fs::rename(ico_src, ico_dst);
                         }
                     }
                 }
 
-                app.set_current_message(i18n::tr("dialog.move_success", &[source_name, target_path]).into());
+                app.set_current_message(
+                    i18n::tr("dialog.move_success", &[source_name, target_path]).into(),
+                );
             } else {
                 let err = result.error.unwrap_or_else(|| i18n::t("dialog.error"));
                 if result.output == "BACKUP_SAVED" {
-                    app.set_current_message(i18n::tr("dialog.move_failed_backup", &[err.clone()]).into());
+                    app.set_current_message(
+                        i18n::tr("dialog.move_failed_backup", &[err.clone()]).into(),
+                    );
                     app.set_current_message_link(i18n::t("distro.explorer").into());
                     let backup_path = std::path::Path::new(&err);
                     if let Some(parent) = backup_path.parent() {
-                            app.set_current_message_url(parent.to_string_lossy().to_string().into());
+                        app.set_current_message_url(parent.to_string_lossy().to_string().into());
                     } else {
-                            app.set_current_message_url(err.into());
+                        app.set_current_message_url(err.into());
                     }
                 } else {
                     app.set_current_message(i18n::tr("dialog.move_failed", &[err]).into());
@@ -127,22 +155,29 @@ pub fn run_move_process(
 }
 
 async fn move_wsl1(
-    ah: slint::Weak<AppWindow>, 
-    as_ptr: Arc<Mutex<AppState>>, 
-    source_name: &str, 
-    target_name: &str, 
-    target_path: &str
+    ah: slint::Weak<AppWindow>,
+    as_ptr: Arc<Mutex<AppState>>,
+    source_name: &str,
+    target_name: &str,
+    target_path: &str,
 ) -> crate::wsl::models::WslCommandResult<String> {
     use crate::wsl::models::WslCommandResult;
-    
-    let (temp_dir, temp_file_str) = super::resolve_temp_path(as_ptr.clone(), source_name, "wsl_move", "tar").await;
+
+    let (temp_dir, temp_file_str) =
+        super::resolve_temp_path(as_ptr.clone(), source_name, "wsl_move", "tar").await;
     let _ = std::fs::create_dir_all(&temp_dir);
 
-    info!("WSL1 Move: Exporting '{}' to '{}'...", source_name, temp_file_str);
+    info!(
+        "WSL1 Move: Exporting '{}' to '{}'...",
+        source_name, temp_file_str
+    );
     let stop_signal = Arc::new(std::sync::atomic::AtomicBool::new(false));
-    
+
     if let Some(app) = ah.upgrade() {
-        let msg = i18n::tr("operation.moving_wsl1_step1", &[source_name.to_string(), "0 MB".to_string()]);
+        let msg = i18n::tr(
+            "operation.moving_wsl1_step1",
+            &[source_name.to_string(), "0 MB".to_string()],
+        );
         app.set_task_status_text(msg.into());
     }
 
@@ -151,7 +186,7 @@ async fn move_wsl1(
         temp_file_str.clone(),
         source_name.to_string(),
         "operation.moving_wsl1_step1".into(),
-        stop_signal.clone()
+        stop_signal.clone(),
     );
 
     // Yield to event loop before long-running export
@@ -188,7 +223,9 @@ async fn move_wsl1(
             let state = as_ptr.lock().await;
             state.wsl_dashboard.executor().clone()
         };
-        executor.execute_command(&["--unregister", source_name]).await
+        executor
+            .execute_command(&["--unregister", source_name])
+            .await
     };
 
     if !unregister_result.success {
@@ -196,7 +233,10 @@ async fn move_wsl1(
         return unregister_result;
     }
 
-    info!("WSL1 Move: Importing to '{}' at '{}'...", target_name, target_path);
+    info!(
+        "WSL1 Move: Importing to '{}' at '{}'...",
+        target_name, target_path
+    );
     if let Some(app) = ah.upgrade() {
         let msg = i18n::tr("operation.moving_wsl1_step2", &[source_name.to_string()]);
         app.set_task_status_text(msg.into());
@@ -208,7 +248,9 @@ async fn move_wsl1(
             let state = as_ptr.lock().await;
             state.wsl_dashboard.clone()
         };
-        dashboard.import_distro(target_name, target_path, &temp_file_str).await
+        dashboard
+            .import_distro(target_name, target_path, &temp_file_str)
+            .await
     };
 
     if !import_result.success {

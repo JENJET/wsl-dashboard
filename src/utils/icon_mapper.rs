@@ -1,10 +1,10 @@
-use slint::{Image, SharedPixelBuffer, Rgba8Pixel};
-use tracing::trace;
+use once_cell::sync::Lazy;
+use slint::{Image, Rgba8Pixel, SharedPixelBuffer};
+use std::collections::HashMap;
 #[allow(unused_imports)]
 use std::path::PathBuf;
-use std::collections::HashMap;
 use std::sync::Mutex;
-use once_cell::sync::Lazy;
+use tracing::trace;
 
 #[derive(Clone)]
 pub enum IconData {
@@ -17,10 +17,14 @@ pub enum IconData {
 unsafe impl Send for IconData {}
 unsafe impl Sync for IconData {}
 
-static ICON_CACHE: Lazy<Mutex<HashMap<String, IconData>>> = Lazy::new(|| Mutex::new(HashMap::new()));
-static DYNAMIC_ICON_MAP: Lazy<Mutex<HashMap<String, &'static str>>> = Lazy::new(|| Mutex::new(HashMap::new()));
-static PROBED_DISTROS: Lazy<Mutex<std::collections::HashSet<String>>> = Lazy::new(|| Mutex::new(std::collections::HashSet::new()));
-static PENDING_PROBES: Lazy<Mutex<std::collections::HashSet<String>>> = Lazy::new(|| Mutex::new(std::collections::HashSet::new()));
+static ICON_CACHE: Lazy<Mutex<HashMap<String, IconData>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+static DYNAMIC_ICON_MAP: Lazy<Mutex<HashMap<String, &'static str>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+static PROBED_DISTROS: Lazy<Mutex<std::collections::HashSet<String>>> =
+    Lazy::new(|| Mutex::new(std::collections::HashSet::new()));
+static PENDING_PROBES: Lazy<Mutex<std::collections::HashSet<String>>> =
+    Lazy::new(|| Mutex::new(std::collections::HashSet::new()));
 
 pub fn is_distro_probed(name: &str) -> bool {
     let probed = PROBED_DISTROS.lock().unwrap().contains(name);
@@ -43,10 +47,12 @@ pub fn start_probing(name: String) -> bool {
     }
 }
 
-
-
 pub fn get_initial(name: &str) -> String {
-    name.chars().next().unwrap_or('?').to_uppercase().to_string()
+    name.chars()
+        .next()
+        .unwrap_or('?')
+        .to_uppercase()
+        .to_string()
 }
 
 pub fn map_name_to_icon_key(name: &str) -> Option<&'static str> {
@@ -60,42 +66,79 @@ pub fn map_name_to_icon_key(name: &str) -> Option<&'static str> {
 
     // 2. Static mapping based on name
     let lower_name = name.to_lowercase();
-    if lower_name.contains("ubuntu") { Some("ubuntu") }
-    else if lower_name.contains("debian") { Some("debian") }
-    else if lower_name.contains("kali") { Some("kali") }
-    else if lower_name.contains("fedora") || lower_name.contains("fed") { Some("fedora") }
-    else if lower_name.contains("opensuse") || lower_name.contains("suse") { Some("opensuse") }
-    else if lower_name.contains("arch") { Some("arch") }
-    else if lower_name.contains("mint") { Some("mint") }
-    else if lower_name.contains("alpine") { Some("alpine") }
-    else if lower_name.contains("manjaro") { Some("manjaro") }
-    else if lower_name.contains("elementary") { Some("elementary") }
-    else if lower_name.contains("pop") { Some("pop_os") }
-    else if lower_name.contains("centos") { Some("centos") }
-    else if lower_name.contains("alma") { Some("almalinux") }
-    else if lower_name.contains("rocky") { Some("rockylinux") }
-    else if lower_name.contains("oracle") || lower_name == "ol" { Some("oracle") }
-    else if lower_name.contains("gentoo") { Some("gentoo") }
-    else if lower_name.contains("freebsd") { Some("freebsd") }
-    else if lower_name.contains("zorin") { Some("zorin") }
-    else if lower_name.contains("nix") { Some("nixos") }
-    else if lower_name.contains("puppy") { Some("puppy") }
-    else if lower_name.contains("penguin") { Some("penguin") }
-    else if lower_name.contains("cachy") { Some("cachyos") }
-    else if lower_name.contains("mx") { Some("mxlinux") }
-    else if lower_name.contains("endeavour") { Some("endeavouros") }
-    else if lower_name.contains("nobara") { Some("nobara") }
-    else if lower_name.contains("anduin") { Some("anduinos") }
-    else if lower_name.contains("neon") { Some("kdeneon") }
-    else if lower_name.contains("bluestar") { Some("bluestar") }
-    else if lower_name.contains("antix") { Some("antix") }
-    else if lower_name.contains("tuxedo") { Some("tuxedo") }
-    else if lower_name.contains("garuda") { Some("garuda") }
-    else if lower_name.contains("biglinux") { Some("biglinux") }
-    else if lower_name.contains("q4os") { Some("q4os") }
-    else if lower_name.contains("sparky") { Some("sparky") }
-    else if lower_name.contains("solus") { Some("solus") }
-    else { None }
+    if lower_name.contains("ubuntu") {
+        Some("ubuntu")
+    } else if lower_name.contains("debian") {
+        Some("debian")
+    } else if lower_name.contains("kali") {
+        Some("kali")
+    } else if lower_name.contains("fedora") || lower_name.contains("fed") {
+        Some("fedora")
+    } else if lower_name.contains("opensuse") || lower_name.contains("suse") {
+        Some("opensuse")
+    } else if lower_name.contains("arch") {
+        Some("arch")
+    } else if lower_name.contains("mint") {
+        Some("mint")
+    } else if lower_name.contains("alpine") {
+        Some("alpine")
+    } else if lower_name.contains("manjaro") {
+        Some("manjaro")
+    } else if lower_name.contains("elementary") {
+        Some("elementary")
+    } else if lower_name.contains("pop") {
+        Some("pop_os")
+    } else if lower_name.contains("centos") {
+        Some("centos")
+    } else if lower_name.contains("alma") {
+        Some("almalinux")
+    } else if lower_name.contains("rocky") {
+        Some("rockylinux")
+    } else if lower_name.contains("oracle") || lower_name == "ol" {
+        Some("oracle")
+    } else if lower_name.contains("gentoo") {
+        Some("gentoo")
+    } else if lower_name.contains("freebsd") {
+        Some("freebsd")
+    } else if lower_name.contains("zorin") {
+        Some("zorin")
+    } else if lower_name.contains("nix") {
+        Some("nixos")
+    } else if lower_name.contains("puppy") {
+        Some("puppy")
+    } else if lower_name.contains("penguin") {
+        Some("penguin")
+    } else if lower_name.contains("cachy") {
+        Some("cachyos")
+    } else if lower_name.contains("mx") {
+        Some("mxlinux")
+    } else if lower_name.contains("endeavour") {
+        Some("endeavouros")
+    } else if lower_name.contains("nobara") {
+        Some("nobara")
+    } else if lower_name.contains("anduin") {
+        Some("anduinos")
+    } else if lower_name.contains("neon") {
+        Some("kdeneon")
+    } else if lower_name.contains("bluestar") {
+        Some("bluestar")
+    } else if lower_name.contains("antix") {
+        Some("antix")
+    } else if lower_name.contains("tuxedo") {
+        Some("tuxedo")
+    } else if lower_name.contains("garuda") {
+        Some("garuda")
+    } else if lower_name.contains("biglinux") {
+        Some("biglinux")
+    } else if lower_name.contains("q4os") {
+        Some("q4os")
+    } else if lower_name.contains("sparky") {
+        Some("sparky")
+    } else if lower_name.contains("solus") {
+        Some("solus")
+    } else {
+        None
+    }
 }
 
 pub fn add_dynamic_mapping(distro_name: String, icon_key: &'static str) {
@@ -189,38 +232,99 @@ pub fn load_icon_data(key: &str) -> Option<IconData> {
         }
     }
 
-    trace!("load_icon_data: Cache miss for key '{}', loading from disk/assets", key);
+    trace!(
+        "load_icon_data: Cache miss for key '{}', loading from disk/assets",
+        key
+    );
 
     let data = match key {
-        "almalinux" => Some(IconData::Pixels(load_png_buffer(include_bytes!("../../assets/icons/almalinux.png")))),
-        "alpine" => Some(IconData::Pixels(load_png_buffer(include_bytes!("../../assets/icons/alpine.png")))),
-        "anduinos" => Some(IconData::Pixels(load_png_buffer(include_bytes!("../../assets/icons/anduinos.png")))),
-        "antix" => Some(IconData::Pixels(load_png_buffer(include_bytes!("../../assets/icons/antix.png")))),
-        "arch" => Some(IconData::Pixels(load_png_buffer(include_bytes!("../../assets/icons/arch.png")))),
-        "centos" => Some(IconData::Svg(include_bytes!("../../assets/icons/centos.svg"))),
-        "debian" => Some(IconData::Svg(include_bytes!("../../assets/icons/debian.svg"))),
-        "elementary" => Some(IconData::Pixels(load_png_buffer(include_bytes!("../../assets/icons/elementary.png")))),
-        "endeavouros" => Some(IconData::Pixels(load_png_buffer(include_bytes!("../../assets/icons/endeavouros.png")))),
-        "fedora" => Some(IconData::Pixels(load_png_buffer(include_bytes!("../../assets/icons/fedora.png")))),
-        "freebsd" => Some(IconData::Pixels(load_png_buffer(include_bytes!("../../assets/icons/freebsd.png")))),
-        "garuda" => Some(IconData::Pixels(load_png_buffer(include_bytes!("../../assets/icons/garuda.png")))),
-        "gentoo" => Some(IconData::Pixels(load_png_buffer(include_bytes!("../../assets/icons/gentoo.png")))),
-        "kali" => Some(IconData::Pixels(load_png_buffer(include_bytes!("../../assets/icons/kali.png")))),
-        "kdeneon" => Some(IconData::Pixels(load_png_buffer(include_bytes!("../../assets/icons/kdeneon.png")))),
-        "manjaro" => Some(IconData::Pixels(load_png_buffer(include_bytes!("../../assets/icons/manjaro.png")))),
-        "mint" => Some(IconData::Pixels(load_png_buffer(include_bytes!("../../assets/icons/mint.png")))),
-        "mxlinux" => Some(IconData::Pixels(load_png_buffer(include_bytes!("../../assets/icons/mxlinux.png")))),
-        "nixos" => Some(IconData::Pixels(load_png_buffer(include_bytes!("../../assets/icons/nixos.png")))),
-        "nobara" => Some(IconData::Pixels(load_png_buffer(include_bytes!("../../assets/icons/nobara.png")))),
-        "opensuse" => Some(IconData::Pixels(load_png_buffer(include_bytes!("../../assets/icons/opensuse.png")))),
-        "oracle" => Some(IconData::Pixels(load_png_buffer(include_bytes!("../../assets/icons/oracle.png")))),
-        "pop_os" => Some(IconData::Pixels(load_png_buffer(include_bytes!("../../assets/icons/pop_os.png")))),
-        "puppy" => Some(IconData::Pixels(load_png_buffer(include_bytes!("../../assets/icons/puppy.png")))),
-        "rockylinux" => Some(IconData::Svg(include_bytes!("../../assets/icons/rockylinux.svg"))),
-        "solus" => Some(IconData::Pixels(load_png_buffer(include_bytes!("../../assets/icons/solus.png")))),
-        "tuxedo" => Some(IconData::Pixels(load_png_buffer(include_bytes!("../../assets/icons/tuxedo.png")))),
-        "ubuntu" => Some(IconData::Pixels(load_png_buffer(include_bytes!("../../assets/icons/ubuntu.png")))),
-        "zorin" => Some(IconData::Pixels(load_png_buffer(include_bytes!("../../assets/icons/zorin.png")))),
+        "almalinux" => Some(IconData::Pixels(load_png_buffer(include_bytes!(
+            "../../assets/icons/almalinux.png"
+        )))),
+        "alpine" => Some(IconData::Pixels(load_png_buffer(include_bytes!(
+            "../../assets/icons/alpine.png"
+        )))),
+        "anduinos" => Some(IconData::Pixels(load_png_buffer(include_bytes!(
+            "../../assets/icons/anduinos.png"
+        )))),
+        "antix" => Some(IconData::Pixels(load_png_buffer(include_bytes!(
+            "../../assets/icons/antix.png"
+        )))),
+        "arch" => Some(IconData::Pixels(load_png_buffer(include_bytes!(
+            "../../assets/icons/arch.png"
+        )))),
+        "centos" => Some(IconData::Svg(include_bytes!(
+            "../../assets/icons/centos.svg"
+        ))),
+        "debian" => Some(IconData::Svg(include_bytes!(
+            "../../assets/icons/debian.svg"
+        ))),
+        "elementary" => Some(IconData::Pixels(load_png_buffer(include_bytes!(
+            "../../assets/icons/elementary.png"
+        )))),
+        "endeavouros" => Some(IconData::Pixels(load_png_buffer(include_bytes!(
+            "../../assets/icons/endeavouros.png"
+        )))),
+        "fedora" => Some(IconData::Pixels(load_png_buffer(include_bytes!(
+            "../../assets/icons/fedora.png"
+        )))),
+        "freebsd" => Some(IconData::Pixels(load_png_buffer(include_bytes!(
+            "../../assets/icons/freebsd.png"
+        )))),
+        "garuda" => Some(IconData::Pixels(load_png_buffer(include_bytes!(
+            "../../assets/icons/garuda.png"
+        )))),
+        "gentoo" => Some(IconData::Pixels(load_png_buffer(include_bytes!(
+            "../../assets/icons/gentoo.png"
+        )))),
+        "kali" => Some(IconData::Pixels(load_png_buffer(include_bytes!(
+            "../../assets/icons/kali.png"
+        )))),
+        "kdeneon" => Some(IconData::Pixels(load_png_buffer(include_bytes!(
+            "../../assets/icons/kdeneon.png"
+        )))),
+        "manjaro" => Some(IconData::Pixels(load_png_buffer(include_bytes!(
+            "../../assets/icons/manjaro.png"
+        )))),
+        "mint" => Some(IconData::Pixels(load_png_buffer(include_bytes!(
+            "../../assets/icons/mint.png"
+        )))),
+        "mxlinux" => Some(IconData::Pixels(load_png_buffer(include_bytes!(
+            "../../assets/icons/mxlinux.png"
+        )))),
+        "nixos" => Some(IconData::Pixels(load_png_buffer(include_bytes!(
+            "../../assets/icons/nixos.png"
+        )))),
+        "nobara" => Some(IconData::Pixels(load_png_buffer(include_bytes!(
+            "../../assets/icons/nobara.png"
+        )))),
+        "opensuse" => Some(IconData::Pixels(load_png_buffer(include_bytes!(
+            "../../assets/icons/opensuse.png"
+        )))),
+        "oracle" => Some(IconData::Pixels(load_png_buffer(include_bytes!(
+            "../../assets/icons/oracle.png"
+        )))),
+        "pop_os" => Some(IconData::Pixels(load_png_buffer(include_bytes!(
+            "../../assets/icons/pop_os.png"
+        )))),
+        "puppy" => Some(IconData::Pixels(load_png_buffer(include_bytes!(
+            "../../assets/icons/puppy.png"
+        )))),
+        "rockylinux" => Some(IconData::Svg(include_bytes!(
+            "../../assets/icons/rockylinux.svg"
+        ))),
+        "solus" => Some(IconData::Pixels(load_png_buffer(include_bytes!(
+            "../../assets/icons/solus.png"
+        )))),
+        "tuxedo" => Some(IconData::Pixels(load_png_buffer(include_bytes!(
+            "../../assets/icons/tuxedo.png"
+        )))),
+        "ubuntu" => Some(IconData::Pixels(load_png_buffer(include_bytes!(
+            "../../assets/icons/ubuntu.png"
+        )))),
+        "zorin" => Some(IconData::Pixels(load_png_buffer(include_bytes!(
+            "../../assets/icons/zorin.png"
+        )))),
         _ => None,
     };
 

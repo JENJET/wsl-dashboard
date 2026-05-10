@@ -1,8 +1,8 @@
-use tracing::{info, error};
-use std::process::Command;
+use std::fs;
 use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
-use std::fs;
+use std::process::Command;
+use tracing::{error, info};
 
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
@@ -24,7 +24,8 @@ pub fn get_script_path() -> PathBuf {
 pub fn ensure_task_script_exists() -> Result<PathBuf, String> {
     let scripts_dir = get_scripts_dir();
     if !scripts_dir.exists() {
-        fs::create_dir_all(&scripts_dir).map_err(|e| format!("Failed to create scripts directory: {}", e))?;
+        fs::create_dir_all(&scripts_dir)
+            .map_err(|e| format!("Failed to create scripts directory: {}", e))?;
     }
 
     let exe_path = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("wsldashboard.exe"));
@@ -38,7 +39,8 @@ pub fn ensure_task_script_exists() -> Result<PathBuf, String> {
         exe_str
     );
 
-    fs::write(&script_path, script_content).map_err(|e| format!("Failed to write task script: {}", e))?;
+    fs::write(&script_path, script_content)
+        .map_err(|e| format!("Failed to write task script: {}", e))?;
     Ok(script_path)
 }
 
@@ -52,13 +54,19 @@ pub fn register_task_with_elevation() -> Result<(), String> {
 
     // Construct the schtasks /Create command line
     // /TR executes the PowerShell script, using -WindowStyle Hidden to ensure no window is shown
-    let tr_value = format!("powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File \"{}\"", script_str);
+    let tr_value = format!(
+        "powershell.exe -ExecutionPolicy Bypass -WindowStyle Hidden -File \"{}\"",
+        script_str
+    );
     let schtasks_cmd = format!(
         "schtasks /Create /TN \"{}\" /TR \"{}\" /SC ONLOGON /RL HIGHEST /F",
         TASK_NAME, tr_value
     );
 
-    info!("Registering scheduled task via elevated schtasks: TN={}, TR={}", TASK_NAME, tr_value);
+    info!(
+        "Registering scheduled task via elevated schtasks: TN={}, TR={}",
+        TASK_NAME, tr_value
+    );
 
     // Execute via verified ShellExecuteEx elevation channel (waits synchronously for completion)
     crate::utils::system::run_invisible_elevated_command(&schtasks_cmd)
@@ -71,7 +79,7 @@ pub fn check_task_exists() -> bool {
         .args(&["/Query", "/TN", TASK_NAME])
         .creation_flags(CREATE_NO_WINDOW)
         .output();
-        
+
     if let Ok(out) = output {
         out.status.success()
     } else {
@@ -82,12 +90,12 @@ pub fn check_task_exists() -> bool {
 /// Delete the elevated scheduled task with UAC authorization
 pub fn unregister_task_with_elevation() -> Result<(), String> {
     // 1. Delete the scheduled task via elevated command
-    let schtasks_cmd = format!(
-        "schtasks /Delete /TN \"{}\" /F",
+    let schtasks_cmd = format!("schtasks /Delete /TN \"{}\" /F", TASK_NAME);
+
+    info!(
+        "Unregistering scheduled task via elevated schtasks: TN={}",
         TASK_NAME
     );
-
-    info!("Unregistering scheduled task via elevated schtasks: TN={}", TASK_NAME);
     crate::utils::system::run_invisible_elevated_command(&schtasks_cmd)?;
 
     // 2. Delete the task folder via elevated command
@@ -95,11 +103,8 @@ pub fn unregister_task_with_elevation() -> Result<(), String> {
     if let Some(last_backslash) = TASK_NAME.rfind('\\') {
         let folder_name = &TASK_NAME[..last_backslash];
         if !folder_name.is_empty() {
-            let delete_folder_cmd = format!(
-                "schtasks /Delete /TN \"{}\" /F",
-                folder_name
-            );
-            
+            let delete_folder_cmd = format!("schtasks /Delete /TN \"{}\" /F", folder_name);
+
             info!("Attempting to delete task folder: {}", folder_name);
             // Ignore errors here as the folder might not be empty or might have other tasks
             let _ = crate::utils::system::run_invisible_elevated_command(&delete_folder_cmd);
@@ -128,4 +133,3 @@ pub fn unregister_task_with_elevation() -> Result<(), String> {
 
     Ok(())
 }
-

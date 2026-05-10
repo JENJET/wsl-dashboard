@@ -1,9 +1,12 @@
-use std::sync::Arc;
-use tokio::sync::Mutex;
-use std::sync::atomic::{AtomicBool, Ordering};
-use tracing::{info, error, debug};
+use crate::wsl::ops::config::{
+    WslConf, WslVersionMeta, check_wsl_version_support, get_wsl_conf, save_wsl_conf,
+    serialize_wsl_conf, validate_wsl_conf,
+};
 use crate::{AppState, AppWindow};
-use crate::wsl::ops::config::{get_wsl_conf, check_wsl_version_support, validate_wsl_conf, save_wsl_conf, serialize_wsl_conf, WslVersionMeta, WslConf};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use tokio::sync::Mutex;
+use tracing::{debug, error, info};
 
 static IS_LOADING_CONFIG: AtomicBool = AtomicBool::new(false);
 
@@ -12,8 +15,14 @@ pub async fn handle_configs_clicked(
     as_ptr: Arc<Mutex<AppState>>,
     name: String,
 ) {
-    if IS_LOADING_CONFIG.compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst).is_err() {
-        debug!("handle_configs_clicked: Already loading, ignoring request for '{}'", name);
+    if IS_LOADING_CONFIG
+        .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+        .is_err()
+    {
+        debug!(
+            "handle_configs_clicked: Already loading, ignoring request for '{}'",
+            name
+        );
         return;
     }
 
@@ -57,7 +66,7 @@ pub async fn handle_configs_clicked(
         if let Some(app) = ah.upgrade() {
             // Hide loading status
             app.set_task_status_visible(false);
-            
+
             // Set version info
             app.set_wsl_config_version_string(version_meta.version_string.clone().into());
             app.set_wsl_config_boot_supported(version_meta.boot_supported);
@@ -76,17 +85,26 @@ pub async fn handle_configs_clicked(
             // Map [automount]
             app.set_wsl_config_automount_enabled(conf.automount.enabled.unwrap_or(true));
             app.set_wsl_config_automount_mount_fs_tab(conf.automount.mount_fs_tab.unwrap_or(true));
-            app.set_wsl_config_automount_root(conf.automount.root.unwrap_or_else(|| "/mnt/".to_string()).into());
+            app.set_wsl_config_automount_root(
+                conf.automount
+                    .root
+                    .unwrap_or_else(|| "/mnt/".to_string())
+                    .into(),
+            );
             app.set_wsl_config_automount_options(conf.automount.options.unwrap_or_default().into());
 
             // Map [network]
             app.set_wsl_config_network_generate_hosts(conf.network.generate_hosts.unwrap_or(true));
-            app.set_wsl_config_network_generate_resolv_conf(conf.network.generate_resolv_conf.unwrap_or(true));
+            app.set_wsl_config_network_generate_resolv_conf(
+                conf.network.generate_resolv_conf.unwrap_or(true),
+            );
             app.set_wsl_config_network_hostname(conf.network.hostname.unwrap_or_default().into());
 
             // Map [interop]
             app.set_wsl_config_interop_enabled(conf.interop.enabled.unwrap_or(true));
-            app.set_wsl_config_interop_append_windows_path(conf.interop.append_windows_path.unwrap_or(true));
+            app.set_wsl_config_interop_append_windows_path(
+                conf.interop.append_windows_path.unwrap_or(true),
+            );
 
             // Map [user]
             app.set_wsl_config_user_default(conf.user.default.unwrap_or_default().into());
@@ -100,7 +118,9 @@ pub async fn handle_configs_clicked(
             app.set_wsl_config_gpu_enabled(conf.gpu.enabled.unwrap_or(true));
 
             // Map [time]
-            app.set_wsl_config_time_use_windows_timezone(conf.time.use_windows_timezone.unwrap_or(true));
+            app.set_wsl_config_time_use_windows_timezone(
+                conf.time.use_windows_timezone.unwrap_or(true),
+            );
 
             // Show dialog
             app.set_show_wsl_config(true);
@@ -186,7 +206,10 @@ pub async fn handle_save_wsl_config(
         _ => return,
     };
 
-    info!("Operation: Saving wsl.conf for '{}' (restart={})", name, restart);
+    info!(
+        "Operation: Saving wsl.conf for '{}' (restart={})",
+        name, restart
+    );
 
     // 2. Acquire dashboard and executor
     let wsl_dashboard = {
@@ -199,7 +222,7 @@ pub async fn handle_save_wsl_config(
             }
         }
     };
-    
+
     // Set manual operation to prevent background refresh from hiding progress toast
     wsl_dashboard.increment_manual_operation();
     let dashboard_c = wsl_dashboard.clone();
@@ -216,7 +239,9 @@ pub async fn handle_save_wsl_config(
         let _ = slint::invoke_from_event_loop(move || {
             if let Some(app) = ah_c.upgrade() {
                 app.set_wsl_config_user_error(validation.user_error.unwrap_or_default().into());
-                app.set_wsl_config_command_error(validation.command_error.unwrap_or_default().into());
+                app.set_wsl_config_command_error(
+                    validation.command_error.unwrap_or_default().into(),
+                );
             }
         });
         return;
@@ -233,7 +258,7 @@ pub async fn handle_save_wsl_config(
                     // Show success toast
                     app.set_task_status_text(crate::i18n::t("wsl_conf.save_success").into());
                     app.set_task_status_visible(true);
-                    
+
                     // Auto-hide toast
                     let ah_timer = ah_inner.clone();
                     slint::Timer::single_shot(std::time::Duration::from_secs(3), move || {
@@ -247,7 +272,7 @@ pub async fn handle_save_wsl_config(
             // 3. Optional Restart
             if restart {
                 info!("Restarting distro '{}' to apply changes", name_inner);
-                
+
                 // Update status to restarting
                 let ah_c = ah.clone();
                 let _ = slint::invoke_from_event_loop(move || {

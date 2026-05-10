@@ -1,13 +1,13 @@
-use tray_icon::{
-    menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem},
-    TrayIconBuilder, Icon, TrayIconEvent,
-};
-use slint::ComponentHandle;
 use crate::AppWindow;
 use crate::i18n;
-use tracing::{info, error};
-use std::sync::Mutex;
 use once_cell::sync::Lazy;
+use slint::ComponentHandle;
+use std::sync::Mutex;
+use tracing::{error, info};
+use tray_icon::{
+    Icon, TrayIconBuilder, TrayIconEvent,
+    menu::{Menu, MenuEvent, MenuItem, PredefinedMenuItem},
+};
 
 // TrayIcon from tray-icon crate is not Send/Sync on some platforms (like Windows due to Rc/RefCell)
 // But we are only accessing it from the main UI thread via Slint/Winit anyway.
@@ -16,12 +16,16 @@ unsafe impl Send for TrayIconWrapper {}
 unsafe impl Sync for TrayIconWrapper {}
 
 static TRAY_ICON: Lazy<Mutex<Option<TrayIconWrapper>>> = Lazy::new(|| Mutex::new(None));
-static EVENT_LOOP_STARTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static EVENT_LOOP_STARTED: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
 
 pub struct SystemTray;
 
 impl SystemTray {
-    pub fn initialize(app_weak: slint::Weak<AppWindow>, initially_visible: bool) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn initialize(
+        app_weak: slint::Weak<AppWindow>,
+        initially_visible: bool,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         info!("Initializing system tray via tray-icon...");
 
         let icon = Icon::from_resource(1, None)
@@ -44,13 +48,19 @@ impl SystemTray {
         let tray = TrayIconBuilder::new()
             .with_menu(Box::new(tray_menu))
             .with_menu_on_left_click(false)
-            .with_tooltip(format!("{} v{}", crate::app::constants::APP_NAME, env!("CARGO_PKG_VERSION")))
+            .with_tooltip(format!(
+                "{} v{}",
+                crate::app::constants::APP_NAME,
+                env!("CARGO_PKG_VERSION")
+            ))
             .with_icon(icon)
             .build()?;
-            
-        // Store the tray icon in the global static. 
+
+        // Store the tray icon in the global static.
         // If a previous icon existed, it will be dropped here, which removes it from the system tray.
-        let mut global_tray = TRAY_ICON.lock().map_err(|e| format!("Failed to lock tray icon: {}", e))?;
+        let mut global_tray = TRAY_ICON
+            .lock()
+            .map_err(|e| format!("Failed to lock tray icon: {}", e))?;
         *global_tray = Some(TrayIconWrapper(tray));
 
         if let Some(app) = app_weak.upgrade() {
@@ -58,51 +68,66 @@ impl SystemTray {
         }
 
         // Only start the event polling timer once
-        if EVENT_LOOP_STARTED.compare_exchange(false, true, std::sync::atomic::Ordering::SeqCst, std::sync::atomic::Ordering::SeqCst).is_ok() {
+        if EVENT_LOOP_STARTED
+            .compare_exchange(
+                false,
+                true,
+                std::sync::atomic::Ordering::SeqCst,
+                std::sync::atomic::Ordering::SeqCst,
+            )
+            .is_ok()
+        {
             let app_weak_clone = app_weak.clone();
             let timer = slint::Timer::default();
-            timer.start(slint::TimerMode::Repeated, std::time::Duration::from_millis(100), move || {
-                // Poll Tray Events (Toggle visibility on DoubleClick)
-                while let Ok(event) = TrayIconEvent::receiver().try_recv() {
-                    match event {
-                        TrayIconEvent::DoubleClick { .. } => {
-                            if let Some(app) = app_weak_clone.upgrade() {
-                                let is_visible = app.get_is_window_visible();
-                                // Consider minimized window as "not visible" for the purpose of showing it
-                                let is_minimized = app.window().is_minimized();
+            timer.start(
+                slint::TimerMode::Repeated,
+                std::time::Duration::from_millis(100),
+                move || {
+                    // Poll Tray Events (Toggle visibility on DoubleClick)
+                    while let Ok(event) = TrayIconEvent::receiver().try_recv() {
+                        match event {
+                            TrayIconEvent::DoubleClick { .. } => {
+                                if let Some(app) = app_weak_clone.upgrade() {
+                                    let is_visible = app.get_is_window_visible();
+                                    // Consider minimized window as "not visible" for the purpose of showing it
+                                    let is_minimized = app.window().is_minimized();
 
-                                if is_visible && !is_minimized {
-                                    info!("Tray double-clicked: hiding window");
-                                    app.set_is_window_visible(false);
-                                    crate::app::window::set_skip_taskbar(&app, true);
-                                } else {
-                                    info!("Tray double-clicked: showing window (minimized={})", is_minimized);
+                                    if is_visible && !is_minimized {
+                                        info!("Tray double-clicked: hiding window");
+                                        app.set_is_window_visible(false);
+                                        crate::app::window::set_skip_taskbar(&app, true);
+                                    } else {
+                                        info!(
+                                            "Tray double-clicked: showing window (minimized={})",
+                                            is_minimized
+                                        );
+                                        crate::app::window::show_and_center(&app, false);
+                                    }
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+
+                    // Poll Menu Events
+                    while let Ok(event) = MenuEvent::receiver().try_recv() {
+                        match event.id.as_ref() {
+                            "show" => {
+                                if let Some(app) = app_weak_clone.upgrade() {
+                                    info!("Tray menu 'show' clicked");
                                     crate::app::window::show_and_center(&app, false);
                                 }
                             }
-                        }
-                        _ => {}
-                    }
-                }
-
-                // Poll Menu Events
-                while let Ok(event) = MenuEvent::receiver().try_recv() {
-                    match event.id.as_ref() {
-                        "show" => {
-                            if let Some(app) = app_weak_clone.upgrade() {
-                                info!("Tray menu 'show' clicked");
-                                crate::app::window::show_and_center(&app, false);
+                            "exit" => {
+                                info!("Exit requested from tray menu");
+                                slint::quit_event_loop().unwrap();
                             }
+                            _ => {}
                         }
-                        "exit" => {
-                            info!("Exit requested from tray menu");
-                            slint::quit_event_loop().unwrap();
-                        }
-                        _ => {}
                     }
-                }
-            });
-            
+                },
+            );
+
             std::mem::forget(timer);
         }
 

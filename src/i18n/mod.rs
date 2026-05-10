@@ -1,7 +1,7 @@
-use std::collections::HashMap;
-use std::sync::Mutex;
 use once_cell::sync::Lazy;
 use rust_embed::RustEmbed;
+use std::collections::HashMap;
+use std::sync::Mutex;
 use toml::Value;
 use tracing::{debug, error};
 
@@ -11,18 +11,15 @@ struct Asset;
 
 // Global storage for translations: "key" -> "translation"
 // We flatten nested TOML: "section.key"
-static TRANSLATIONS: Lazy<Mutex<HashMap<String, String>>> = Lazy::new(|| {
-    Mutex::new(HashMap::new())
-});
+static TRANSLATIONS: Lazy<Mutex<HashMap<String, String>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
 
-static CURRENT_LANG: Lazy<Mutex<String>> = Lazy::new(|| {
-    Mutex::new("en".to_string())
-});
+static CURRENT_LANG: Lazy<Mutex<String>> = Lazy::new(|| Mutex::new("en".to_string()));
 
 pub fn normalize_language_code(lang: &str) -> String {
     let lower = lang.to_lowercase();
     let lower = lower.replace("_", "-");
-    
+
     // Exact matches or starts with for common variations
     if lower == "en" || lower.starts_with("en-") {
         return "en".to_string();
@@ -93,7 +90,11 @@ pub fn normalize_language_code(lang: &str) -> String {
     if lower == "hu" || lower.starts_with("hu-") {
         return "hu".to_string();
     }
-    if lower == "no" || lower.starts_with("no-") || lower.starts_with("nb-") || lower.starts_with("nn-") {
+    if lower == "no"
+        || lower.starts_with("no-")
+        || lower.starts_with("nb-")
+        || lower.starts_with("nn-")
+    {
         return "no".to_string();
     }
     if lower == "da" || lower.starts_with("da-") {
@@ -111,17 +112,21 @@ pub fn normalize_language_code(lang: &str) -> String {
     if lower == "sl" || lower.starts_with("sl-") {
         return "sl".to_string();
     }
-    
+
     // Default fallback
     "en".to_string()
 }
 
 pub fn is_rtl(lang: &str) -> bool {
     let lower = lang.to_lowercase();
-    lower == "ar" || lower.starts_with("ar-") || 
-    lower == "he" || lower.starts_with("he-") || 
-    lower == "fa" || lower.starts_with("fa-") || 
-    lower == "ur" || lower.starts_with("ur-")
+    lower == "ar"
+        || lower.starts_with("ar-")
+        || lower == "he"
+        || lower.starts_with("he-")
+        || lower == "fa"
+        || lower.starts_with("fa-")
+        || lower == "ur"
+        || lower.starts_with("ur-")
 }
 
 pub fn current_lang() -> String {
@@ -132,15 +137,15 @@ pub fn load_resources(lang_code: &str) {
     let normalized = normalize_language_code(lang_code);
     let mut map = TRANSLATIONS.lock().unwrap();
     map.clear();
-    
+
     // 1. Load English (Base)
     load_file_to_map("en", &mut map);
-    
+
     // 2. Load Target (if not en)
     if normalized != "en" {
         load_file_to_map(&normalized, &mut map);
     }
-    
+
     debug!("i18n: Map populated with {} keys", map.len());
     *CURRENT_LANG.lock().unwrap() = normalized;
 }
@@ -154,11 +159,22 @@ fn load_file_to_map(lang: &str, map: &mut HashMap<String, String>) {
             debug!("i18n: loaded {} from filesystem", path.display());
             Some(c)
         } else {
-            debug!("i18n: failed to load {} from filesystem, falling back to embedded", path.display());
-            Asset::get(&filename).and_then(|f| std::str::from_utf8(f.data.as_ref()).ok().map(|s| s.to_string()))
+            debug!(
+                "i18n: failed to load {} from filesystem, falling back to embedded",
+                path.display()
+            );
+            Asset::get(&filename).and_then(|f| {
+                std::str::from_utf8(f.data.as_ref())
+                    .ok()
+                    .map(|s| s.to_string())
+            })
         }
     } else {
-        Asset::get(&filename).and_then(|f| std::str::from_utf8(f.data.as_ref()).ok().map(|s| s.to_string()))
+        Asset::get(&filename).and_then(|f| {
+            std::str::from_utf8(f.data.as_ref())
+                .ok()
+                .map(|s| s.to_string())
+        })
     };
 
     if let Some(mut content) = content {
@@ -175,7 +191,7 @@ fn load_file_to_map(lang: &str, map: &mut HashMap<String, String>) {
                 error!("i18n: failed to parse TOML for {}: {}", lang, e);
                 // Try parsing as generic Value if Table fail (though shouldn't happen for TOML)
                 if let Ok(v) = content.parse::<Value>() {
-                     flatten_toml("", &v, map);
+                    flatten_toml("", &v, map);
                 }
             }
         }
@@ -183,7 +199,6 @@ fn load_file_to_map(lang: &str, map: &mut HashMap<String, String>) {
         error!("i18n: content not found for {}", lang);
     }
 }
-
 
 fn flatten_toml(prefix: &str, value: &Value, map: &mut HashMap<String, String>) {
     match value {
@@ -206,9 +221,7 @@ fn flatten_toml(prefix: &str, value: &Value, map: &mut HashMap<String, String>) 
 
 pub fn t(key: &str) -> String {
     let map = TRANSLATIONS.lock().unwrap();
-    map.get(key).cloned().unwrap_or_else(|| {
-        key.to_string()
-    })
+    map.get(key).cloned().unwrap_or_else(|| key.to_string())
 }
 
 pub fn tr(key: &str, args: &[String]) -> String {

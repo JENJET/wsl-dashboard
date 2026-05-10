@@ -95,7 +95,8 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
             }
 
             // Parse current version: extract from "WSL 版本: 2.7.3.0" or "WSL version: 2.7.3.0"
-            let raw_version = version_result.output
+            let raw_version = version_result
+                .output
                 .lines()
                 .next()
                 .unwrap_or("")
@@ -108,13 +109,21 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
             let has_running = {
                 let state = as_ptr.lock().await;
                 let distros = state.wsl_dashboard.get_distros().await;
-                distros.iter().any(|d| matches!(d.status, crate::wsl::models::WslStatus::Running))
+                distros
+                    .iter()
+                    .any(|d| matches!(d.status, crate::wsl::models::WslStatus::Running))
             };
 
             let confirm_message = if has_running {
-                i18n::tr("wsl_manage.update_confirm_with_running", &[current_version_num])
+                i18n::tr(
+                    "wsl_manage.update_confirm_with_running",
+                    &[current_version_num],
+                )
             } else {
-                i18n::tr("wsl_manage.update_confirm_no_running", &[current_version_num])
+                i18n::tr(
+                    "wsl_manage.update_confirm_no_running",
+                    &[current_version_num],
+                )
             };
 
             if let Some(app) = ah.upgrade() {

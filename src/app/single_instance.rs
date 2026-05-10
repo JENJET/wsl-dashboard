@@ -1,24 +1,26 @@
-use windows::Win32::Foundation::{HWND, HANDLE, ERROR_ALREADY_EXISTS};
-use windows::Win32::UI::WindowsAndMessaging::{
-    FindWindowW, SetForegroundWindow, ShowWindow, SW_RESTORE, IsIconic,
-};
+use tracing::{error, info, warn};
+use windows::Win32::Foundation::{ERROR_ALREADY_EXISTS, HANDLE, HWND};
 use windows::Win32::System::Threading::CreateMutexW;
-use tracing::{info, warn, error};
+use windows::Win32::UI::WindowsAndMessaging::{
+    FindWindowW, IsIconic, SW_RESTORE, SetForegroundWindow, ShowWindow,
+};
 
 /// Tries to activate an existing instance if one is running.
 /// Returns true if an existing instance was found and activated.
 pub fn try_activate_existing_instance() -> bool {
     {
         // Try multiple possible titles (Main vs Internal UI)
-        let titles = ["WSL Dashboard Main", "WSL_DASHBOARD_WINDOW_UI", "WSL Dashboard"];
+        let titles = [
+            "WSL Dashboard Main",
+            "WSL_DASHBOARD_WINDOW_UI",
+            "WSL Dashboard",
+        ];
         let mut hwnd = HWND(std::ptr::null_mut());
 
         for title_str in titles {
-            let window_title: Vec<u16> = title_str
-                .encode_utf16()
-                .chain(std::iter::once(0))
-                .collect();
-            
+            let window_title: Vec<u16> =
+                title_str.encode_utf16().chain(std::iter::once(0)).collect();
+
             let hwnd_result = unsafe {
                 FindWindowW(
                     windows::core::PCWSTR::null(),
@@ -40,7 +42,10 @@ pub fn try_activate_existing_instance() -> bool {
             return false;
         }
 
-        info!("Found existing instance window (HWND: {:?}), activating...", hwnd);
+        info!(
+            "Found existing instance window (HWND: {:?}), activating...",
+            hwnd
+        );
 
         // If the window is minimized, restore it
         if unsafe { IsIconic(hwnd).as_bool() } {
@@ -49,15 +54,15 @@ pub fn try_activate_existing_instance() -> bool {
 
         // Bring the window to foreground
         let result = unsafe { SetForegroundWindow(hwnd) };
-        
+
         if result.as_bool() {
             info!("Successfully activated existing instance");
-            
+
             // Also try to show it via our custom method
             // This will help if the window was hidden to tray
             std::thread::sleep(std::time::Duration::from_millis(100));
             crate::app::window::activate_window_by_hwnd(hwnd);
-            
+
             true
         } else {
             warn!("Failed to bring existing instance to foreground");
@@ -75,13 +80,9 @@ impl SingleInstance {
     /// Creates a new SingleInstance check with the given unique name.
     pub fn new(name: &str) -> Self {
         let name_u16: Vec<u16> = name.encode_utf16().chain(std::iter::once(0)).collect();
-        
+
         unsafe {
-            let handle = CreateMutexW(
-                None,
-                true,
-                windows::core::PCWSTR(name_u16.as_ptr())
-            );
+            let handle = CreateMutexW(None, true, windows::core::PCWSTR(name_u16.as_ptr()));
 
             match handle {
                 Ok(h) => {

@@ -1,10 +1,14 @@
+use super::utils::show_toast;
+use crate::network;
+use crate::{AppState, AppWindow};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::{AppState, AppWindow};
-use crate::network;
-use super::utils::show_toast;
 
-pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, _app_state: Arc<Mutex<AppState>>) {
+pub fn setup(
+    app: &AppWindow,
+    app_handle: slint::Weak<AppWindow>,
+    _app_state: Arc<Mutex<AppState>>,
+) {
     let ah_check = app_handle.clone();
     app.on_check_network_task_status(move || {
         let ah = ah_check.clone();
@@ -29,7 +33,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, _app_state: Ar
                         }
                     });
                     show_toast(ah, crate::i18n::t("network.task_scheduled"));
-                },
+                }
                 Err(e) => {
                     let msg = if e.contains("InvalidOperation") || e.contains("denied") {
                         crate::i18n::t("network.error_uac")
@@ -55,7 +59,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, _app_state: Ar
                         }
                     });
                     show_toast(ah, crate::i18n::t("network.task_unscheduled"));
-                },
+                }
                 Err(e) => {
                     let msg = if e.contains("InvalidOperation") || e.contains("denied") {
                         crate::i18n::t("network.error_uac")

@@ -1,19 +1,23 @@
-pub mod window;
+pub mod about;
+pub mod common;
 pub mod distro;
+pub mod instance;
+pub mod network;
 pub mod settings;
 pub mod update;
-pub mod common;
-pub mod instance;
 pub mod usb;
-pub mod network;
-pub mod about;
+pub mod window;
 pub mod wsl_manage;
 
+use crate::{AppState, AppWindow};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use crate::{AppWindow, AppState};
 
-pub async fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc<Mutex<AppState>>) {
+pub async fn setup(
+    app: &AppWindow,
+    app_handle: slint::Weak<AppWindow>,
+    app_state: Arc<Mutex<AppState>>,
+) {
     common::setup(app, app_handle.clone(), app_state.clone());
     window::setup(app, app_handle.clone());
     distro::setup(app, app_handle.clone(), app_state.clone());

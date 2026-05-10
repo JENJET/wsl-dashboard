@@ -67,7 +67,9 @@ pub struct TraySettings {
     pub close_to_tray: bool,
 }
 
-pub fn default_close_to_tray() -> bool { true }
+pub fn default_close_to_tray() -> bool {
+    true
+}
 
 impl Default for TraySettings {
     fn default() -> Self {
@@ -79,9 +81,15 @@ impl Default for TraySettings {
     }
 }
 
-pub fn default_log_level() -> u8 { 4 }
-pub fn default_log_days() -> u8 { 7 }
-pub fn default_check_update() -> u8 { 7 }
+pub fn default_log_level() -> u8 {
+    4
+}
+pub fn default_log_days() -> u8 {
+    7
+}
+pub fn default_check_update() -> u8 {
+    7
+}
 
 // Complete configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -113,7 +121,7 @@ impl Config {
             .unwrap_or_else(|| PathBuf::from("."))
             .to_string_lossy()
             .to_string();
-        
+
         Self {
             application: ApplicationConfig {
                 name: crate::app::APP_NAME.to_string(),
@@ -199,8 +207,12 @@ pub struct NetworkCommonConfig {
     pub modify_time: String,
 }
 
-pub fn default_network_version() -> u32 { NETWORK_VERSION }
-pub fn default_modify_time() -> String { chrono::Utc::now().timestamp_millis().to_string() }
+pub fn default_network_version() -> u32 {
+    NETWORK_VERSION
+}
+pub fn default_modify_time() -> String {
+    chrono::Utc::now().timestamp_millis().to_string()
+}
 
 impl Default for NetworkCommonConfig {
     fn default() -> Self {
@@ -278,8 +290,12 @@ pub struct DistroInstanceConfig {
     pub terminal_proxy: bool,
 }
 
-pub fn default_terminal_dir() -> String { "~".to_string() }
-pub fn default_vscode_dir() -> String { "/home".to_string() }
+pub fn default_terminal_dir() -> String {
+    "~".to_string()
+}
+pub fn default_vscode_dir() -> String {
+    "/home".to_string()
+}
 
 impl Default for DistroInstanceConfig {
     fn default() -> Self {

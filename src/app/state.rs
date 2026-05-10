@@ -1,7 +1,7 @@
-use crate::wsl::dashboard::WslDashboard;
-use crate::wsl::models::{WslDistro, WslStatus, WslVersion};
 use crate::config::ConfigManager;
 use crate::utils::logging::LoggingSystem;
+use crate::wsl::dashboard::WslDashboard;
+use crate::wsl::models::{WslDistro, WslStatus, WslVersion};
 
 // Define application state
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -20,18 +20,31 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(config_manager: ConfigManager, logging_system: LoggingSystem, is_silent_mode: bool) -> Self {
+    pub fn new(
+        config_manager: ConfigManager,
+        logging_system: LoggingSystem,
+        is_silent_mode: bool,
+    ) -> Self {
         // Load initial distros from cache for fast startup (warm start)
         let cached = config_manager.get_cached_distros();
-        let initial_distros: Vec<WslDistro> = cached.into_iter().map(|c| {
-            WslDistro {
+        let initial_distros: Vec<WslDistro> = cached
+            .into_iter()
+            .map(|c| WslDistro {
                 name: c.name,
-                status: if c.status == "Running" { WslStatus::Running } else { WslStatus::Stopped },
-                version: if c.version == "V1" || c.version == "1" { WslVersion::V1 } else { WslVersion::V2 },
+                status: if c.status == "Running" {
+                    WslStatus::Running
+                } else {
+                    WslStatus::Stopped
+                },
+                version: if c.version == "V1" || c.version == "1" {
+                    WslVersion::V1
+                } else {
+                    WslVersion::V2
+                },
                 is_default: c.is_default,
                 last_start_time: None,
-            }
-        }).collect();
+            })
+            .collect();
 
         Self {
             wsl_dashboard: WslDashboard::new(initial_distros),

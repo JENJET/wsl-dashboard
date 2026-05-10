@@ -1,10 +1,10 @@
 #[path = "src/app/constants.rs"]
 mod constants;
 
+use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 use toml::Value;
-use std::collections::HashSet;
 
 fn main() {
     slint_build::compile("src/ui/app.slint").expect("Slint compilation failed");
@@ -15,8 +15,10 @@ fn main() {
 
     // Read Cargo.toml to get custom 'expire' field
     let cargo_toml_path = Path::new("Cargo.toml");
-    let cargo_toml_content = fs::read_to_string(cargo_toml_path).expect("Failed to read Cargo.toml");
-    let cargo_toml: Value = toml::from_str(&cargo_toml_content).expect("Failed to parse Cargo.toml");
+    let cargo_toml_content =
+        fs::read_to_string(cargo_toml_path).expect("Failed to read Cargo.toml");
+    let cargo_toml: Value =
+        toml::from_str(&cargo_toml_content).expect("Failed to parse Cargo.toml");
 
     let mut expire_time = cargo_toml
         .get("package")
@@ -31,13 +33,12 @@ fn main() {
             .duration_since(std::time::UNIX_EPOCH)
             .expect("Time went backwards")
             .as_millis() as i64;
-            
+
         // 365 days later
         expire_time = now + (365 * 24 * 60 * 60 * 1000);
     }
 
     println!("cargo:rustc-env=APP_EXPIRE_TIME={}", expire_time);
-
 
     #[cfg(windows)]
     {
@@ -55,20 +56,25 @@ fn main() {
             use image::imageops::FilterType;
             let mut icon_dir = ico::IconDir::new(ico::ResourceType::Icon);
             let sizes = [16, 32, 48, 64, 128, 256];
-            
+
             for &size in &sizes {
                 let resized = img.resize_exact(size, size, FilterType::Lanczos3);
                 let rgba = resized.to_rgba8();
                 let icon_image = ico::IconImage::from_rgba_data(size, size, rgba.into_raw());
-                let entry = ico::IconDirEntry::encode(&icon_image).expect("Failed to encode icon image");
+                let entry =
+                    ico::IconDirEntry::encode(&icon_image).expect("Failed to encode icon image");
                 icon_dir.add_entry(entry);
             }
 
             let file = std::fs::File::create(ico_path).expect("Failed to create ICO file");
             icon_dir.write(file).expect("Failed to write ICO file");
 
-            let version = std::env::var("CARGO_PKG_VERSION").unwrap_or_else(|_| "0.0.1".to_string());
-            let mut version_parts = version.split('.').map(|p| p.parse::<u16>().unwrap_or(0)).collect::<Vec<_>>();
+            let version =
+                std::env::var("CARGO_PKG_VERSION").unwrap_or_else(|_| "0.0.1".to_string());
+            let mut version_parts = version
+                .split('.')
+                .map(|p| p.parse::<u16>().unwrap_or(0))
+                .collect::<Vec<_>>();
             while version_parts.len() < 3 {
                 version_parts.push(0);
             }
@@ -80,7 +86,8 @@ fn main() {
 
             std::fs::write(
                 icon_rc_path,
-                format!(r#"#include <windows.h>
+                format!(
+                    r#"#include <windows.h>
 
 1 ICON "logo.ico"
 
@@ -117,19 +124,20 @@ BEGIN
         VALUE "Translation", 0x409, 1200
     END
 END
-"#, 
-    company_name = constants::COMPANY_NAME,
-    file_description = file_description,
-    app_id = constants::APP_ID,
-    copyright = constants::LEGAL_COPYRIGHT,
-    github_url = constants::GITHUB_URL,
-    original_filename = original_filename,
-    app_name = constants::APP_NAME,
-    major = major,
-    minor = minor,
-    patch = patch
-)
-            ).expect("Failed to write icon.rc");
+"#,
+                    company_name = constants::COMPANY_NAME,
+                    file_description = file_description,
+                    app_id = constants::APP_ID,
+                    copyright = constants::LEGAL_COPYRIGHT,
+                    github_url = constants::GITHUB_URL,
+                    original_filename = original_filename,
+                    app_name = constants::APP_NAME,
+                    major = major,
+                    minor = minor,
+                    patch = patch
+                ),
+            )
+            .expect("Failed to write icon.rc");
 
             embed_resource::compile(icon_rc_path, std::iter::empty::<&std::ffi::OsStr>());
         }
@@ -141,29 +149,36 @@ END
 
 fn verify_translations() {
     let i18n_dir = Path::new("assets/i18n");
-    if !i18n_dir.exists() { return; }
+    if !i18n_dir.exists() {
+        return;
+    }
 
     let en_path = i18n_dir.join("en.toml");
-    if !en_path.exists() { return; }
+    if !en_path.exists() {
+        return;
+    }
 
     let en_content = fs::read_to_string(&en_path).unwrap_or_default();
     let en_toml: Value = toml::from_str(&en_content).unwrap_or(Value::Table(Default::default()));
-    
+
     let mut en_keys = HashSet::new();
     flatten_keys("", &en_toml, &mut en_keys);
 
     println!("cargo:warning=--- i18n Integrity Check (Base: en.toml) ---");
-    
+
     if let Ok(entries) = fs::read_dir(i18n_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
             if path.extension().and_then(|s| s.to_str()) == Some("toml") {
                 let filename = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
-                if filename == "en.toml" { continue; }
+                if filename == "en.toml" {
+                    continue;
+                }
 
                 let content = fs::read_to_string(&path).unwrap_or_default();
-                let toml_val: Value = toml::from_str(&content).unwrap_or(Value::Table(Default::default()));
-                
+                let toml_val: Value =
+                    toml::from_str(&content).unwrap_or(Value::Table(Default::default()));
+
                 let mut lang_keys = HashSet::new();
                 flatten_keys("", &toml_val, &mut lang_keys);
 
@@ -175,7 +190,11 @@ fn verify_translations() {
                 }
 
                 if !missing.is_empty() {
-                    println!("cargo:warning=[!] Language '{}' is missing {} keys:", filename, missing.len());
+                    println!(
+                        "cargo:warning=[!] Language '{}' is missing {} keys:",
+                        filename,
+                        missing.len()
+                    );
                     for key in missing {
                         println!("cargo:warning=    - {}", key);
                     }
@@ -198,7 +217,11 @@ fn flatten_keys(prefix: &str, value: &Value, keys: &mut HashSet<String>) {
                 flatten_keys(&new_key, v, keys);
             }
         }
-        Value::String(_) | Value::Integer(_) | Value::Float(_) | Value::Boolean(_) | Value::Datetime(_) => {
+        Value::String(_)
+        | Value::Integer(_)
+        | Value::Float(_)
+        | Value::Boolean(_)
+        | Value::Datetime(_) => {
             if !prefix.is_empty() {
                 keys.insert(prefix.to_string());
             }
