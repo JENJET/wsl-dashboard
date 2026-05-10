@@ -1,4 +1,4 @@
-﻿[common]
+[common]
 app_name = "WSL Dashboard"
 
 [sidebar]
@@ -160,6 +160,7 @@ move_failed = "移動失敗：{0}"
 move_failed_backup = "移動失敗（已備份）：\n發行版已注銷，但移動邏輯失敗。\n備份檔案位於：{0}\n您可以手動導入此檔案以恢復。"
 move_wsl2_shutdown_warning = "移動 WSL2 發行版需要關閉所有正在運行的 WSL 實例以釋放文件句柄。\n\n以下發行版將被停止：{0}\n\n請點擊確認繼續。"
 move_wsl2_shutdown_warning_no_running = "移動 WSL2 發行版需要執行 wsl --shutdown 以確保文件句柄被完全釋放。\n\n請點擊確認繼續。"
+wsl_update_title = "WSL 更新"
 processing = "處理中..."
 target_path = "目標路徑"
 new_name = "新實例名稱"
@@ -455,6 +456,10 @@ shutdown_failed = "關閉 WSL 失敗：{0}"
 update_success = "WSL 已更新成功。"
 update_failed = "WSL 更新失敗：{0}"
 update_already_latest = "WSL 已是最新版本。"
+update_check_failed = "檢查 WSL 版本失敗，請確保 WSL 已正確安裝。"
+update_confirm_with_running = "當前 WSL 版本：{0}\n\n更新 WSL 會關閉所有正在運行的實例，是否繼續？"
+update_confirm_no_running = "當前 WSL 版本：{0}\n\n是否現在更新 WSL？"
+include_preview = "包含預覽版本"
 install_success = "WSL 安裝程序已啟動，請按照系統提示完成安裝。"
 install_failed = "啟動 WSL 安裝失敗：{0}"
 set_default_success = "默認 WSL 版本已更新。"

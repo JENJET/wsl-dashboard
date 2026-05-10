@@ -1,10 +1,13 @@
 import { Button } from "std-widgets.slint";
 import { Theme, AppI18n, LayoutConstants } from "../../theme.slint";
+import { CustomCheckBox } from "../form_widgets.slint";
 
 export component ConfirmationDialog inherits Rectangle {
     in property <string> title_text: AppI18n.t("dialog.delete_title", [AppI18n.version]);
     in property <string> message;
     in property <length> dialog_height: 160px;
+    in property <bool> show_preview_checkbox: false;
+    in-out property <bool> preview_checked: false;
     callback confirm;
     callback cancel;
     
@@ -42,6 +45,15 @@ export component ConfirmationDialog inherits Rectangle {
                 color: Theme.text_primary;
                 wrap: word-wrap;
                 horizontal-alignment: AppI18n.is-rtl ? right : left;
+            }
+
+            if (root.show_preview_checkbox): HorizontalLayout {
+                spacing: 4px;
+                alignment: AppI18n.is-rtl ? start : end;
+                CustomCheckBox {
+                    checked <=> root.preview_checked;
+                    text: AppI18n.t("wsl_manage.include_preview", [AppI18n.version]);
+                }
             }
 
             HorizontalLayout {

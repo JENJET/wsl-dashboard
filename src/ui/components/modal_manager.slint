@@ -26,6 +26,9 @@ export component ModalManager inherits Rectangle {
     in property <bool> show_move_confirm: false;
     in property <bool> show_message: false;
     in property <bool> show_update: false;
+    in property <bool> show_wsl_update_confirm: false;
+    in property <string> wsl_update_confirm_message: "";
+    in-out property <bool> wsl_preview_checked: false;
     in property <bool> show_install_warn: false;
     in property <bool> show_expire: false;
     in property <bool> show_information: false;
@@ -129,6 +132,8 @@ export component ModalManager inherits Rectangle {
     callback clone_name_changed(string);
     callback download_update();
     callback close_update();
+    callback confirm_wsl_update();
+    callback cancel_wsl_update();
     callback confirm_install_warn();
     callback cancel_install_warn();
     callback close_expire();
@@ -262,6 +267,21 @@ export component ModalManager inherits Rectangle {
         }
         close => {
             root.close_update();
+        }
+    }
+    if (show_wsl_update_confirm): ConfirmationDialog {
+        width: 100%;
+        height: 100%;
+        dialog_height: 220px;
+        title_text: AppI18n.t("dialog.wsl_update_title", [AppI18n.version]);
+        message: root.wsl_update_confirm_message;
+        show_preview_checkbox: true;
+        preview_checked <=> root.wsl_preview_checked;
+        confirm => {
+            root.confirm_wsl_update();
+        }
+        cancel => {
+            root.cancel_wsl_update();
         }
     }
     if (show_install_warn): StoreInstallWarnDialog {

@@ -94,6 +94,9 @@ export component AppWindow inherits Window {
     in-out property <string> current_message_action: "";
     in-out property <string> copy_script_content: "";
     in-out property <bool> show_update_dialog: false;
+    in-out property <bool> show_wsl_update_confirm: false;
+    in-out property <string> wsl_update_confirm_message: "";
+    in-out property <bool> wsl_preview_checked: false;
     in-out property <bool> show_install_warn_dialog: false;
     in-out property <bool> show_expire_dialog: false;
     in-out property <bool> show_rootfs_help: false;
@@ -323,6 +326,7 @@ export component AppWindow inherits Window {
     callback wsl_manage_refresh();
     callback wsl_manage_uninstall();
     callback wsl_manage_open_settings();
+    callback wsl_manage_update_confirmed(bool);
     
     // Set default distro callback
     callback set_default_distro(string);
@@ -844,6 +848,17 @@ export component AppWindow inherits Window {
         }
         close_update => {
             root.show_update_dialog = false;
+        }
+        show_wsl_update_confirm: root.show_wsl_update_confirm;
+        wsl_update_confirm_message: root.wsl_update_confirm_message;
+        wsl_preview_checked <=> root.wsl_preview_checked;
+        confirm_wsl_update => {
+            root.show_wsl_update_confirm = false;
+            root.wsl_manage_update_confirmed(root.wsl_preview_checked);
+        }
+        cancel_wsl_update => {
+            root.show_wsl_update_confirm = false;
+            root.wsl_preview_checked = false;
         }
         show_install_warn: root.show_install_warn_dialog;
         confirm_install_warn => {

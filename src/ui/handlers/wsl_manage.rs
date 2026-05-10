@@ -81,6 +81,56 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
         let ah = ah.clone();
         let as_ptr = as_ptr.clone();
         let _ = slint::spawn_local(async move {
+            let executor = {
+                let state = as_ptr.lock().await;
+                state.wsl_dashboard.executor().clone()
+            };
+
+            // Step 1: Get current WSL version
+            let version_result = executor.execute_command(&["--version"]).await;
+            if !version_result.success {
+                let msg = i18n::t("wsl_manage.update_check_failed");
+                data::show_message(&ah, &msg);
+                return;
+            }
+
+            // Parse current version: extract from "WSL 版本: 2.7.3.0" or "WSL version: 2.7.3.0"
+            let raw_version = version_result.output
+                .lines()
+                .next()
+                .unwrap_or("")
+                .trim()
+                .to_string();
+
+            let current_version_num = extract_version_number(&raw_version);
+
+            // Step 2: Show confirmation dialog
+            let has_running = {
+                let state = as_ptr.lock().await;
+                let distros = state.wsl_dashboard.get_distros().await;
+                distros.iter().any(|d| matches!(d.status, crate::wsl::models::WslStatus::Running))
+            };
+
+            let confirm_message = if has_running {
+                i18n::tr("wsl_manage.update_confirm_with_running", &[current_version_num])
+            } else {
+                i18n::tr("wsl_manage.update_confirm_no_running", &[current_version_num])
+            };
+
+            if let Some(app) = ah.upgrade() {
+                app.set_wsl_update_confirm_message(confirm_message.into());
+                app.set_show_wsl_update_confirm(true);
+            }
+        });
+    });
+
+    // WSL Update Confirmed (user clicked OK on confirmation dialog)
+    let ah = app_handle.clone();
+    let as_ptr = app_state.clone();
+    app.on_wsl_manage_update_confirmed(move |preview| {
+        let ah = ah.clone();
+        let as_ptr = as_ptr.clone();
+        let _ = slint::spawn_local(async move {
             if let Some(app) = ah.upgrade() {
                 app.set_wsl_is_updating(true);
             }
@@ -90,7 +140,12 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 state.wsl_dashboard.executor().clone()
             };
 
-            let result = executor.execute_command(&["--update"]).await;
+            let args = if preview {
+                vec!["--update", "--pre-release"]
+            } else {
+                vec!["--update"]
+            };
+            let result = executor.execute_command(&args).await;
 
             if let Some(app) = ah.upgrade() {
                 app.set_wsl_is_updating(false);
@@ -406,4 +461,12 @@ pub fn load_wsl_manage_strings(app: &AppWindow) {
         version_label_1: i18n::t("wsl_manage.version_label_1").into(),
         version_label_2: i18n::t("wsl_manage.version_label_2").into(),
     });
+}
+
+fn extract_version_number(raw: &str) -> String {
+    if let Some(pos) = raw.find(':') {
+        raw[pos + 1..].trim().to_string()
+    } else {
+        raw.to_string()
+    }
 }
