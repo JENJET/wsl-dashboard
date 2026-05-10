@@ -1,4 +1,4 @@
-﻿[common]
+[common]
 app_name = "WSL Dashboard"
 
 [sidebar]
@@ -302,6 +302,11 @@ step_3_3 = "[3/3] distro '{0}' imported successfully."
 step_create_user = "Creating new user '{0}'..."
 step_create_user_done = "User '{0}' created successfully."
 step_create_user_failed = "Failed to create user '{0}': {1}"
+step_add_sudo = "Adding user '{0}' to {1} group..."
+step_add_sudo_done = "User '{0}' added to {1} group successfully."
+step_add_sudo_error_unknown = "Failed to add user to group: unknown error"
+step_add_sudo_error_detail = "Failed to add user to {0} group: {1}"
+step_add_sudo_skipped = "(No sudo or wheel group found, skipped)"
 step_set_user_password = "Setting password for user '{0}'..."
 step_set_user_password_done = "Password for user '{0}' has been set successfully."
 step_set_user_password_failed = "Failed to set password for user '{0}': {1}"

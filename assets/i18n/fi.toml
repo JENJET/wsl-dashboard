@@ -1,4 +1,4 @@
-﻿[common]
+[common]
 app_name = "WSL Dashboard"
 
 [sidebar]
@@ -289,6 +289,11 @@ step_3_3 = "[3/3] Jakelu '{0}' tuotu onnistuneesti."
 step_create_user = "Luodaan uutta käyttäjää '{0}'..."
 step_create_user_done = "Käyttäjä '{0}' luotu onnistuneesti."
 step_create_user_failed = "Käyttäjän '{0}' luominen epäonnistui: {1}"
+step_add_sudo = "Lisätään käyttäjä '{0}' ryhmään {1}..."
+step_add_sudo_done = "Käyttäjä '{0}' lisättiin onnistuneesti ryhmään {1}."
+step_add_sudo_error_unknown = "Käyttäjän lisäys ryhmään epäonnistui: tuntematon virhe"
+step_add_sudo_error_detail = "Käyttäjän lisäys ryhmään {0} epäonnistui: {1}"
+step_add_sudo_skipped = "(Sudo- tai wheel-ryhmää ei löytynyt, ohitettu)"
 step_set_user_password = "Asetetaan salasanaa käyttäjälle '{0}'..."
 step_set_user_password_done = "Salasana käyttäjälle '{0}' on asetettu onnistuneesti."
 step_set_user_password_failed = "Salasanan asettaminen käyttäjälle '{0}' epäonnistui: {1}"

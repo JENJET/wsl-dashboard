@@ -1,4 +1,4 @@
-﻿[common]
+[common]
 app_name = "WSL Dashboard"
 
 [sidebar]
@@ -289,6 +289,11 @@ step_3_3 = "[3/3] '{0}' disztribúció sikeresen importálva."
 step_create_user = "Új felhasználó '{0}' létrehozása..."
 step_create_user_done = "A(z) '{0}' felhasználó sikeresen létrehozva."
 step_create_user_failed = "Nem sikerült létrehozni a(z) '{0}' felhasználót: {1}"
+step_add_sudo = "A(z) '{0}' felhasználó hozzáadása a {1} csoporthoz..."
+step_add_sudo_done = "A(z) '{0}' felhasználó sikeresen hozzáadva a {1} csoporthoz."
+step_add_sudo_error_unknown = "A felhasználó hozzáadása a csoporthoz sikertelen: ismeretlen hiba"
+step_add_sudo_error_detail = "A felhasználó hozzáadása a {0} csoporthoz sikertelen: {1}"
+step_add_sudo_skipped = "(Nem található sudo vagy wheel csoport, kihagyva)"
 step_set_user_password = "Jelszó beállítása a(z) '{0}' felhasználóhoz..."
 step_set_user_password_done = "A(z) '{0}' felhasználó jelszava sikeresen beállítva."
 step_set_user_password_failed = "Nem sikerült beállítani a jelszót a(z) '{0}' felhasználóhoz: {1}"

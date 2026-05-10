@@ -1,4 +1,4 @@
-﻿[common]
+[common]
 app_name = "WSL Dashboard"
 
 [sidebar]
@@ -289,6 +289,11 @@ step_3_3 = "[3/3] Dağıtım '{0}' başarıyla içe aktarıldı."
 step_create_user = "Yeni kullanıcı '{0}' oluşturuluyor..."
 step_create_user_done = "Kullanıcı '{0}' başarıyla oluşturuldu."
 step_create_user_failed = "Kullanıcı '{0}' oluşturulamadı: {1}"
+step_add_sudo = "'{0}' kullanıcısı {1} grubuna ekleniyor..."
+step_add_sudo_done = "'{0}' kullanıcısı {1} grubuna başarıyla eklendi."
+step_add_sudo_error_unknown = "Kullanıcı gruba eklenemedi: bilinmeyen hata"
+step_add_sudo_error_detail = "Kullanıcı {0} grubuna eklenemedi: {1}"
+step_add_sudo_skipped = "(Sudo veya wheel grubu bulunamadı, atlandı)"
 step_set_user_password = "Kullanıcı '{0}' için parola belirleniyor..."
 step_set_user_password_done = "Kullanıcı '{0}' için parola başarıyla belirlendi."
 step_set_user_password_failed = "Kullanıcı '{0}' için parola belirlenemedi: {1}"

@@ -914,6 +914,106 @@ pub async fn perform_install(
             });
         }
 
+        // Add user to sudo/wheel group (if user creation succeeded or already existed)
+        if user_ok {
+            // Check which group exists (sudo or wheel) and add user to it
+            let check_sudo_cmd = "getent group sudo >/dev/null 2>&1 && echo 'sudo' || (getent group wheel >/dev/null 2>&1 && echo 'wheel' || echo '')";
+            let check_args = ["-d", &final_name, "-u", "root", "sh", "-c", check_sudo_cmd];
+            let check_result = executor.execute_command(&check_args).await;
+            let group_name = check_result.output.trim();
+
+            if !group_name.is_empty() {
+                let sudo_step = i18n::tr(
+                    "install.step_add_sudo",
+                    &[new_username.clone(), group_name.to_string()],
+                );
+                let ah_ui = ah.clone();
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(app) = ah_ui.upgrade() {
+                        let app_typed: AppWindow = app;
+                        app_typed.set_install_status(sudo_step.clone().into());
+                        let mut tb = app_typed.get_terminal_output().to_string();
+                        tb.push_str(&format!("--> {}\n", sudo_step));
+                        app_typed.set_terminal_output(tb.into());
+                    }
+                });
+
+                let add_cmd = format!("usermod -aG {} {} 2>&1", group_name, new_username);
+                let add_args = ["-d", &final_name, "-u", "root", "sh", "-c", &add_cmd];
+                let add_result = executor.execute_command(&add_args).await;
+
+                if add_result.success {
+                    let sudo_done = i18n::tr(
+                        "install.step_add_sudo_done",
+                        &[new_username.clone(), group_name.to_string()],
+                    );
+                    info!("User '{}' added to {} group", new_username, group_name);
+
+                    // Ensure /etc/sudoers has the correct group configuration
+                    let sudoers_cmd = format!(
+                        r#"
+                        if ! grep -q '^%{g}' /etc/sudoers 2>/dev/null; then
+                            echo '%{g} ALL=(ALL:ALL) ALL' >> /etc/sudoers
+                        fi
+                        "#,
+                        g = group_name
+                    );
+                    let sudoers_args = ["-d", &final_name, "-u", "root", "sh", "-c", &sudoers_cmd];
+                    let _sudoers_result = executor.execute_command(&sudoers_args).await;
+
+                    let ah_ui = ah.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah_ui.upgrade() {
+                            let app_typed: AppWindow = app;
+                            let mut tb = app_typed.get_terminal_output().to_string();
+                            tb.push_str(&format!("      {}\n", sudo_done));
+                            app_typed.set_terminal_output(tb.into());
+                        }
+                    });
+                } else {
+                    let err = add_result
+                        .error
+                        .unwrap_or_else(|| add_result.output.trim().to_string());
+                    let err_msg = if err.is_empty() {
+                        i18n::t("install.step_add_sudo_error_unknown")
+                    } else {
+                        i18n::tr(
+                            "install.step_add_sudo_error_detail",
+                            &[group_name.to_string(), err.clone()],
+                        )
+                    };
+                    info!(
+                        "Failed to add user '{}' to {} group: {}",
+                        new_username, group_name, err
+                    );
+                    let ah_ui = ah.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah_ui.upgrade() {
+                            let app_typed: AppWindow = app;
+                            let mut tb = app_typed.get_terminal_output().to_string();
+                            tb.push_str(&format!("[WARN] {}\n", err_msg));
+                            app_typed.set_terminal_output(tb.into());
+                        }
+                    });
+                }
+            } else {
+                let skip_msg = i18n::tr("install.step_add_sudo_skipped", &[]);
+                info!(
+                    "Neither sudo nor wheel group found, skipping sudo setup for user '{}'",
+                    new_username
+                );
+                let ah_ui = ah.clone();
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(app) = ah_ui.upgrade() {
+                        let app_typed: AppWindow = app;
+                        let mut tb = app_typed.get_terminal_output().to_string();
+                        tb.push_str(&format!("      {}\n", skip_msg));
+                        app_typed.set_terminal_output(tb.into());
+                    }
+                });
+            }
+        }
+
         // Set password and default user (if user creation succeeded or already existed)
         if user_ok {
             // Set password for new user (if provided)

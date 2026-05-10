@@ -1,4 +1,4 @@
-﻿[common]
+[common]
 app_name = "WSL Dashboard"
 
 [sidebar]
@@ -289,6 +289,11 @@ step_3_3 = "[3/3] Distribusi '{0}' berhasil diimpor."
 step_create_user = "Membuat pengguna baru '{0}'..."
 step_create_user_done = "Pengguna '{0}' berhasil dibuat."
 step_create_user_failed = "Gagal membuat pengguna '{0}': {1}"
+step_add_sudo = "Menambahkan pengguna '{0}' ke grup {1}..."
+step_add_sudo_done = "Pengguna '{0}' berhasil ditambahkan ke grup {1}."
+step_add_sudo_error_unknown = "Gagal menambahkan pengguna ke grup: kesalahan tidak diketahui"
+step_add_sudo_error_detail = "Gagal menambahkan pengguna ke grup {0}: {1}"
+step_add_sudo_skipped = "(Grup sudo atau wheel tidak ditemukan, dilewati)"
 step_set_user_password = "Mengatur kata sandi untuk pengguna '{0}'..."
 step_set_user_password_done = "Kata sandi untuk pengguna '{0}' berhasil diatur."
 step_set_user_password_failed = "Gagal mengatur kata sandi untuk pengguna '{0}': {1}"

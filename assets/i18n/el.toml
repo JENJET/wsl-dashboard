@@ -1,4 +1,4 @@
-﻿[common]
+[common]
 app_name = "WSL Dashboard"
 
 [sidebar]
@@ -289,6 +289,11 @@ step_3_3 = "[3/3] Η διανομή '{0}' εισήχθη επιτυχώς."
 step_create_user = "Δημιουργία νέου χρήστη '{0}'..."
 step_create_user_done = "Ο χρήστης '{0}' δημιουργήθηκε επιτυχώς."
 step_create_user_failed = "Αποτυχία δημιουργίας χρήστη '{0}': {1}"
+step_add_sudo = "Προσθήκη χρήστη '{0}' στην ομάδα {1}..."
+step_add_sudo_done = "Ο χρήστης '{0}' προστέθηκε επιτυχώς στην ομάδα {1}."
+step_add_sudo_error_unknown = "Αποτυχία προσθήκης χρήστη στην ομάδα: άγνωστο σφάλμα"
+step_add_sudo_error_detail = "Αποτυχία προσθήκης χρήστη στην ομάδα {0}: {1}"
+step_add_sudo_skipped = "(Δεν βρέθηκε ομάδα sudo ή wheel, παραλείφθηκε)"
 step_set_user_password = "Ορισμός κωδικού για τον χρήστη '{0}'..."
 step_set_user_password_done = "Ο κωδικός για τον χρήστη '{0}' ορίστηκε επιτυχώς."
 step_set_user_password_failed = "Αποτυχία ορισμού κωδικού για τον χρήστη '{0}': {1}"
