@@ -126,6 +126,14 @@ impl WslDashboard {
                     self.state_changed.notify_one();
                 }
             }
+        } else {
+            // WSL may be uninstalled or not available, clear distro list
+            let mut distros_lock = self.distros.lock().await;
+            if !distros_lock.is_empty() {
+                tracing::debug!("WSL command failed, clearing distro list");
+                *distros_lock = Vec::new();
+                self.state_changed.notify_one();
+            }
         }
         result
     }
