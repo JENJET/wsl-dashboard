@@ -383,7 +383,7 @@ export component AddInstanceView inherits VerticalLayout {
             // Create button
             CustomButton {
                 text: root.is_installing ? AppI18n.t("add.installing", [AppI18n.version]) : AppI18n.t("add.create", [AppI18n.version]);
-                enabled: !root.is_installing && root.new_instance_name != "" && path_error == "" && (root.selected_source_idx == 2 ? root.selected_install_distro != "" : root.install_file_path != "") && (!root.set_root_password || root.root_password != "") && (!root.add_new_user || root.new_username != "");
+                enabled: !root.is_installing && root.new_instance_name != "" && path_error == "" && (root.selected_source_idx == 2 ? root.selected_install_distro != "" : root.install_file_path != "") && (!root.set_root_password || root.root_password != "") && (!root.add_new_user || (root.new_username != "" && root.new_user_password != ""));
                 primary: true;
                 height: 36px;
                 clicked => {

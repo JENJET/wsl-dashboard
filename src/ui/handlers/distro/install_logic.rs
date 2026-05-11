@@ -744,7 +744,7 @@ pub async fn perform_install(
             "/usr/sbin/chpasswd 2>/dev/null <<'PWEOF'\nroot:{}\nPWEOF\n",
             pw_safe
         );
-        let set_pw_args = ["-d", &final_name, "-u", "root", "sh", "-c", &pw_cmd];
+        let set_pw_args = ["-d", &final_name, "-u", "root", "--", "sh", "-c", &pw_cmd];
         info!("Root password command: wsl {}", set_pw_args.join(" "));
         let pw_result = executor.execute_command(&set_pw_args).await;
         info!(
@@ -757,7 +757,7 @@ pub async fn perform_install(
             info!("Retrying with /sbin/chpasswd...");
             tokio::time::sleep(std::time::Duration::from_secs(1)).await;
             let pw_cmd2 = format!("/sbin/chpasswd <<'PWEOF'\nroot:{}\nPWEOF\n", pw_safe);
-            let retry_args = ["-d", &final_name, "-u", "root", "sh", "-c", &pw_cmd2];
+            let retry_args = ["-d", &final_name, "-u", "root", "--", "sh", "-c", &pw_cmd2];
             let retry_result = executor.execute_command(&retry_args).await;
             info!(
                 "Retry result: success={}, output={:?}, error={:?}",
@@ -836,10 +836,19 @@ pub async fn perform_install(
 
         // Always use --badname to allow non-standard usernames, with fallbacks
         let create_cmd = format!(
-            "(useradd -m --badname {0} 2>&1) || (adduser -D {0} 2>&1) || (adduser {0} 2>&1)",
+            "(useradd -m -s /bin/bash {0} 2>&1) || (useradd -m -s /bin/bash --badname {0} 2>&1) || (adduser -D -s /bin/bash {0} 2>&1) || (adduser -s /bin/bash {0} 2>&1)",
             new_username
         );
-        let create_args = ["-d", &final_name, "-u", "root", "sh", "-c", &create_cmd];
+        let create_args = [
+            "-d",
+            &final_name,
+            "-u",
+            "root",
+            "--",
+            "sh",
+            "-c",
+            &create_cmd,
+        ];
         let create_result = executor.execute_command(&create_args).await;
         info!(
             "useradd result: success={}, output={:?}, error={:?}",
@@ -849,7 +858,16 @@ pub async fn perform_install(
         // If creation failed, check if user already exists
         let user_exists = if !create_result.success {
             let check_cmd = format!("id {} 2>&1", new_username);
-            let check_args = ["-d", &final_name, "-u", "root", "sh", "-c", &check_cmd];
+            let check_args = [
+                "-d",
+                &final_name,
+                "-u",
+                "root",
+                "--",
+                "sh",
+                "-c",
+                &check_cmd,
+            ];
             executor.execute_command(&check_args).await.success
         } else {
             false
@@ -918,7 +936,16 @@ pub async fn perform_install(
         if user_ok {
             // Check which group exists (sudo or wheel) and add user to it
             let check_sudo_cmd = "getent group sudo >/dev/null 2>&1 && echo 'sudo' || (getent group wheel >/dev/null 2>&1 && echo 'wheel' || echo '')";
-            let check_args = ["-d", &final_name, "-u", "root", "sh", "-c", check_sudo_cmd];
+            let check_args = [
+                "-d",
+                &final_name,
+                "-u",
+                "root",
+                "--",
+                "sh",
+                "-c",
+                check_sudo_cmd,
+            ];
             let check_result = executor.execute_command(&check_args).await;
             let group_name = check_result.output.trim();
 
@@ -939,7 +966,7 @@ pub async fn perform_install(
                 });
 
                 let add_cmd = format!("usermod -aG {} {} 2>&1", group_name, new_username);
-                let add_args = ["-d", &final_name, "-u", "root", "sh", "-c", &add_cmd];
+                let add_args = ["-d", &final_name, "-u", "root", "--", "sh", "-c", &add_cmd];
                 let add_result = executor.execute_command(&add_args).await;
 
                 if add_result.success {
@@ -958,7 +985,16 @@ pub async fn perform_install(
                         "#,
                         g = group_name
                     );
-                    let sudoers_args = ["-d", &final_name, "-u", "root", "sh", "-c", &sudoers_cmd];
+                    let sudoers_args = [
+                        "-d",
+                        &final_name,
+                        "-u",
+                        "root",
+                        "--",
+                        "sh",
+                        "-c",
+                        &sudoers_cmd,
+                    ];
                     let _sudoers_result = executor.execute_command(&sudoers_args).await;
 
                     let ah_ui = ah.clone();
@@ -1038,7 +1074,7 @@ pub async fn perform_install(
                     "/usr/sbin/chpasswd 2>/dev/null <<'PWEOF'\n{}:{}\nPWEOF\n",
                     new_username, pw_safe
                 );
-                let pw_args = ["-d", &final_name, "-u", "root", "sh", "-c", &pw_cmd];
+                let pw_args = ["-d", &final_name, "-u", "root", "--", "sh", "-c", &pw_cmd];
                 let pw_result = executor.execute_command(&pw_args).await;
 
                 if !pw_result.success {
@@ -1047,7 +1083,7 @@ pub async fn perform_install(
                         "/sbin/chpasswd <<'PWEOF'\n{}:{}\nPWEOF\n",
                         new_username, pw_safe
                     );
-                    let pw_args2 = ["-d", &final_name, "-u", "root", "sh", "-c", &pw_cmd2];
+                    let pw_args2 = ["-d", &final_name, "-u", "root", "--", "sh", "-c", &pw_cmd2];
                     let retry = executor.execute_command(&pw_args2).await;
                     if !retry.success {
                         let err = retry
@@ -1113,7 +1149,16 @@ pub async fn perform_install(
                     "(grep -q '^default=' /etc/wsl.conf 2>/dev/null && sed -i 's/^default=.*/default={u}/' /etc/wsl.conf 2>/dev/null) || (grep -q '^\\[user\\]' /etc/wsl.conf 2>/dev/null && sed -i '/^\\[user\\]/a default={u}' /etc/wsl.conf 2>/dev/null) || printf '\\n[user]\\ndefault={u}\\n' >> /etc/wsl.conf",
                     u = uname
                 );
-                let def_args = ["-d", &final_name, "-u", "root", "sh", "-c", &wsl_conf_cmd];
+                let def_args = [
+                    "-d",
+                    &final_name,
+                    "-u",
+                    "root",
+                    "--",
+                    "sh",
+                    "-c",
+                    &wsl_conf_cmd,
+                ];
                 let def_result = executor.execute_command(&def_args).await;
 
                 if !def_result.success {

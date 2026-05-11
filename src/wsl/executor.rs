@@ -196,7 +196,7 @@ impl WslCommandExecutor {
         } else if is_write_op {
             std::time::Duration::from_secs(45) // 45 seconds for normal write operations
         } else {
-            std::time::Duration::from_secs(3) // 3 seconds for read operations
+            std::time::Duration::from_secs(10) // 10 seconds for read operations
         };
 
         if is_heavy_op {
