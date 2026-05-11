@@ -198,7 +198,7 @@ export component InformationDialog inherits Rectangle {
 
                 if (root.info.actual_used != ""): InfoRow {
                     label: AppI18n.t("dialog.internal_usage", [AppI18n.version]);
-                    value: root.info.actual_used;
+                    value: root.info.actual_total != "" ? root.info.actual_used + " / " + root.info.actual_total : root.info.actual_used;
                     is_pill: true;
                 }
 

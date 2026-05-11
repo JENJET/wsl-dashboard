@@ -349,7 +349,7 @@ pub async fn refresh_distros_ui(
             });
         }
 
-        // Background IP fetch for running distros
+        // Background resource usage fetch for running distros
         let running_distros: Vec<String> = intermediate_distros
             .iter()
             .filter(|(_, _, _, _, _, _, _, is_running)| *is_running)
@@ -359,32 +359,80 @@ pub async fn refresh_distros_ui(
         if !running_distros.is_empty() {
             let ah = app_handle.clone();
             tokio::task::spawn_blocking(move || {
+                // Check if networking mode is mirrored
+                let is_mirrored = crate::utils::wsl_config::get_wsl_networking_mode() == "mirrored";
+
                 let mut ip_results: Vec<(String, String)> = Vec::new();
+                let mut resource_results: Vec<(String, f64, f64, f64)> = Vec::new();
+
                 for name in &running_distros {
-                    match crate::network::tracker::get_distro_ip(name, Some(1)) {
-                        Ok(ip) => {
-                            debug!("Fetched IP for {}: {}", name, ip);
-                            ip_results.push((name.clone(), ip));
+                    // Fetch IP only in mirrored mode
+                    if is_mirrored {
+                        match crate::network::tracker::get_distro_ip(name, Some(1)) {
+                            Ok(ip) => {
+                                debug!("Fetched IP for {}: {}", name, ip);
+                                ip_results.push((name.clone(), ip));
+                            }
+                            Err(e) => {
+                                debug!("Failed to fetch IP for {}: {}", name, e);
+                            }
+                        }
+                    }
+
+                    // Fetch CPU and Memory usage
+                    match crate::network::tracker::get_distro_resource_usage(name) {
+                        Ok((cpu, mem_used, mem_total)) => {
+                            debug!(
+                                "Fetched resources for {}: CPU={:.1}%, Mem={:.1}/{:.1} GB",
+                                name, cpu, mem_used, mem_total
+                            );
+                            resource_results.push((name.clone(), cpu, mem_used, mem_total));
                         }
                         Err(e) => {
-                            debug!("Failed to fetch IP for {}: {}", name, e);
+                            debug!("Failed to fetch resources for {}: {}", name, e);
                         }
                     }
                 }
 
-                if !ip_results.is_empty() {
+                if !ip_results.is_empty() || !resource_results.is_empty() {
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(app) = ah.upgrade() {
                             let model = app.get_distros();
                             for i in 0..model.row_count() {
                                 if let Some(mut distro) = model.row_data(i) {
+                                    let mut updated = false;
+
+                                    // Update IP (only in mirrored mode)
                                     if let Some((_, ip)) =
                                         ip_results.iter().find(|(name, _)| distro.name == *name)
                                     {
                                         if distro.ip != ip.as_str() {
                                             distro.ip = ip.into();
-                                            model.set_row_data(i, distro);
+                                            updated = true;
                                         }
+                                    }
+
+                                    // Update CPU and Memory
+                                    if let Some((_, cpu, mem_used, mem_total)) = resource_results
+                                        .iter()
+                                        .find(|(name, _, _, _)| distro.name == *name)
+                                    {
+                                        let cpu_str = format!("{:.1}%", cpu);
+                                        let mem_str =
+                                            format!("{:.1}/{:.1} GB", mem_used, mem_total);
+
+                                        if distro.cpu_usage != cpu_str.as_str() {
+                                            distro.cpu_usage = cpu_str.into();
+                                            updated = true;
+                                        }
+                                        if distro.memory_usage != mem_str.as_str() {
+                                            distro.memory_usage = mem_str.into();
+                                            updated = true;
+                                        }
+                                    }
+
+                                    if updated {
+                                        model.set_row_data(i, distro);
                                     }
                                 }
                             }
@@ -451,6 +499,11 @@ pub async fn refresh_distros_ui(
                                 )
                                 .into(),
                                 ip: Default::default(),
+                                cpu_usage: Default::default(),
+                                memory_usage: Default::default(),
+                                is_mirrored_network:
+                                    crate::utils::wsl_config::get_wsl_networking_mode()
+                                        == "mirrored",
                             }
                         },
                     )

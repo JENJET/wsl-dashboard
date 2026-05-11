@@ -1,6 +1,7 @@
 use crate::config::models::CachedDistro;
 use crate::ui::data::refresh_distros_ui;
 use crate::{AppState, AppWindow};
+use slint::Model;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::debug;
@@ -29,6 +30,136 @@ pub fn spawn_wsl_monitor(app_handle: slint::Weak<AppWindow>, app_state: Arc<Mute
                                 let _ = dashboard.refresh_distros().await;
                             }
                         });
+                    }
+                }
+            });
+        }
+    });
+}
+
+// Start resource usage monitoring task (CPU and Memory)
+pub fn spawn_resource_monitor(app_handle: slint::Weak<AppWindow>) {
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(5));
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        loop {
+            interval.tick().await;
+            let ah = app_handle.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(app) = ah.upgrade() {
+                    // Only refresh if the Home tab (index 0) is selected and window is visible
+                    if app.get_selected_tab() == 0 && app.get_is_window_visible() {
+                        let model = app.get_distros();
+                        let running_distros: Vec<String> = (0..model.row_count())
+                            .filter_map(|i| {
+                                model.row_data(i).and_then(|distro| {
+                                    if distro.status == "Running" {
+                                        Some(distro.name.to_string())
+                                    } else {
+                                        None
+                                    }
+                                })
+                            })
+                            .collect();
+
+                        if !running_distros.is_empty() {
+                            let ah_async = ah.clone();
+                            tokio::task::spawn_blocking(move || {
+                                let is_mirrored =
+                                    crate::utils::wsl_config::get_wsl_networking_mode()
+                                        == "mirrored";
+
+                                let mut ip_results: Vec<(String, String)> = Vec::new();
+                                let mut resource_results: Vec<(String, f64, f64, f64)> = Vec::new();
+
+                                for name in &running_distros {
+                                    // Fetch IP only in mirrored mode
+                                    if is_mirrored {
+                                        match crate::network::tracker::get_distro_ip(name, Some(1))
+                                        {
+                                            Ok(ip) => {
+                                                ip_results.push((name.clone(), ip));
+                                            }
+                                            Err(_) => {}
+                                        }
+                                    }
+
+                                    // Fetch CPU and Memory usage
+                                    match crate::network::tracker::get_distro_resource_usage(name) {
+                                        Ok((cpu, mem_used, mem_total)) => {
+                                            resource_results.push((
+                                                name.clone(),
+                                                cpu,
+                                                mem_used,
+                                                mem_total,
+                                            ));
+                                        }
+                                        Err(_) => {}
+                                    }
+                                }
+
+                                if !ip_results.is_empty() || !resource_results.is_empty() {
+                                    let _ = slint::invoke_from_event_loop(move || {
+                                        if let Some(app) = ah_async.upgrade() {
+                                            let model = app.get_distros();
+                                            for i in 0..model.row_count() {
+                                                if let Some(mut distro) = model.row_data(i) {
+                                                    let mut updated = false;
+
+                                                    // Update IP (only in mirrored mode)
+                                                    if let Some((_, ip)) = ip_results
+                                                        .iter()
+                                                        .find(|(n, _)| distro.name == *n)
+                                                    {
+                                                        if distro.ip != ip.as_str() {
+                                                            distro.ip = ip.into();
+                                                            updated = true;
+                                                        }
+                                                    }
+
+                                                    // Update CPU and Memory for running distros
+                                                    if let Some((_, cpu, mem_used, mem_total)) =
+                                                        resource_results
+                                                            .iter()
+                                                            .find(|(n, _, _, _)| distro.name == *n)
+                                                    {
+                                                        let cpu_str = format!("{:.1}%", cpu);
+                                                        let mem_str = format!(
+                                                            "{:.1}/{:.1} GB",
+                                                            mem_used, mem_total
+                                                        );
+
+                                                        if distro.cpu_usage != cpu_str.as_str() {
+                                                            distro.cpu_usage = cpu_str.into();
+                                                            updated = true;
+                                                        }
+                                                        if distro.memory_usage != mem_str.as_str() {
+                                                            distro.memory_usage = mem_str.into();
+                                                            updated = true;
+                                                        }
+                                                    } else if distro.status == "Stopped" {
+                                                        // Clear resource usage for stopped distros
+                                                        if !distro.cpu_usage.is_empty() {
+                                                            distro.cpu_usage = Default::default();
+                                                            updated = true;
+                                                        }
+                                                        if !distro.memory_usage.is_empty() {
+                                                            distro.memory_usage =
+                                                                Default::default();
+                                                            updated = true;
+                                                        }
+                                                    }
+
+                                                    if updated {
+                                                        model.set_row_data(i, distro);
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    });
+                                }
+                            });
+                        }
                     }
                 }
             });

@@ -156,10 +156,25 @@ export component PathSettingsSection inherits VerticalLayout {
                 root.select_logs_folder();
             }
         }
-        CustomLineEdit {
-            text: root.logs_location;
-            enabled: false;
+        Rectangle {
             horizontal-stretch: 1;
+            height: 32px;
+            border-radius: 4px;
+            border-width: 1px;
+            border-color: Theme.border_color;
+            background: Theme.dark_mode ? #1E1E1E : #F3F3F3;
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.select_logs_folder();
+                }
+            }
+            CustomLineEdit {
+                text: root.logs_location;
+                enabled: false;
+                width: parent.width;
+                height: parent.height;
+            }
         }
 
         if (!AppI18n.is-rtl): CustomButton {
@@ -193,10 +208,25 @@ export component PathSettingsSection inherits VerticalLayout {
                 root.select_distro_folder();
             }
         }
-        CustomLineEdit {
-            text: root.distro_location;
-            enabled: false;
+        Rectangle {
             horizontal-stretch: 1;
+            height: 32px;
+            border-radius: 4px;
+            border-width: 1px;
+            border-color: Theme.border_color;
+            background: Theme.dark_mode ? #1E1E1E : #F3F3F3;
+            TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.select_distro_folder();
+                }
+            }
+            CustomLineEdit {
+                text: root.distro_location;
+                enabled: false;
+                width: parent.width;
+                height: parent.height;
+            }
         }
 
         if (!AppI18n.is-rtl): CustomButton {

@@ -9,14 +9,43 @@ component DistroInfo inherits VerticalLayout {
     spacing: 0px;
     alignment: center;
     
-    Text {
-        text: distro.name;
-        font-size: 14px * LayoutConstants.font-scale;
-        font-weight: 400;
-        font-family: Theme.default_font;
-        color: Theme.text_primary;
-        overflow: elide;
-        horizontal-alignment: is-rtl ? right : left;
+    HorizontalLayout {
+        spacing: 8px;
+        alignment: start;
+        
+        Text {
+            text: distro.name;
+            font-size: 14px * LayoutConstants.font-scale;
+            font-weight: 400;
+            font-family: Theme.default_font;
+            color: Theme.text_primary;
+            overflow: elide;
+            horizontal-alignment: is-rtl ? right : left;
+        }
+
+        if (distro.status == "Running" && distro.is_mirrored_network && distro.ip != ""):
+        Rectangle {
+            background: Theme.dark_mode ? #2b3c4e : #e6f4ff98;
+            border-radius: 3px;
+            width: ip_text.width + 8px;
+            height: 16px;
+            
+            ip_touch := TouchArea {
+                mouse-cursor: pointer;
+                clicked => {
+                    root.copy_distro_ip();
+                }
+
+                ip_text := Text {
+                    text: distro.ip;
+                    font-size: 10px * LayoutConstants.font-scale;
+                    font-family: Theme.default_font;
+                    color: ip_touch.has-hover ? Theme.accent : Theme.text_secondary;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+        }
     }
 
     HorizontalLayout {
@@ -62,25 +91,34 @@ component DistroInfo inherits VerticalLayout {
                 vertical-alignment: center;
             }
         }
-
-        if (distro.status == "Running" && distro.ip != ""): Rectangle {
-            background: Theme.dark_mode ? #2b3c4e : #e6f4ff98;
+        
+        if (distro.status == "Running" && distro.cpu_usage != ""): Rectangle {
+            background: Theme.dark_mode ? #3E3E42 : #E0E0E0;
             border-radius: 3px;
-            width: ip_text.width + 8px;
+            width: cpu_text.width + 6px;
             height: 16px;
             
-            ip_touch := TouchArea {
-                mouse-cursor: pointer;
-                clicked => {
-                    root.copy_distro_ip();
-                }
-            }
-
-            ip_text := Text {
-                text: distro.ip;
+            cpu_text := Text {
+                text: distro.cpu_usage;
                 font-size: 10px * LayoutConstants.font-scale;
                 font-family: Theme.default_font;
-                color: ip_touch.has-hover ? Theme.accent : Theme.text_secondary;
+                color: Theme.text_secondary;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+        
+        if (distro.status == "Running" && distro.memory_usage != ""): Rectangle {
+            background: Theme.dark_mode ? #3E3E42 : #E0E0E0;
+            border-radius: 3px;
+            width: mem_text.width + 6px;
+            height: 16px;
+            
+            mem_text := Text {
+                text: distro.memory_usage;
+                font-size: 10px * LayoutConstants.font-scale;
+                font-family: Theme.default_font;
+                color: Theme.text_secondary;
                 horizontal-alignment: center;
                 vertical-alignment: center;
             }

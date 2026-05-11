@@ -6,6 +6,7 @@ export struct Information {
     vhdx_path: string,
     vhdx_size: string,
     actual_used: string,
+    actual_total: string,
     ip: string,
     vhdx_virtual_size: string,
     vhdx_type: string,
@@ -22,6 +23,9 @@ export struct Distro {
     initial: string,
     distro_display_name: string,
     ip: string,
+    cpu_usage: string,
+    memory_usage: string,
+    is_mirrored_network: bool,
 }
 
 export struct InstallableDistro {

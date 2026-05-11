@@ -360,6 +360,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                         if let Some(data) = result.data {
                             let is_running = data.status == "Running";
                             let distro_name_for_async = data.distro_name.clone();
+                            let vhdx_path_for_async = data.vhdx_path.clone();
                             let mut slint_data = app.get_information();
                             slint_data.distro_name = data.distro_name.into();
                             slint_data.wsl_version = data.wsl_version.into();
@@ -368,6 +369,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                             slint_data.vhdx_path = data.vhdx_path.into();
                             slint_data.vhdx_size = data.vhdx_size.into();
                             slint_data.actual_used = Default::default();
+                            slint_data.actual_total = Default::default();
                             slint_data.ip = Default::default();
                             slint_data.vhdx_virtual_size = data.vhdx_virtual_size.into();
                             slint_data.vhdx_type = data.vhdx_type.into();
@@ -380,16 +382,31 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                                 tokio::task::spawn_blocking(move || {
                                     let mut ip_val = String::new();
                                     let mut used_val = String::new();
+                                    let mut total_val = String::new();
 
                                     match crate::network::tracker::get_distro_ip(
                                         &distro_name_for_async,
-                                        Some(1),
+                                        Some(3),
                                     ) {
                                         Ok(ip) => ip_val = ip,
                                         Err(e) => tracing::debug!(
                                             "Failed to fetch IP for info dialog: {}",
                                             e
                                         ),
+                                    }
+
+                                    // Get free space of the VHDX drive partition
+                                    let mut drive_free_mb: f64 = 0.0;
+                                    if !vhdx_path_for_async.is_empty() {
+                                        // Extract drive letter (e.g., "D:\" -> "D:\")
+                                        let drive_root = if vhdx_path_for_async.len() >= 3 {
+                                            vhdx_path_for_async[..3].to_string()
+                                        } else {
+                                            vhdx_path_for_async.clone()
+                                        };
+                                        let free_bytes =
+                                            crate::utils::system::get_disk_free_space(&drive_root);
+                                        drive_free_mb = free_bytes as f64 / (1024.0 * 1024.0);
                                     }
 
                                     let df_output = std::process::Command::new("wsl")
@@ -415,11 +432,32 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                                                 let parts: Vec<&str> =
                                                     second_line.split_whitespace().collect();
                                                 if parts.len() >= 3 {
-                                                    if let Ok(mb_val) = parts[2].parse::<f64>() {
-                                                        let gb_val = mb_val / 1024.0;
-                                                        used_val = format!("{:.2} GB", gb_val);
+                                                    // parts[2] is Used, parts[1] is Total (Linux internal)
+                                                    if let Ok(used_mb) = parts[2].parse::<f64>() {
+                                                        let used_gb = used_mb / 1024.0;
+                                                        used_val = format!("{:.2} GB", used_gb);
+                                                    }
+
+                                                    // Get Linux internal total space
+                                                    let linux_total_mb = if let Ok(total_mb) =
+                                                        parts[1].parse::<f64>()
+                                                    {
+                                                        total_mb
                                                     } else {
-                                                        used_val = format!("{} MB", parts[2]);
+                                                        0.0
+                                                    };
+
+                                                    // Use the smaller value between Linux total and drive free space
+                                                    let effective_total_mb = if drive_free_mb > 0.0
+                                                    {
+                                                        linux_total_mb.min(drive_free_mb)
+                                                    } else {
+                                                        linux_total_mb
+                                                    };
+
+                                                    if effective_total_mb > 0.0 {
+                                                        let total_gb = effective_total_mb / 1024.0;
+                                                        total_val = format!("{:.2} GB", total_gb);
                                                     }
                                                 }
                                             }
@@ -435,6 +473,9 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                                                 }
                                                 if !used_val.is_empty() {
                                                     info.actual_used = used_val.into();
+                                                }
+                                                if !total_val.is_empty() {
+                                                    info.actual_total = total_val.into();
                                                 }
                                                 app.set_information(info);
                                             }

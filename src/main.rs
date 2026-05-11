@@ -356,6 +356,7 @@ async fn main() {
     // 13. Start background tasks (check for updates, monitor WSL/USB status)
     app::startup::spawn_check_task(app.as_weak(), app_state.clone());
     app::tasks::spawn_wsl_monitor(app.as_weak(), app_state.clone());
+    app::tasks::spawn_resource_monitor(app.as_weak());
     app::tasks::spawn_usb_monitor(app.as_weak());
     app::tasks::spawn_state_listener(app.as_weak(), app_state.clone());
 
