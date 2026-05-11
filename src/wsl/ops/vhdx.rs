@@ -25,6 +25,29 @@ const VIRTUAL_DISK_SIZE_GUID: [u8; 16] = [
 
 const VHDX_HEADER_SIZE: u64 = 65536; // 64KB
 
+/// Check if a file is sparse
+fn is_file_sparse(path: &Path) -> bool {
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+
+        match std::fs::metadata(path) {
+            Ok(metadata) => {
+                // FILE_ATTRIBUTE_SPARSE_FILE = 0x00000200
+                const FILE_ATTRIBUTE_SPARSE_FILE: u32 = 0x00000200;
+                let attributes = metadata.file_attributes();
+                (attributes & FILE_ATTRIBUTE_SPARSE_FILE) != 0
+            }
+            Err(_) => false,
+        }
+    }
+
+    #[cfg(not(windows))]
+    {
+        false
+    }
+}
+
 /// Parse VHDX metadata by reading the file headers directly.
 /// No admin privileges needed — just file read access.
 pub fn get_vhdx_info(vhdx_path: &str) -> Option<VhdxInfo> {
@@ -36,6 +59,9 @@ pub fn get_vhdx_info(vhdx_path: &str) -> Option<VhdxInfo> {
 
     let mut file = File::open(path).ok()?;
     let file_len = file.metadata().ok()?.len();
+
+    // Check if the file is actually sparse at the filesystem level
+    let is_sparse_file = is_file_sparse(path);
 
     // Must be at least 64KB + 4KB (header1) + 4KB (header2) + region table
     if file_len < VHDX_HEADER_SIZE * 4 {
@@ -49,7 +75,7 @@ pub fn get_vhdx_info(vhdx_path: &str) -> Option<VhdxInfo> {
     if &sig != b"vhdxfile" {
         // Check if it's a legacy VHD file
         if &sig[..7] == b"conecti" {
-            return parse_vhd_info(&mut file, file_len);
+            return parse_vhd_info(&mut file, file_len, path);
         }
         debug!("Not a VHDX file: invalid signature");
         return None;
@@ -136,13 +162,13 @@ pub fn get_vhdx_info(vhdx_path: &str) -> Option<VhdxInfo> {
         } else {
             "VHDX (Fixed)".to_string()
         },
-        is_sparse: has_bat,
+        is_sparse: is_sparse_file, // Use actual filesystem sparse flag instead of just BAT presence
     };
     Some(info)
 }
 
 /// Parse legacy VHD format (conectix signature)
-fn parse_vhd_info(file: &mut File, _file_len: u64) -> Option<VhdxInfo> {
+fn parse_vhd_info(file: &mut File, _file_len: u64, path: &Path) -> Option<VhdxInfo> {
     // VHD footer is at the end of the file (512 bytes)
     // We need to read the footer to get disk size and type
     let footer_offset = _file_len.saturating_sub(512);
@@ -167,7 +193,7 @@ fn parse_vhd_info(file: &mut File, _file_len: u64) -> Option<VhdxInfo> {
     Some(VhdxInfo {
         virtual_size: format_size(current_size),
         vhd_type,
-        is_sparse: disk_type == 3,
+        is_sparse: is_file_sparse(path), // Use actual filesystem sparse flag for VHD too
     })
 }
 
