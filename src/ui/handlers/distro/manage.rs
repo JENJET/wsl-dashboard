@@ -301,6 +301,8 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
     {
         static IS_FETCHING_INFO: std::sync::atomic::AtomicBool =
             std::sync::atomic::AtomicBool::new(false);
+        static IS_FETCHING_EXTRA_INFO: std::sync::atomic::AtomicBool =
+            std::sync::atomic::AtomicBool::new(false);
         let ah_outer = app_handle.clone();
         let as_outer = app_state.clone();
         app.on_information_clicked(move |name| {
@@ -320,7 +322,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
             let ah = ah_outer.clone();
             let as_ptr = as_outer.clone();
             let name = name.to_string();
-            let _ = slint::spawn_local(async move {
+            tokio::spawn(async move {
                 let _guard = scopeguard::guard((), |_| {
                     IS_FETCHING_INFO.store(false, std::sync::atomic::Ordering::SeqCst);
                 });
@@ -332,164 +334,193 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
 
                 if let Some(op) = dashboard.get_active_op(&name_str).await {
                     let msg = i18n::tr("toast.distro_busy", &[name_str.clone(), op.to_string()]);
-                    if let Some(app) = ah.upgrade() {
-                        app.set_current_message(msg.into());
-                        app.set_show_message_dialog(true);
-                    }
+                    let ah_clone = ah.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah_clone.upgrade() {
+                            app.set_current_message(msg.into());
+                            app.set_show_message_dialog(true);
+                        }
+                    });
                     return;
                 }
 
                 // Sentinel Check: System heavy op?
                 if dashboard.heavy_op_lock().try_lock().is_err() {
                     let msg = i18n::t("toast.system_busy");
-                    if let Some(app) = ah.upgrade() {
-                        app.set_current_message(msg.into());
-                        app.set_show_message_dialog(true);
-                    }
+                    let ah_clone = ah.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah_clone.upgrade() {
+                            app.set_current_message(msg.into());
+                            app.set_show_message_dialog(true);
+                        }
+                    });
                     return;
                 }
 
-                if let Some(app) = ah.upgrade() {
-                    app.set_task_status_text(i18n::t("operation.fetching_info").into());
-                    app.set_task_status_visible(true);
+                {
+                    let ah_clone = ah.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah_clone.upgrade() {
+                            app.set_task_status_text(i18n::t("operation.fetching_info").into());
+                            app.set_task_status_visible(true);
+                        }
+                    });
                 }
                 let result = dashboard.executor().get_distro_information(&name_str).await;
-                if let Some(app) = ah.upgrade() {
-                    app.set_task_status_visible(false);
-                    if result.success {
-                        if let Some(data) = result.data {
-                            let is_running = data.status == "Running";
-                            let distro_name_for_async = data.distro_name.clone();
-                            let vhdx_path_for_async = data.vhdx_path.clone();
-                            let mut slint_data = app.get_information();
-                            slint_data.distro_name = data.distro_name.into();
-                            slint_data.wsl_version = data.wsl_version.into();
-                            slint_data.status = data.status.into();
-                            slint_data.install_location = data.install_location.into();
-                            slint_data.vhdx_path = data.vhdx_path.into();
-                            slint_data.vhdx_size = data.vhdx_size.into();
-                            slint_data.actual_used = Default::default();
-                            slint_data.actual_total = Default::default();
-                            slint_data.ip = Default::default();
-                            slint_data.vhdx_virtual_size = data.vhdx_virtual_size.into();
-                            slint_data.vhdx_type = data.vhdx_type.into();
-                            slint_data.vhdx_is_sparse = data.vhdx_is_sparse;
-                            app.set_information(slint_data);
-                            app.set_show_information(true);
+                let ah_ui = ah.clone();
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(app) = ah_ui.upgrade() {
+                        app.set_task_status_visible(false);
+                        if result.success {
+                            if let Some(data) = result.data {
+                                let is_running = data.status == "Running";
+                                let distro_name_for_async = data.distro_name.clone();
+                                let vhdx_path_for_async = data.vhdx_path.clone();
+                                let mut slint_data = app.get_information();
+                                slint_data.distro_name = data.distro_name.into();
+                                slint_data.wsl_version = data.wsl_version.into();
+                                slint_data.status = data.status.into();
+                                slint_data.install_location = data.install_location.into();
+                                slint_data.vhdx_path = data.vhdx_path.into();
+                                slint_data.vhdx_size = data.vhdx_size.into();
+                                slint_data.actual_used = Default::default();
+                                slint_data.actual_total = Default::default();
+                                slint_data.ip = Default::default();
+                                slint_data.vhdx_virtual_size = data.vhdx_virtual_size.into();
+                                slint_data.vhdx_type = data.vhdx_type.into();
+                                slint_data.vhdx_is_sparse = data.vhdx_is_sparse;
+                                app.set_information(slint_data);
+                                app.set_show_information(true);
 
-                            if is_running {
-                                let ah_async = ah.clone();
-                                tokio::task::spawn_blocking(move || {
-                                    let mut ip_val = String::new();
-                                    let mut used_val = String::new();
-                                    let mut total_val = String::new();
+                                if is_running
+                                    && IS_FETCHING_EXTRA_INFO
+                                        .compare_exchange(
+                                            false,
+                                            true,
+                                            std::sync::atomic::Ordering::SeqCst,
+                                            std::sync::atomic::Ordering::SeqCst,
+                                        )
+                                        .is_ok()
+                                {
+                                    let ah_async = ah_ui.clone();
+                                    tokio::task::spawn_blocking(move || {
+                                        let _extra_guard = scopeguard::guard((), |_| {
+                                            IS_FETCHING_EXTRA_INFO
+                                                .store(false, std::sync::atomic::Ordering::SeqCst);
+                                        });
+                                        let mut ip_val = String::new();
+                                        let mut used_val = String::new();
+                                        let mut total_val = String::new();
 
-                                    match crate::network::tracker::get_distro_ip(
-                                        &distro_name_for_async,
-                                        Some(3),
-                                    ) {
-                                        Ok(ip) => ip_val = ip,
-                                        Err(e) => tracing::debug!(
-                                            "Failed to fetch IP for info dialog: {}",
-                                            e
-                                        ),
-                                    }
-
-                                    // Get free space of the VHDX drive partition
-                                    let mut drive_free_mb: f64 = 0.0;
-                                    if !vhdx_path_for_async.is_empty() {
-                                        // Extract drive letter (e.g., "D:\" -> "D:\")
-                                        let drive_root = if vhdx_path_for_async.len() >= 3 {
-                                            vhdx_path_for_async[..3].to_string()
-                                        } else {
-                                            vhdx_path_for_async.clone()
-                                        };
-                                        let free_bytes =
-                                            crate::utils::system::get_disk_free_space(&drive_root);
-                                        drive_free_mb = free_bytes as f64 / (1024.0 * 1024.0);
-                                    }
-
-                                    let df_output = std::process::Command::new("wsl")
-                                        .env("WSL_UTF8", "1")
-                                        .args(&[
-                                            "-d",
+                                        match crate::network::tracker::get_distro_ip(
                                             &distro_name_for_async,
-                                            "--exec",
-                                            "df",
-                                            "-B1M",
-                                            "/",
-                                        ])
-                                        .creation_flags(0x08000000)
-                                        .output();
+                                            Some(3),
+                                        ) {
+                                            Ok(ip) => ip_val = ip,
+                                            Err(e) => tracing::debug!(
+                                                "Failed to fetch IP for info dialog: {}",
+                                                e
+                                            ),
+                                        }
 
-                                    if let Ok(out) = df_output {
-                                        if out.status.success() {
-                                            let stdout =
-                                                crate::wsl::decoder::decode_output(&out.stdout)
-                                                    .trim()
-                                                    .to_string();
-                                            if let Some(second_line) = stdout.lines().nth(1) {
-                                                let parts: Vec<&str> =
-                                                    second_line.split_whitespace().collect();
-                                                if parts.len() >= 3 {
-                                                    // parts[2] is Used, parts[1] is Total (Linux internal)
-                                                    if let Ok(used_mb) = parts[2].parse::<f64>() {
-                                                        let used_gb = used_mb / 1024.0;
-                                                        used_val = format!("{:.2} GB", used_gb);
-                                                    }
+                                        // Get free space of the VHDX drive partition
+                                        let mut drive_free_mb: f64 = 0.0;
+                                        if !vhdx_path_for_async.is_empty() {
+                                            // Extract drive letter (e.g., "D:\" -> "D:\")
+                                            let drive_root = if vhdx_path_for_async.len() >= 3 {
+                                                vhdx_path_for_async[..3].to_string()
+                                            } else {
+                                                vhdx_path_for_async.clone()
+                                            };
+                                            let free_bytes =
+                                                crate::utils::system::get_disk_free_space(
+                                                    &drive_root,
+                                                );
+                                            drive_free_mb = free_bytes as f64 / (1024.0 * 1024.0);
+                                        }
 
-                                                    // Get Linux internal total space
-                                                    let linux_total_mb = if let Ok(total_mb) =
-                                                        parts[1].parse::<f64>()
-                                                    {
-                                                        total_mb
-                                                    } else {
-                                                        0.0
-                                                    };
+                                        let df_output = std::process::Command::new("wsl")
+                                            .env("WSL_UTF8", "1")
+                                            .args(&[
+                                                "-d",
+                                                &distro_name_for_async,
+                                                "--exec",
+                                                "df",
+                                                "-B1M",
+                                                "/",
+                                            ])
+                                            .creation_flags(0x08000000)
+                                            .output();
 
-                                                    // Use the smaller value between Linux total and drive free space
-                                                    let effective_total_mb = if drive_free_mb > 0.0
-                                                    {
-                                                        linux_total_mb.min(drive_free_mb)
-                                                    } else {
-                                                        linux_total_mb
-                                                    };
+                                        if let Ok(out) = df_output {
+                                            if out.status.success() {
+                                                let stdout =
+                                                    crate::wsl::decoder::decode_output(&out.stdout)
+                                                        .trim()
+                                                        .to_string();
+                                                if let Some(second_line) = stdout.lines().nth(1) {
+                                                    let parts: Vec<&str> =
+                                                        second_line.split_whitespace().collect();
+                                                    if parts.len() >= 3 {
+                                                        if let Ok(used_mb) = parts[2].parse::<f64>()
+                                                        {
+                                                            let used_gb = used_mb / 1024.0;
+                                                            used_val = format!("{:.2} GB", used_gb);
+                                                        }
 
-                                                    if effective_total_mb > 0.0 {
-                                                        let total_gb = effective_total_mb / 1024.0;
-                                                        total_val = format!("{:.2} GB", total_gb);
+                                                        let linux_total_mb = if let Ok(total_mb) =
+                                                            parts[1].parse::<f64>()
+                                                        {
+                                                            total_mb
+                                                        } else {
+                                                            0.0
+                                                        };
+
+                                                        let effective_total_mb =
+                                                            if drive_free_mb > 0.0 {
+                                                                linux_total_mb.min(drive_free_mb)
+                                                            } else {
+                                                                linux_total_mb
+                                                            };
+
+                                                        if effective_total_mb > 0.0 {
+                                                            let total_gb =
+                                                                effective_total_mb / 1024.0;
+                                                            total_val =
+                                                                format!("{:.2} GB", total_gb);
+                                                        }
                                                     }
                                                 }
                                             }
                                         }
-                                    }
 
-                                    if !ip_val.is_empty() || !used_val.is_empty() {
-                                        let _ = slint::invoke_from_event_loop(move || {
-                                            if let Some(app) = ah_async.upgrade() {
-                                                let mut info = app.get_information();
-                                                if !ip_val.is_empty() {
-                                                    info.ip = ip_val.into();
+                                        if !ip_val.is_empty() || !used_val.is_empty() {
+                                            let _ = slint::invoke_from_event_loop(move || {
+                                                if let Some(app) = ah_async.upgrade() {
+                                                    let mut info = app.get_information();
+                                                    if !ip_val.is_empty() {
+                                                        info.ip = ip_val.into();
+                                                    }
+                                                    if !used_val.is_empty() {
+                                                        info.actual_used = used_val.into();
+                                                    }
+                                                    if !total_val.is_empty() {
+                                                        info.actual_total = total_val.into();
+                                                    }
+                                                    app.set_information(info);
                                                 }
-                                                if !used_val.is_empty() {
-                                                    info.actual_used = used_val.into();
-                                                }
-                                                if !total_val.is_empty() {
-                                                    info.actual_total = total_val.into();
-                                                }
-                                                app.set_information(info);
-                                            }
-                                        });
-                                    }
-                                });
+                                            });
+                                        }
+                                    });
+                                }
                             }
+                        } else {
+                            let err = result.error.unwrap_or_else(|| i18n::t("dialog.error"));
+                            app.set_current_message(i18n::tr("dialog.info_failed", &[err]).into());
+                            app.set_show_message_dialog(true);
                         }
-                    } else {
-                        let err = result.error.unwrap_or_else(|| i18n::t("dialog.error"));
-                        app.set_current_message(i18n::tr("dialog.info_failed", &[err]).into());
-                        app.set_show_message_dialog(true);
                     }
-                }
+                });
             });
         });
     }
