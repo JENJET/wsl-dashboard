@@ -40,6 +40,7 @@ export component ModalManager inherits Rectangle {
     in-out property <bool> show_check_proxy: false;
     in-out property <bool> show_network_proxy_help: false;
     in property <bool> is_installing: false;
+    in-out property <bool> show_set_sparse_confirm: false;
 
     // Data
     in property <string> delete_target_name: "";
@@ -142,6 +143,9 @@ export component ModalManager inherits Rectangle {
     callback show_copy_success();
     callback copy_ip_clicked();
     callback resize_vhdx_clicked();
+    callback set_sparse_clicked();
+    callback confirm_set_sparse();
+    callback cancel_set_sparse();
     callback confirm_settings(string, string, string, bool, bool, string, bool);
     callback close_settings();
     callback close_rootfs_help();
@@ -239,6 +243,7 @@ export component ModalManager inherits Rectangle {
         width: 100%;
         height: 100%;
         background: #00000080;
+        z: 100;
         TouchArea { /* prevent interaction with elements behind */ }
 
         MessageDialog {
@@ -328,6 +333,22 @@ export component ModalManager inherits Rectangle {
         }
         resize_vhdx_clicked => {
             root.resize_vhdx_clicked();
+        }
+        set_sparse_clicked => {
+            root.set_sparse_clicked();
+        }
+    }
+    if (root.show_set_sparse_confirm): ConfirmationDialog {
+        width: 100%;
+        height: 100%;
+        dialog_height: 200px;
+        title_text: AppI18n.t("dialog.vhdx_set_sparse_confirm_title", [AppI18n.version]);
+        message: AppI18n.t("dialog.vhdx_set_sparse_confirm_msg", [AppI18n.version]);
+        confirm => {
+            root.confirm_set_sparse();
+        }
+        cancel => {
+            root.cancel_set_sparse();
         }
     }
     if (show_settings): SettingsDialog {

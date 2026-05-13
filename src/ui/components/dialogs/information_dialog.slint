@@ -107,6 +107,7 @@ export component InformationDialog inherits Rectangle {
     callback show_copy_success();
     callback copy_ip_clicked;
     callback resize_vhdx_clicked;
+    callback set_sparse_clicked;
 
     // Background mask
     background: #00000080;
@@ -251,6 +252,27 @@ export component InformationDialog inherits Rectangle {
             HorizontalLayout {
                 alignment: AppI18n.is-rtl ? start : end;
                 spacing: 8px;
+                // Set as sparse button (only when not sparse and VHDX exists)
+                if (root.info.vhdx_path != "" && !root.info.vhdx_is_sparse): Rectangle {
+                    width: 130px;
+                    height: 32px;
+                    background: sparse_btn_area.has-hover ? #d32f2f.with-alpha(25%) : #d32f2f.with-alpha(12%);
+                    border-radius: 6px;
+                    Text {
+                        text: AppI18n.t("dialog.vhdx_set_sparse", [AppI18n.version]);
+                        color: #d32f2f;
+                        font-size: 13px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        font-weight: 500;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                    sparse_btn_area := TouchArea {
+                        clicked => {
+                            root.set_sparse_clicked();
+                        }
+                    }
+                }
                 // Resize VHDX button (only for WSL2 with VHDX)
                 if (root.info.vhdx_path != ""): Rectangle {
                     width: 130px;

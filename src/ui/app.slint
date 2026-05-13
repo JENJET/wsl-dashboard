@@ -244,6 +244,7 @@ export component AppWindow inherits Window {
     in property <string> vhdx_resize_output: "";
     in property <bool> vhdx_resize_is_error: false;
     in-out property <float> vhdx_resize_viewport_y: 0.0;
+    in-out property <bool> show_set_sparse_confirm: false;
 
     // --- Callbacks ---
     callback select_tab(int);
@@ -354,6 +355,10 @@ export component AppWindow inherits Window {
     callback vhdx_resize_show(string, string);
     callback vhdx_resize_cancel();
     callback vhdx_resize_confirm(string);
+
+    // Set sparse callbacks
+    callback confirm_set_sparse();
+    callback cancel_set_sparse();
 
     // Dynamic Font Selection to optimize memory usage
     // Helper function to map language to font (No recursion here)
@@ -926,6 +931,16 @@ export component AppWindow inherits Window {
         }
         resize_vhdx_clicked => {
             root.vhdx_resize_show(root.information.distro_name, root.information.vhdx_path);
+        }
+        set_sparse_clicked => {
+            root.show_set_sparse_confirm = true;
+        }
+        show_set_sparse_confirm: root.show_set_sparse_confirm;
+        confirm_set_sparse => {
+            root.confirm_set_sparse();
+        }
+        cancel_set_sparse => {
+            root.show_set_sparse_confirm = false;
         }
         show_settings: root.show_settings;
         settings_target_name: root.settings_distro_name;

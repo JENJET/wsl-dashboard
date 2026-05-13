@@ -217,6 +217,90 @@ fn format_size(bytes: u64) -> String {
     }
 }
 
+/// Set a file as sparse using elevated PowerShell (fsutil).
+/// This requires admin privileges and will show a UAC prompt.
+pub fn set_sparse_file(vhdx_path: &str) -> Result<(), String> {
+    let path = Path::new(vhdx_path);
+    if !path.exists() {
+        return Err(format!("VHDX file not found: {}", vhdx_path));
+    }
+
+    info!("Setting file as sparse: {}", vhdx_path);
+
+    let temp_dir = std::env::temp_dir();
+    let script_path = temp_dir.join("wsldashboard_set_sparse.ps1");
+    let result_path = temp_dir.join("wsldashboard_set_sparse_result.txt");
+
+    let _ = std::fs::remove_file(&result_path);
+
+    let script = format!(
+        r#"$ErrorActionPreference = "Stop"
+try {{
+    fsutil sparse setflag "{path}"
+    Set-Content -Path '{result}' -Value "SUCCESS" -Encoding UTF8
+}} catch {{
+    Set-Content -Path '{result}' -Value "ERROR:$($_.Exception.Message)" -Encoding UTF8
+}}"#,
+        path = vhdx_path.replace('"', ""),
+        result = result_path.to_string_lossy().replace('\'', "''"),
+    );
+
+    std::fs::write(&script_path, &script)
+        .map_err(|e| format!("Failed to write temp script: {}", e))?;
+
+    let ps_command = format!(
+        "Start-Process powershell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"{}\"' -Verb RunAs -Wait -WindowStyle Hidden",
+        script_path.to_string_lossy()
+    );
+
+    info!("Launching elevated PowerShell to set sparse flag...");
+    let output = std::process::Command::new("powershell.exe")
+        .args(["-NoProfile", "-NonInteractive", "-Command", &ps_command])
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .output()
+        .map_err(|e| format!("Failed to run PowerShell: {}", e))?;
+
+    let _ = std::fs::remove_file(&script_path);
+
+    // Wait briefly for the result file to be written
+    for _ in 0..10 {
+        if result_path.exists() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+
+    match std::fs::read_to_string(&result_path) {
+        Ok(result_str) => {
+            let _ = std::fs::remove_file(&result_path);
+            // Strip BOM and trim whitespace (Out-File -Encoding UTF8 adds BOM in PS5.1)
+            let content = result_str.trim().trim_start_matches('\u{FEFF}').trim();
+            debug!("Set sparse result content: {:?}", content);
+            if content.starts_with("SUCCESS") {
+                info!("Set sparse completed successfully: {}", vhdx_path);
+                Ok(())
+            } else {
+                let err = content
+                    .strip_prefix("ERROR:")
+                    .unwrap_or(content)
+                    .to_string();
+                error!("Set sparse failed: {}", err);
+                Err(format!("Set sparse failed: {}", err))
+            }
+        }
+        Err(e) => {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            error!(
+                "Set sparse: failed to read result file ({}). stderr: {}",
+                e, stderr
+            );
+            let _ = std::fs::remove_file(&result_path);
+            Err(format!("Operation failed: {}. stderr: {}", e, stderr))
+        }
+    }
+}
+
 /// Resize a VHDX disk using elevated PowerShell.
 /// This requires admin privileges and will show a UAC prompt.
 pub fn resize_vhdx(vhdx_path: &str, new_size_bytes: u64) -> Result<(), String> {

@@ -1047,4 +1047,77 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
             });
         });
     }
+
+    // Set sparse - cancel
+    {
+        let ah = app_handle.clone();
+        app.on_cancel_set_sparse(move || {
+            if let Some(app) = ah.upgrade() {
+                app.set_show_set_sparse_confirm(false);
+            }
+        });
+    }
+
+    // Set sparse - confirm
+    {
+        let ah_outer = app_handle.clone();
+        app.on_confirm_set_sparse(move || {
+            let ah_close = ah_outer.clone();
+            // Close confirmation dialog immediately
+            if let Some(app) = ah_close.upgrade() {
+                app.set_show_set_sparse_confirm(false);
+            }
+            let ah = ah_outer.clone();
+            let vhdx_path = {
+                if let Some(app) = ah.upgrade() {
+                    app.get_information().vhdx_path.to_string()
+                } else {
+                    return;
+                }
+            };
+
+            tokio::spawn(async move {
+                let ah2 = ah.clone();
+                let result = tokio::task::spawn_blocking(move || {
+                    crate::wsl::ops::vhdx::set_sparse_file(&vhdx_path)
+                })
+                .await;
+
+                match result {
+                    Ok(Ok(())) => {
+                        let msg = i18n::tr("dialog.vhdx_set_sparse_success", &[]);
+                        // Update information to reflect sparse status
+                        let ah3 = ah2.clone();
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(app) = ah3.upgrade() {
+                                let mut info = app.get_information();
+                                info.vhdx_is_sparse = true;
+                                app.set_information(info);
+                                app.set_current_message(msg.into());
+                                app.set_show_message_dialog(true);
+                            }
+                        });
+                    }
+                    Ok(Err(e)) => {
+                        let msg = i18n::tr("dialog.vhdx_set_sparse_failed", &[e]);
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(app) = ah2.upgrade() {
+                                app.set_current_message(msg.into());
+                                app.set_show_message_dialog(true);
+                            }
+                        });
+                    }
+                    Err(e) => {
+                        let msg = i18n::tr("dialog.vhdx_set_sparse_failed", &[e.to_string()]);
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(app) = ah2.upgrade() {
+                                app.set_current_message(msg.into());
+                                app.set_show_message_dialog(true);
+                            }
+                        });
+                    }
+                }
+            });
+        });
+    }
 }
