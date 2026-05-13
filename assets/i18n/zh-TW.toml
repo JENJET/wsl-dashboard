@@ -368,9 +368,6 @@ fetching = "正在獲取..."
 fetch_failed = "獲取發行版列表失敗：{0}"
 select_distro = "選擇發行版"
 download_threads = "下載線程數（1-8）"
-select_arch = "架構選擇"
-x64 = "AMD64 (x86_64)"
-arm64 = "ARM64"
 
 [install.url]
 step_1_4 = "[1/4] 正在下載 {0}..."

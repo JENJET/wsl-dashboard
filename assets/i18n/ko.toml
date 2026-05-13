@@ -368,9 +368,6 @@ fetching = "가져오는 중..."
 fetch_failed = "배포판을 가져오지 못했습니다: {0}"
 select_distro = "배포판 선택"
 download_threads = "다운로드 스레드 (1-8)"
-select_arch = "아키텍처"
-x64 = "AMD64 (x86_64)"
-arm64 = "ARM64"
 
 [install.url]
 step_1_4 = "[1/4] {0} 다운로드 중..."

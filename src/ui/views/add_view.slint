@@ -38,7 +38,7 @@ export component AddInstanceView inherits VerticalLayout {
     in property <[string]> url_distro_names: [];
     in-out property <int> selected_url_distro_idx: -1;
     in-out property <bool> is_fetching_url_distros: false;
-    in-out property <bool> url_distro_is_arm64: false;
+    in property <string> host_arch: "";
     in-out property <bool> set_root_password: false;
     in-out property <string> root_password: "";
     in-out property <bool> add_new_user: false;
@@ -59,7 +59,6 @@ export component AddInstanceView inherits VerticalLayout {
     callback show_rootfs_help_clicked();
     callback check_new_username(string);
     callback fetch_url_distros();
-    callback url_arch_changed();
     callback is_local_url(string) -> bool;
 
     // Page-level scroll
@@ -201,32 +200,9 @@ export component AddInstanceView inherits VerticalLayout {
                     clicked => { root.fetch_url_distros(); }
                 }
                 Rectangle { height: 4px; }
-                // Architecture selector
-                Text {
-                    text: AppI18n.t("add.url.select_arch", [AppI18n.version]);
-                    font-size: 13px * LayoutConstants.font-scale;
-                    font-family: Theme.default_font;
-                    color: Theme.text_secondary;
-                    height: 18px;
-                    horizontal-alignment: AppI18n.is-rtl ? right : left;
-                }
-                HorizontalLayout {
-                    spacing: 12px;
-                    CustomComboBox {
-                        model: [AppI18n.t("add.url.x64", [AppI18n.version]), AppI18n.t("add.url.arm64", [AppI18n.version])];
-                        current-index: root.url_distro_is_arm64 ? 1 : 0;
-                        height: 32px;
-                        enabled: !root.is_installing;
-                        selected(idx) => {
-                            root.url_distro_is_arm64 = idx == 1;
-                            root.url_arch_changed();
-                        }
-                    }
-                }
-                Rectangle { height: 4px; }
                 // Distro list from URL
                 Text {
-                    text: AppI18n.t("add.url.select_distro", [AppI18n.version]);
+                    text: AppI18n.t("add.url.select_distro", [AppI18n.version]) + " (" + root.host_arch + ")";
                     font-size: 13px * LayoutConstants.font-scale;
                     font-family: Theme.default_font;
                     color: Theme.text_secondary;
@@ -241,7 +217,7 @@ export component AddInstanceView inherits VerticalLayout {
                     selected(idx) => {
                         if (idx >= 0 && idx < root.url_distro_list.length) {
                             root.selected_install_distro = root.url_distro_list[idx].friendly_name;
-                            root.new_instance_name = root.url_distro_list[idx].name + (root.url_distro_is_arm64 ? "-arm64" : "");
+                            root.new_instance_name = root.url_distro_list[idx].name;
                             let base = root.distro_location;
                             root.new_instance_path = base + "\\" + root.new_instance_name;
                         }

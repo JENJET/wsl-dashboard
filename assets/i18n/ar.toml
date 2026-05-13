@@ -368,9 +368,6 @@ fetching = "جارٍ الجلب..."
 fetch_failed = "فشل في جلب التوزيعات: {0}"
 select_distro = "حدد التوزيع"
 download_threads = "خيوط التنزيل (1-8)"
-select_arch = "البنية"
-x64 = "AMD64 (x86_64)"
-arm64 = "ARM64"
 
 [install.url]
 step_1_4 = "[1/4] جارٍ تنزيل {0}..."

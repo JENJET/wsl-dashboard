@@ -14,18 +14,20 @@ export component SidebarItem inherits Rectangle {
     
     // Tooltip
     Rectangle {
-        visible: collapsed && touch.has-hover;
         opacity: (collapsed && touch.has-hover) ? 1 : 0;
+        animate opacity { duration: 100ms; easing: ease-out-quad; }
         x: AppI18n.is-rtl ? -self.width - 8px : parent.width + 8px;
         y: (parent.height - self.height) / 2;
         width: label.width + 16px;
         height: 28px;
-        background: #333333;
+        background: Theme.dark_mode ? #2D2D30 : #FFFFFF;
+        border-color: Theme.border_color;
+        border-width: 1px;
         border-radius: 4px;
         z: 100;
         label := Text {
             text: root.text;
-            color: white;
+            color: Theme.text_primary;
             font-size: 12px * LayoutConstants.font-scale;
             font-family: Theme.default_font;
             horizontal-alignment: center;

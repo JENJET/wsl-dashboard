@@ -368,9 +368,6 @@ fetching = "Buscando..."
 fetch_failed = "Falha ao buscar distribuições: {0}"
 select_distro = "Selecionar distribuição"
 download_threads = "Threads de download (1-8)"
-select_arch = "Arquitetura"
-x64 = "AMD64 (x86_64)"
-arm64 = "ARM64"
 
 [install.url]
 step_1_4 = "[1/4] Baixando {0}..."

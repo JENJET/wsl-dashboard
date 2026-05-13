@@ -368,9 +368,6 @@ fetching = "מביא..."
 fetch_failed = "הבאת ההפצות נכשלה: {0}"
 select_distro = "בחר הפצה"
 download_threads = "חוטי הורדה (1-8)"
-select_arch = "ארכיטקטורה"
-x64 = "AMD64 (x86_64)"
-arm64 = "ARM64"
 
 [install.url]
 step_1_4 = "[1/4] מוריד {0}..."

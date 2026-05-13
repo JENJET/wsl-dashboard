@@ -368,9 +368,6 @@ fetching = "Načítání..."
 fetch_failed = "Načítání distribucí selhalo: {0}"
 select_distro = "Vyberte distribuci"
 download_threads = "Stahovací vlákna (1-8)"
-select_arch = "Architektura"
-x64 = "AMD64 (x86_64)"
-arm64 = "ARM64"
 
 [install.url]
 step_1_4 = "[1/4] Stahování {0}..."

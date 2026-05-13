@@ -115,7 +115,7 @@ export component AppWindow inherits Window {
     in property <[string]> url_distro_names: [];
     in-out property <int> selected_url_distro_idx: -1;
     in-out property <bool> is_fetching_url_distros: false;
-    in-out property <bool> url_distro_is_arm64: false;
+    in property <string> host_arch: "";
     in-out property <bool> set_root_password: false;
     in-out property <string> root_password: "";
     in-out property <bool> add_new_user: false;
@@ -301,7 +301,6 @@ export component AppWindow inherits Window {
     callback distro_selected(string);
     callback show_rootfs_help_clicked();
     callback fetch_url_distros();
-    callback url_arch_changed();
     callback is_local_url(string) -> bool;
     callback check_new_username(string);
     callback close_vscode_startup();
@@ -428,6 +427,7 @@ export component AppWindow inherits Window {
 
             Rectangle {
                 sidebar := Sidebar {
+                    z: 1;
                     x: AppI18n.is-rtl ? parent.width - self.width : 0;
                     height: 100%;
                     collapsed <=> root.sidebar_collapsed;
@@ -560,7 +560,7 @@ export component AppWindow inherits Window {
                                 url_distro_names: root.url_distro_names;
                                 selected_url_distro_idx <=> root.selected_url_distro_idx;
                                 is_fetching_url_distros: root.is_fetching_url_distros;
-                                url_distro_is_arm64 <=> root.url_distro_is_arm64;
+                                host_arch: root.host_arch;
                                 set_root_password <=> root.set_root_password;
                                 root_password <=> root.root_password;
                                 add_new_user <=> root.add_new_user;
@@ -592,9 +592,6 @@ export component AppWindow inherits Window {
                                 }
                                 fetch_url_distros => {
                                     root.fetch_url_distros();
-                                }
-                                url_arch_changed => {
-                                    root.url_arch_changed();
                                 }
                                 is_local_url(path) => {
                                     root.is_local_url(path)

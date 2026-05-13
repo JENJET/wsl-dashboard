@@ -368,9 +368,6 @@ fetching = "Λήψη..."
 fetch_failed = "Αποτυχία λήψης διανομών: {0}"
 select_distro = "Επιλογή διανομής"
 download_threads = "Νήματα λήψης (1-8)"
-select_arch = "Αρχιτεκτονική"
-x64 = "AMD64 (x86_64)"
-arm64 = "ARM64"
 
 [install.url]
 step_1_4 = "[1/4] Λήψη {0}..."

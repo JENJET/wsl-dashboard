@@ -368,9 +368,6 @@ fetching = "Sæki..."
 fetch_failed = "Mistókst að sækja dreifingar: {0}"
 select_distro = "Veldu dreifingu"
 download_threads = "Niðurhalsþræðir (1-8)"
-select_arch = "Arkitektúr"
-x64 = "AMD64 (x86_64)"
-arm64 = "ARM64"
 
 [install.url]
 step_1_4 = "[1/4] Sæki {0}..."

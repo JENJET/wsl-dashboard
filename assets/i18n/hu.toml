@@ -368,9 +368,6 @@ fetching = "Lekérés..."
 fetch_failed = "Disztribúciók lekérése sikertelen: {0}"
 select_distro = "Disztribúció kiválasztása"
 download_threads = "Letöltési szálak (1-8)"
-select_arch = "Architektúra"
-x64 = "AMD64 (x86_64)"
-arm64 = "ARM64"
 
 [install.url]
 step_1_4 = "[1/4] {0} letöltése..."

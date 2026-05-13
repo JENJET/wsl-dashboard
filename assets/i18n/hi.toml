@@ -368,9 +368,6 @@ fetching = "प्राप्त किया जा रहा है..."
 fetch_failed = "वितरण प्राप्त करने में विफल: {0}"
 select_distro = "वितरण चुनें"
 download_threads = "डाउनलोड थ्रेड (1-8)"
-select_arch = "आर्किटेक्चर"
-x64 = "AMD64 (x86_64)"
-arm64 = "ARM64"
 
 [install.url]
 step_1_4 = "[1/4] {0} डाउनलोड किया जा रहा है..."

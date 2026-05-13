@@ -368,9 +368,6 @@ fetching = "取得中..."
 fetch_failed = "ディストリビューションの取得に失敗: {0}"
 select_distro = "ディストリビューションを選択"
 download_threads = "ダウンロードスレッド (1-8)"
-select_arch = "アーキテクチャ"
-x64 = "AMD64 (x86_64)"
-arm64 = "ARM64"
 
 [install.url]
 step_1_4 = "[1/4] {0} をダウンロード中..."

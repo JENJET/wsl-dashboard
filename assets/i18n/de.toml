@@ -368,9 +368,6 @@ fetching = "Abrufen..."
 fetch_failed = "Fehler beim Abrufen der Distributionen: {0}"
 select_distro = "Distribution auswählen"
 download_threads = "Download-Threads (1-8)"
-select_arch = "Architektur"
-x64 = "AMD64 (x86_64)"
-arm64 = "ARM64"
 
 [install.url]
 step_1_4 = "[1/4] {0} wird heruntergeladen..."

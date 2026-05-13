@@ -368,9 +368,6 @@ fetching = "Hämtar..."
 fetch_failed = "Hämtning av distributioner misslyckades: {0}"
 select_distro = "Välj distribution"
 download_threads = "Nedladdningstrådar (1-8)"
-select_arch = "Arkitektur"
-x64 = "AMD64 (x86_64)"
-arm64 = "ARM64"
 
 [install.url]
 step_1_4 = "[1/4] Laddar ner {0}..."

@@ -368,9 +368,6 @@ fetching = "Getiriliyor..."
 fetch_failed = "Dağıtımlar getirilemedi: {0}"
 select_distro = "Dağıtım seç"
 download_threads = "İndirme iş parçacığı (1-8)"
-select_arch = "Mimari"
-x64 = "AMD64 (x86_64)"
-arm64 = "ARM64"
 
 [install.url]
 step_1_4 = "[1/4] {0} indiriliyor..."

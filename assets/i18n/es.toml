@@ -368,9 +368,6 @@ fetching = "Obteniendo..."
 fetch_failed = "Error al obtener distribuciones: {0}"
 select_distro = "Seleccionar distribución"
 download_threads = "Hilos de descarga (1-8)"
-select_arch = "Arquitectura"
-x64 = "AMD64 (x86_64)"
-arm64 = "ARM64"
 
 [install.url]
 step_1_4 = "[1/4] Descargando {0}..."

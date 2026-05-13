@@ -368,9 +368,6 @@ fetching = "Получение..."
 fetch_failed = "Не удалось получить дистрибутивы: {0}"
 select_distro = "Выберите дистрибутив"
 download_threads = "Потоков загрузки (1-8)"
-select_arch = "Архитектура"
-x64 = "AMD64 (x86_64)"
-arm64 = "ARM64"
 
 [install.url]
 step_1_4 = "[1/4] Загрузка {0}..."

@@ -368,9 +368,6 @@ fetching = "Henter..."
 fetch_failed = "Kunne ikke hente distributioner: {0}"
 select_distro = "Vælg distribution"
 download_threads = "Download-tråde (1-8)"
-select_arch = "Arkitektur"
-x64 = "AMD64 (x86_64)"
-arm64 = "ARM64"
 
 [install.url]
 step_1_4 = "[1/4] Downloader {0}..."

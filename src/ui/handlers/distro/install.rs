@@ -8,6 +8,17 @@ use std::rc::Rc;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+/// Detect host Windows architecture to auto-select matching WSL distro downloads.
+fn is_host_arm64() -> bool {
+    std::env::var("PROCESSOR_ARCHITECTURE")
+        .map(|arch| arch.eq_ignore_ascii_case("ARM64"))
+        .unwrap_or(false)
+}
+
+fn host_arch_display() -> &'static str {
+    if is_host_arm64() { "ARM64" } else { "AMD64" }
+}
+
 /// Check if a string is a local file path
 fn is_local_path(path: &str) -> bool {
     if path.starts_with("file://") {
@@ -29,6 +40,9 @@ fn strip_file_protocol(path: &str) -> String {
 }
 
 pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc<Mutex<AppState>>) {
+    // Set host architecture (auto-detected, read-only)
+    app.set_host_arch(host_arch_display().into());
+
     // Callback: check if a path is local (used by UI to decide auto-fetch)
     app.on_is_local_url(|path| is_local_path(path.as_str()));
 
@@ -219,10 +233,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 }
             });
 
-            let is_arm64 = ah
-                .upgrade()
-                .map(|a| a.get_url_distro_is_arm64())
-                .unwrap_or(false);
+            let is_arm64 = is_host_arm64();
             let entries_opt = cache.lock().await;
             let entries = match &*entries_opt {
                 Some(e) => e,
@@ -348,6 +359,10 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                         Ok((entries, _default_idx)) => {
                             // Cache all entries
                             *cache.lock().await = Some(entries);
+                            // Set host architecture info
+                            if let Some(app) = ah.upgrade() {
+                                app.set_host_arch(host_arch_display().into());
+                            }
                             // Rebuild models for current architecture
                             rebuild_url_models_from(&ah, &cache);
                         }
@@ -374,13 +389,6 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 app.set_task_status_visible(false);
             }
         });
-    });
-
-    // Architecture change: rebuild distro list from cache
-    let ah_arch = app_handle.clone();
-    let cache_arch = url_entries_cache.clone();
-    app.on_url_arch_changed(move || {
-        rebuild_url_models_from(&ah_arch, &cache_arch);
     });
 
     let ah = app_handle.clone();
@@ -502,7 +510,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                         4
                     };
                     let _url_is_arm64 = if source_idx == 3 {
-                        app.get_url_distro_is_arm64()
+                        is_host_arm64()
                     } else {
                         false
                     };

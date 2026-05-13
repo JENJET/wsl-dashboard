@@ -368,9 +368,6 @@ fetching = "Henter..."
 fetch_failed = "Henting av distribusjoner mislyktes: {0}"
 select_distro = "Velg distribusjon"
 download_threads = "Nedlastingstråder (1-8)"
-select_arch = "Arkitektur"
-x64 = "AMD64 (x86_64)"
-arm64 = "ARM64"
 
 [install.url]
 step_1_4 = "[1/4] Laster ned {0}..."

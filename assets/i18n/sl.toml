@@ -368,9 +368,6 @@ fetching = "Pridobivanje..."
 fetch_failed = "Pridobivanje distribucij ni uspelo: {0}"
 select_distro = "Izberite distribucijo"
 download_threads = "Prenosne niti (1-8)"
-select_arch = "Arhitektura"
-x64 = "AMD64 (x86_64)"
-arm64 = "ARM64"
 
 [install.url]
 step_1_4 = "[1/4] Prenos {0}..."

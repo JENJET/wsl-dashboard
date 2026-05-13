@@ -368,9 +368,6 @@ fetching = "Mengambil..."
 fetch_failed = "Gagal mengambil distribusi: {0}"
 select_distro = "Pilih distribusi"
 download_threads = "Utas unduhan (1-8)"
-select_arch = "Arsitektur"
-x64 = "AMD64 (x86_64)"
-arm64 = "ARM64"
 
 [install.url]
 step_1_4 = "[1/4] Mengunduh {0}..."

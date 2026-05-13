@@ -368,9 +368,6 @@ fetching = "আনা হচ্ছে..."
 fetch_failed = "বিতরণ আনা ব্যর্থ: {0}"
 select_distro = "বিতরণ নির্বাচন করুন"
 download_threads = "ডাউনলোড থ্রেড (1-8)"
-select_arch = "স্থাপত্য"
-x64 = "AMD64 (x86_64)"
-arm64 = "ARM64"
 
 [install.url]
 step_1_4 = "[1/4] {0} ডাউনলোড করা হচ্ছে..."

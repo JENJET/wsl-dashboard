@@ -368,9 +368,6 @@ fetching = "Ophalen..."
 fetch_failed = "Ophalen van distributies mislukt: {0}"
 select_distro = "Selecteer distributie"
 download_threads = "Download-threads (1-8)"
-select_arch = "Architectuur"
-x64 = "AMD64 (x86_64)"
-arm64 = "ARM64"
 
 [install.url]
 step_1_4 = "[1/4] {0} downloaden..."

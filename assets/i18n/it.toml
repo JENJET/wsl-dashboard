@@ -368,9 +368,6 @@ fetching = "Recupero..."
 fetch_failed = "Recupero distribuzioni fallito: {0}"
 select_distro = "Seleziona distribuzione"
 download_threads = "Thread di download (1-8)"
-select_arch = "Architettura"
-x64 = "AMD64 (x86_64)"
-arm64 = "ARM64"
 
 [install.url]
 step_1_4 = "[1/4] Download di {0} in corso..."
