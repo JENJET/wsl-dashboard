@@ -1,7 +1,7 @@
-[build]
+﻿[build]
 # Cargo 默认使用所有可用的 CPU 核心进行并行编译
 # 如果使用 sccache,取消下面这行的注释
-rustc-wrapper = "sccache"
+#rustc-wrapper = "sccache"
 
 [target.x86_64-pc-windows-msvc]
 # Windows MSVC 链接器优化

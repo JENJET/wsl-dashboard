@@ -21,6 +21,13 @@ pub async fn perform_install(
     new_username: String,
     new_user_password: String,
     set_default_user: bool,
+    // URL mode parameters
+    url_threads: u8,
+    _url_is_arm64: bool,
+    _url_source_idx: u8,
+    _custom_url: String,
+    url_distro_url: String,
+    url_distro_sha256: String,
 ) {
     // Helper to trigger scroll-to-bottom for page
     fn trigger_scroll(ah: &slint::Weak<AppWindow>) {
@@ -544,6 +551,334 @@ pub async fn perform_install(
                         app_typed.set_terminal_output(tb_clone.into());
                     }
                 });
+            }
+        }
+        3 => {
+            // URL Download + Import
+            let download_url = if !url_distro_url.is_empty() {
+                url_distro_url.clone()
+            } else {
+                error_msg = i18n::t("install.url.step_no_url");
+                let ah_err = ah.clone();
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(app) = ah_err.upgrade() {
+                        let app_typed: AppWindow = app;
+                        app_typed.set_install_status(
+                            format!("{}: {}", i18n::t("install.error"), error_msg).into(),
+                        );
+                        app_typed.set_is_installing(false);
+                    }
+                });
+                return;
+            };
+
+            let mut terminal_buffer = String::new();
+
+            // Determine cache directory
+            let cache_dir = {
+                let lock_timeout = std::time::Duration::from_millis(3000);
+                match tokio::time::timeout(lock_timeout, as_ptr.lock()).await {
+                    Ok(state) => {
+                        let distro_loc =
+                            state.config_manager.get_settings().distro_location.clone();
+                        std::path::PathBuf::from(distro_loc).join("download")
+                    }
+                    Err(_) => {
+                        let ah_err = ah.clone();
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(app) = ah_err.upgrade() {
+                                app.set_install_status(i18n::t("install.error").into());
+                                app.set_is_installing(false);
+                            }
+                        });
+                        return;
+                    }
+                }
+            };
+
+            let threads = url_threads.max(1).min(8) as usize;
+
+            // [1/4] Download
+            let step1 = i18n::tr("install.url.step_1_4", &[download_url.clone()]);
+            let thread_info = i18n::tr("install.url.step_threads", &[threads.to_string()]);
+            terminal_buffer.push_str(&format!("{}\n", step1));
+            terminal_buffer.push_str(&format!("    {}\n", thread_info));
+
+            let ah_cb = ah.clone();
+            let tb_clone = terminal_buffer.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(app) = ah_cb.upgrade() {
+                    let app_typed: AppWindow = app;
+                    app_typed.set_install_status(step1.clone().into());
+                    app_typed.set_terminal_output(tb_clone.into());
+                }
+            });
+            trigger_scroll(&ah);
+
+            let download_manager = crate::download::DownloadManager::new(cache_dir);
+            let dl_url = download_url.clone();
+            let dl_sha256 = url_distro_sha256.clone();
+
+            // Shared state: dl_progress for terminal line, dl_status for install_status
+            let dl_progress = Arc::new(std::sync::Mutex::new(String::new()));
+            let dl_status = Arc::new(std::sync::Mutex::new(String::new()));
+            let dl_progress_clone = dl_progress.clone();
+            let dl_status_clone = dl_status.clone();
+            let ui_dl_stop = Arc::new(std::sync::atomic::AtomicBool::new(false));
+            let ui_dl_stop_clone = ui_dl_stop.clone();
+
+            let ah_ui_dl = ah.clone();
+            let tb_dl = terminal_buffer.clone();
+            let ui_dl_task = tokio::spawn(async move {
+                let mut buffer = tb_dl;
+                let mut dot_count = 0;
+                let mut last_status = String::new();
+                loop {
+                    tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+                    if ui_dl_stop_clone.load(std::sync::atomic::Ordering::Relaxed) {
+                        break;
+                    }
+                    dot_count = (dot_count % 3) + 1;
+                    let dots = ".".repeat(dot_count);
+
+                    // Check for new status (retry) message
+                    let status = dl_status_clone.lock().unwrap().clone();
+                    if !status.is_empty() && status != last_status {
+                        // Append new status line to buffer permanently
+                        buffer.push_str(&format!("    {}\n", status));
+                        last_status = status.clone();
+                    }
+
+                    // Show download progress in the active line
+                    let progress = dl_progress_clone.lock().unwrap().clone();
+                    let line = if !progress.is_empty() {
+                        format!("    {} {}", progress, dots)
+                    } else {
+                        format!("    {}", dots)
+                    };
+                    let text = format!("{}{}", buffer, line);
+                    let progress_clone = progress.clone();
+                    let ah_cb = ah_ui_dl.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah_cb.upgrade() {
+                            app.set_terminal_output(text.into());
+                            app.set_task_status_text(progress_clone.into());
+                        }
+                    });
+                }
+                buffer
+            });
+
+            let dl_progress_cb = dl_progress.clone();
+            let dl_status_cb = dl_status.clone();
+            let download_result = download_manager
+                .download(
+                    &final_name,
+                    &dl_url,
+                    &dl_sha256,
+                    threads,
+                    Some(move |current: u64, total: u64| {
+                        let current_mb = current as f64 / (1024.0 * 1024.0);
+                        let total_mb = total as f64 / (1024.0 * 1024.0);
+                        let pct = if total > 0 {
+                            current as f64 / total as f64 * 100.0
+                        } else {
+                            0.0
+                        };
+                        let status = i18n::tr(
+                            "install.url.step_1_4_progress",
+                            &[
+                                format!("{:.2}", current_mb),
+                                format!("{:.2}", total_mb),
+                                format!("{:.2}", pct),
+                            ],
+                        );
+                        if let Ok(mut p) = dl_progress_cb.lock() {
+                            *p = status;
+                        }
+                    }),
+                    Some(move |msg: String| {
+                        if msg.starts_with("verify_failed/") {
+                            let retry_count = msg.trim_start_matches("verify_failed/").to_string();
+                            let fail_msg = i18n::tr(
+                                "install.url.step_2_4_failed",
+                                &[retry_count, 3.to_string()],
+                            );
+                            if let Ok(mut s) = dl_status_cb.lock() {
+                                *s = fail_msg;
+                            }
+                        }
+                    }),
+                )
+                .await;
+
+            ui_dl_stop.store(true, std::sync::atomic::Ordering::Relaxed);
+            terminal_buffer = ui_dl_task.await.unwrap_or(terminal_buffer);
+
+            match download_result {
+                Ok(cached_path) => {
+                    // [2/4] Verify done
+                    let step2 = i18n::t("install.url.step_2_4_done");
+                    terminal_buffer.push_str(&format!("{}\n", step2));
+                    let ah_cb = ah.clone();
+                    let tb_clone = terminal_buffer.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah_cb.upgrade() {
+                            app.set_install_status(step2.clone().into());
+                            app.set_terminal_output(tb_clone.into());
+                        }
+                    });
+
+                    // [3/4] Import
+                    let step3 = i18n::t("install.url.step_3_4");
+                    terminal_buffer.push_str(&format!("{}\n", step3));
+                    let ah_cb = ah.clone();
+                    let tb_clone = terminal_buffer.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah_cb.upgrade() {
+                            app.set_install_status(step3.clone().into());
+                            app.set_terminal_output(tb_clone.into());
+                        }
+                    });
+
+                    let mut target_path = install_path.clone();
+                    if target_path.is_empty() {
+                        let distro_location = config_manager.get_settings().distro_location.clone();
+                        let base = std::path::PathBuf::from(&distro_location);
+                        target_path = base.join(&final_name).to_string_lossy().to_string();
+                    }
+
+                    let tp_clone = target_path.clone();
+                    if let Err(e) =
+                        tokio::task::spawn_blocking(move || std::fs::create_dir_all(&tp_clone))
+                            .await
+                            .unwrap()
+                    {
+                        error_msg = format!("Failed to create directory: {}", e);
+                        let ah_err = ah.clone();
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(app) = ah_err.upgrade() {
+                                app.set_install_success(false);
+                                app.set_install_status(
+                                    format!("{}: {}", i18n::t("install.error"), error_msg).into(),
+                                );
+                                app.set_is_installing(false);
+                            }
+                        });
+                        return;
+                    }
+
+                    let cached_path_str = cached_path.to_string_lossy().to_string();
+                    let import_args = vec!["--import", &final_name, &target_path, &cached_path_str];
+
+                    let cmd_str = format!("wsl {}", import_args.join(" "));
+                    terminal_buffer.push_str(&format!("    {}\n", cmd_str));
+
+                    let ah_cb = ah.clone();
+                    let tb_clone = terminal_buffer.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah_cb.upgrade() {
+                            app.set_terminal_output(tb_clone.into());
+                        }
+                    });
+
+                    let (tx, mut rx) = tokio::sync::mpsc::channel::<String>(100);
+                    let ah_ui = ah.clone();
+                    let initial_tb = terminal_buffer.clone();
+                    let ui_task = tokio::spawn(async move {
+                        let mut buffer = initial_tb;
+                        let mut dot_count = 0;
+                        let mut interval =
+                            tokio::time::interval(std::time::Duration::from_millis(800));
+                        loop {
+                            tokio::select! {
+                                msg = rx.recv() => {
+                                    if msg.is_none() { break; }
+                                }
+                                _ = interval.tick() => {
+                                    if !buffer.ends_with('\n') {
+                                        dot_count = (dot_count % 3) + 1;
+                                        let dots = ".".repeat(dot_count);
+                                        let text = format!("{}{}", buffer, dots);
+                                        let ah_cb = ah_ui.clone();
+                                        let _ = slint::invoke_from_event_loop(move || {
+                                            if let Some(app) = ah_cb.upgrade() {
+                                                app.set_terminal_output(text.into());
+                                            }
+                                        });
+                                    }
+                                }
+                            }
+                            if buffer.len() > 20_000 {
+                                let to_drain = buffer.len() - 10_000;
+                                if let Some(pos) = buffer[to_drain..].find('\n') {
+                                    buffer.drain(..to_drain + pos + 1);
+                                } else {
+                                    buffer.drain(..to_drain);
+                                }
+                            }
+                        }
+                        if !buffer.ends_with('\n') {
+                            buffer.push('\n');
+                        }
+                        let ah_final = ah_ui.clone();
+                        let text = buffer.clone();
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(app) = ah_final.upgrade() {
+                                app.set_terminal_output(text.into());
+                            }
+                        });
+                        buffer
+                    });
+
+                    let tx_callback = tx.clone();
+                    let result = executor
+                        .execute_command_streaming(&import_args, move |text| {
+                            let _ = tx_callback.try_send(text);
+                        })
+                        .await;
+
+                    drop(tx);
+                    terminal_buffer = ui_task.await.unwrap_or(terminal_buffer);
+
+                    success = result.success;
+                    if !success {
+                        if !result.output.trim().is_empty() {
+                            terminal_buffer
+                                .push_str(&format!("\n[WSL Output]\n{}\n", result.output));
+                        }
+                        error_msg = result
+                            .error
+                            .unwrap_or_else(|| i18n::t("install.import_failed"));
+                    } else {
+                        // [4/4] Done
+                        terminal_buffer.push_str(&format!(
+                            "{}\n",
+                            i18n::tr("install.url.step_4_4", &[final_name.clone()])
+                        ));
+                    }
+
+                    let ah_cb = ah.clone();
+                    let tb_clone = terminal_buffer.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah_cb.upgrade() {
+                            app.set_terminal_output(tb_clone.into());
+                        }
+                    });
+                }
+                Err(e) => {
+                    error_msg = i18n::tr("install.url.step_download_failed", &[3.to_string(), e]);
+                    let ah_err = ah.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah_err.upgrade() {
+                            app.set_install_status(
+                                format!("{}: {}", i18n::t("install.error"), error_msg).into(),
+                            );
+                            app.set_is_installing(false);
+                        }
+                    });
+                    return;
+                }
             }
         }
         0 | 1 => {

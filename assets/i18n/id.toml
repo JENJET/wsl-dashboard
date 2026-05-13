@@ -1,4 +1,4 @@
-[common]
+﻿[common]
 app_name = "WSL Dashboard"
 
 [sidebar]
@@ -207,6 +207,7 @@ select_install_file = "Pilih File Instalasi"
 operation_in_progress = "Operasi (Ekspor, Pindah, atau Klon) sedang berlangsung. Harap tunggu hingga selesai."
 archive = "Arsip"
 vhdx = "VHDX"
+json = "JSON"
 export_success = "Instansi '{0}' berhasil diekspor ke:\n{1}"
 export_failed = "Ekspor gagal: {0}"
 clone_success = "Instansi '{0}' berhasil dikloning ke '{1}'!"
@@ -352,6 +353,35 @@ username_pure_numeric_warning = "Peringatan: Nama pengguna murni numerik, yang d
 rootfs = "File RootFS Lokal"
 vhdx = "Impor File VHDX"
 store = "Microsoft Store"
+url = "URL Unduh"
+
+[add.url]
+select_source_url = "Pilih URL sumber distribusi"
+gitee = "Gitee Mirror"
+github = "GitHub"
+custom = "URL Kustom"
+custom_url = "URL Kustom"
+custom_placeholder = "Masukkan URL kustom..."
+browse = "Jelajahi File Lokal"
+fetch = "Ambil Distribusi"
+fetching = "Mengambil..."
+fetch_failed = "Gagal mengambil distribusi: {0}"
+select_distro = "Pilih distribusi"
+download_threads = "Utas unduhan (1-8)"
+select_arch = "Arsitektur"
+x64 = "AMD64 (x86_64)"
+arm64 = "ARM64"
+
+[install.url]
+step_1_4 = "[1/4] Mengunduh {0}..."
+step_1_4_progress = "{0} / {1} MB ({2}%)"
+step_2_4_failed = "Verifikasi SHA256 gagal ({0}/{1}), mencoba ulang..."
+step_2_4_done = "[2/4] Unduhan berhasil diverifikasi."
+step_3_4 = "[3/4] Mengimpor distribusi yang diunduh..."
+step_4_4 = "[4/4] Distribusi '{0}' berhasil diinstal."
+step_threads = "Unduh menggunakan {0} utas"
+step_no_url = "Tidak ada URL unduhan yang tersedia untuk distribusi ini"
+step_download_failed = "Unduhan gagal setelah {0} kali percobaan: {1}"
 
 [distro]
 start = "Mulai"

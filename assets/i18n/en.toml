@@ -1,4 +1,4 @@
-[common]
+﻿[common]
 app_name = "WSL Dashboard"
 
 [sidebar]
@@ -215,6 +215,7 @@ select_install_file = "Select Installation File"
 operation_in_progress = "An operation (Export or Move or Clone) is already in progress. Please wait until it completes."
 archive = "Archive"
 vhdx = "VHDX"
+json = "JSON"
 export_success = "Instance '{0}' exported successfully to:\n{1}"
 export_failed = "Export failed: {0}"
 clone_success = "Instance '{0}' successfully cloned to '{1}'!"
@@ -365,6 +366,35 @@ username_pure_numeric_warning = "Warning: Username is purely numeric, which may 
 rootfs = "Local RootFS File"
 vhdx = "Import VHDX File"
 store = "Microsoft Store"
+url = "URL Download"
+
+[add.url]
+select_source_url = "Select distribution source URL"
+gitee = "Gitee Mirror"
+github = "GitHub"
+custom = "Custom URL"
+custom_url = "Custom URL"
+custom_placeholder = "Enter custom URL..."
+browse = "Browse Local File"
+fetch = "Fetch Distributions"
+fetching = "Fetching..."
+fetch_failed = "Failed to fetch distributions: {0}"
+select_distro = "Select distribution"
+download_threads = "Download threads (1-8)"
+select_arch = "Architecture"
+x64 = "AMD64 (x86_64)"
+arm64 = "ARM64"
+
+[install.url]
+step_1_4 = "[1/4] Downloading {0}..."
+step_1_4_progress = "{0} / {1} MB ({2}%)"
+step_2_4_failed = "SHA256 verification failed ({0}/{1}), retrying..."
+step_2_4_done = "[2/4] Download verified successfully."
+step_3_4 = "[3/4] Importing downloaded distribution..."
+step_4_4 = "[4/4] Distribution '{0}' installed successfully."
+step_threads = "Download using {0} threads"
+step_no_url = "No download URL available for this distribution"
+step_download_failed = "Download failed after {0} attempts: {1}"
 
 [distro]
 start = "Start"

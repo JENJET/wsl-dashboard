@@ -1,4 +1,4 @@
-[common]
+﻿[common]
 app_name = "WSL Dashboard"
 
 [sidebar]
@@ -207,6 +207,7 @@ select_install_file = "Välj installationsfil"
 operation_in_progress = "En operation pågår redan. Vänta tills den är klar."
 archive = "Arkiv"
 vhdx = "VHDX"
+json = "JSON"
 export_success = "Instansen '{0}' exporterades till:\n{1}"
 export_failed = "Export misslyckades: {0}"
 clone_success = "Instansen '{0}' har klonats till '{1}'!"
@@ -352,6 +353,35 @@ username_pure_numeric_warning = "Varning: Användarnamnet är helt numeriskt, vi
 rootfs = "Lokal RootFS-fil"
 vhdx = "Importera VHDX-fil"
 store = "Microsoft Store"
+url = "URL-nedladdning"
+
+[add.url]
+select_source_url = "Välj käll-URL för distribution"
+gitee = "Gitee Mirror"
+github = "GitHub"
+custom = "Anpassad URL"
+custom_url = "Anpassad URL"
+custom_placeholder = "Ange anpassad URL..."
+browse = "Bläddra efter lokal fil"
+fetch = "Hämta distributioner"
+fetching = "Hämtar..."
+fetch_failed = "Hämtning av distributioner misslyckades: {0}"
+select_distro = "Välj distribution"
+download_threads = "Nedladdningstrådar (1-8)"
+select_arch = "Arkitektur"
+x64 = "AMD64 (x86_64)"
+arm64 = "ARM64"
+
+[install.url]
+step_1_4 = "[1/4] Laddar ner {0}..."
+step_1_4_progress = "{0} / {1} MB ({2}%)"
+step_2_4_failed = "SHA256-verifiering misslyckades ({0}/{1}), försöker igen..."
+step_2_4_done = "[2/4] Nedladdning verifierad."
+step_3_4 = "[3/4] Importerar nedladdad distribution..."
+step_4_4 = "[4/4] Distribution '{0}' installerad."
+step_threads = "Nedladdning med {0} trådar"
+step_no_url = "Ingen nedladdnings-URL tillgänglig för denna distribution"
+step_download_failed = "Nedladdning misslyckades efter {0} försök: {1}"
 
 [distro]
 start = "Starta"

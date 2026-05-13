@@ -1,4 +1,4 @@
-[common]
+﻿[common]
 app_name = "WSL Dashboard"
 
 [sidebar]
@@ -207,6 +207,7 @@ select_install_file = "Installationsdatei auswählen"
 operation_in_progress = "Ein Vorgang (Exportieren, Verschieben oder Klonen) ist bereits im Gange. Bitte warten Sie, bis er abgeschlossen ist."
 archive = "Archiv"
 vhdx = "VHDX"
+json = "JSON"
 export_success = "Instanz '{0}' erfolgreich exportiert nach:\n{1}"
 export_failed = "Export fehlgeschlagen: {0}"
 clone_success = "Instanz '{0}' erfolgreich nach '{1}' geklont!"
@@ -352,6 +353,35 @@ username_pure_numeric_warning = "Warnung: Der Benutzername ist rein numerisch, w
 rootfs = "Lokale RootFS-Datei"
 vhdx = "VHDX-Datei importieren"
 store = "Microsoft Store"
+url = "URL-Download"
+
+[add.url]
+select_source_url = "Wählen Sie die Quell-URL der Distribution"
+gitee = "Gitee Mirror"
+github = "GitHub"
+custom = "Benutzerdefinierte URL"
+custom_url = "Benutzerdefinierte URL"
+custom_placeholder = "Benutzerdefinierte URL eingeben..."
+browse = "Lokale Datei durchsuchen"
+fetch = "Distributionen abrufen"
+fetching = "Abrufen..."
+fetch_failed = "Fehler beim Abrufen der Distributionen: {0}"
+select_distro = "Distribution auswählen"
+download_threads = "Download-Threads (1-8)"
+select_arch = "Architektur"
+x64 = "AMD64 (x86_64)"
+arm64 = "ARM64"
+
+[install.url]
+step_1_4 = "[1/4] {0} wird heruntergeladen..."
+step_1_4_progress = "{0} / {1} MB ({2}%)"
+step_2_4_failed = "SHA256-Überprüfung fehlgeschlagen ({0}/{1}), wiederhole..."
+step_2_4_done = "[2/4] Download erfolgreich überprüft."
+step_3_4 = "[3/4] Importiere heruntergeladene Distribution..."
+step_4_4 = "[4/4] Distribution '{0}' erfolgreich installiert."
+step_threads = "Download mit {0} Threads"
+step_no_url = "Keine Download-URL für diese Distribution verfügbar"
+step_download_failed = "Download nach {0} Versuchen fehlgeschlagen: {1}"
 
 [distro]
 start = "Starten"

@@ -38,6 +38,15 @@ export struct RootFSHelpItem {
     url: string,
 }
 
+export struct UrlDistroInfo {
+    name: string,
+    friendly_name: string,
+    url: string,
+    sha256: string,
+    arm64_url: string,
+    arm64_sha256: string,
+}
+
 export struct UsbDevice {
     bus_id: string,
     description: string,

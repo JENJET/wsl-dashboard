@@ -12,6 +12,7 @@ use tracing::{error, info};
 // Define application modules
 mod app;
 mod config;
+mod download;
 mod i18n;
 mod network;
 mod ui;

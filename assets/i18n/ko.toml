@@ -1,4 +1,4 @@
-[common]
+﻿[common]
 app_name = "WSL Dashboard"
 
 [sidebar]
@@ -207,6 +207,7 @@ select_install_file = "설치 파일 선택"
 operation_in_progress = "작업(내보내기, 이동 또는 복제)이 이미 진행 중입니다. 완료될 때까지 기다려 주십시오."
 archive = "아카이브"
 vhdx = "VHDX"
+json = "JSON"
 export_success = "인스턴스 '{0}'이(가) 다음 위치로 성공적으로 내보내졌습니다:\n{1}"
 export_failed = "내보내기 실패: {0}"
 clone_success = "인스턴스 '{0}'이(가) '{1}'(으)로 성공적으로 복제되었습니다!"
@@ -352,6 +353,35 @@ username_pure_numeric_warning = "경고: 사용자 이름이 숫자로만 구성
 rootfs = "로컬 RootFS 파일"
 vhdx = "VHDX 파일 가져오기"
 store = "Microsoft Store"
+url = "URL 다운로드"
+
+[add.url]
+select_source_url = "배포판 소스 URL 선택"
+gitee = "Gitee Mirror"
+github = "GitHub"
+custom = "사용자 지정 URL"
+custom_url = "사용자 지정 URL"
+custom_placeholder = "사용자 지정 URL 입력..."
+browse = "로컬 파일 찾아보기"
+fetch = "배포판 가져오기"
+fetching = "가져오는 중..."
+fetch_failed = "배포판을 가져오지 못했습니다: {0}"
+select_distro = "배포판 선택"
+download_threads = "다운로드 스레드 (1-8)"
+select_arch = "아키텍처"
+x64 = "AMD64 (x86_64)"
+arm64 = "ARM64"
+
+[install.url]
+step_1_4 = "[1/4] {0} 다운로드 중..."
+step_1_4_progress = "{0} / {1} MB ({2}%)"
+step_2_4_failed = "SHA256 검증 실패 ({0}/{1}), 재시도 중..."
+step_2_4_done = "[2/4] 다운로드 검증 성공."
+step_3_4 = "[3/4] 다운로드한 배포판 가져오는 중..."
+step_4_4 = "[4/4] 배포판 '{0}' 설치 성공."
+step_threads = "{0}개 스레드로 다운로드"
+step_no_url = "이 배포판에 사용 가능한 다운로드 URL이 없습니다"
+step_download_failed = "{0}회 시도 후 다운로드 실패: {1}"
 
 [distro]
 start = "시작"

@@ -1,4 +1,4 @@
-[common]
+﻿[common]
 app_name = "WSL Dashboard"
 
 [sidebar]
@@ -207,6 +207,7 @@ select_install_file = "حدد ملف التثبيت"
 operation_in_progress = "هناك عملية (تصدير أو نقل أو استنساخ) قيد التقدم بالفعل. يرجى الانتظار حتى تكتمل."
 archive = "أرشيف"
 vhdx = "VHDX"
+json = "JSON"
 export_success = "تم تصدير المثيل '{0}' بنجاح إلى:\n{1}"
 export_failed = "فشل التصدير: {0}"
 clone_success = "تم استنساخ المثيل '{0}' بنجاح إلى '{1}'!"
@@ -352,6 +353,35 @@ username_pure_numeric_warning = "تحذير: اسم المستخدم رقمي ب
 rootfs = "ملف RootFS المحلي"
 vhdx = "استيراد ملف VHDX"
 store = "Microsoft Store"
+url = "تنزيل URL"
+
+[add.url]
+select_source_url = "حدد عنوان URL لمصدر التوزيع"
+gitee = "Gitee Mirror"
+github = "GitHub"
+custom = "URL مخصص"
+custom_url = "URL مخصص"
+custom_placeholder = "أدخل URL مخصص..."
+browse = "تصفح الملف المحلي"
+fetch = "جلب التوزيعات"
+fetching = "جارٍ الجلب..."
+fetch_failed = "فشل في جلب التوزيعات: {0}"
+select_distro = "حدد التوزيع"
+download_threads = "خيوط التنزيل (1-8)"
+select_arch = "البنية"
+x64 = "AMD64 (x86_64)"
+arm64 = "ARM64"
+
+[install.url]
+step_1_4 = "[1/4] جارٍ تنزيل {0}..."
+step_1_4_progress = "{0} / {1} ميغابايت ({2}%)"
+step_2_4_failed = "فشل التحقق من SHA256 ({0}/{1})، إعادة المحاولة..."
+step_2_4_done = "[2/4] تم التحقق من التنزيل بنجاح."
+step_3_4 = "[3/4] جارٍ استيراد التوزيع الذي تم تنزيله..."
+step_4_4 = "[4/4] تم تثبيت التوزيع '{0}' بنجاح."
+step_threads = "التنزيل باستخدام {0} من الخيوط"
+step_no_url = "لا يوجد عنوان URL للتنزيل متاح لهذا التوزيع"
+step_download_failed = "فشل التنزيل بعد {0} من المحاولات: {1}"
 
 [distro]
 start = "بدء"

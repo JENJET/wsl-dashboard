@@ -1,4 +1,4 @@
-[common]
+﻿[common]
 app_name = "WSL Dashboard"
 
 [sidebar]
@@ -207,6 +207,7 @@ select_install_file = "Kurulum Dosyasını Seçin"
 operation_in_progress = "Bir işlem (Dışa Aktarma, Taşıma veya Klonlama) zaten devam ediyor. Lütfen tamamlanmasını bekleyin."
 archive = "Arşiv"
 vhdx = "VHDX"
+json = "JSON"
 export_success = "'{0}' örneği başarıyla şuraya aktarıldı:\n{1}"
 export_failed = "Dışa aktarma başarısız: {0}"
 clone_success = "'{0}' örneği başarıyla '{1}' olarak klonlandı!"
@@ -352,6 +353,35 @@ username_pure_numeric_warning = "Uyarı: Kullanıcı adı tamamen sayısaldır, 
 rootfs = "Yerel RootFS Dosyası"
 vhdx = "VHDX Dosyasını İçe Aktar"
 store = "Microsoft Store"
+url = "URL İndirme"
+
+[add.url]
+select_source_url = "Dağıtım kaynak URL'sini seçin"
+gitee = "Gitee Mirror"
+github = "GitHub"
+custom = "Özel URL"
+custom_url = "Özel URL"
+custom_placeholder = "Özel URL girin..."
+browse = "Yerel dosyaya göz at"
+fetch = "Dağıtımları getir"
+fetching = "Getiriliyor..."
+fetch_failed = "Dağıtımlar getirilemedi: {0}"
+select_distro = "Dağıtım seç"
+download_threads = "İndirme iş parçacığı (1-8)"
+select_arch = "Mimari"
+x64 = "AMD64 (x86_64)"
+arm64 = "ARM64"
+
+[install.url]
+step_1_4 = "[1/4] {0} indiriliyor..."
+step_1_4_progress = "{0} / {1} MB ({2}%)"
+step_2_4_failed = "SHA256 doğrulaması başarısız ({0}/{1}), yeniden deneniyor..."
+step_2_4_done = "[2/4] İndirme başarıyla doğrulandı."
+step_3_4 = "[3/4] İndirilen dağıtım içe aktarılıyor..."
+step_4_4 = "[4/4] Dağıtım '{0}' başarıyla kuruldu."
+step_threads = "{0} iş parçacığı kullanarak indir"
+step_no_url = "Bu dağıtım için kullanılabilir indirme URL'si yok"
+step_download_failed = "{0} denemeden sonra indirme başarısız: {1}"
 
 [distro]
 start = "Başlat"

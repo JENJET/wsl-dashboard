@@ -1,4 +1,4 @@
-[common]
+﻿[common]
 app_name = "WSL Dashboard"
 
 [sidebar]
@@ -207,6 +207,7 @@ select_install_file = "Velg installasjonsfil"
 operation_in_progress = "En operasjon pågår allerede."
 archive = "Arkiv"
 vhdx = "VHDX"
+json = "JSON"
 export_success = "Instansen '{0}' ble eksportert til:\n{1}"
 export_failed = "Eksport mislyktes: {0}"
 clone_success = "Instansen '{0}' ble klonet til '{1}'!"
@@ -352,6 +353,35 @@ username_pure_numeric_warning = "Advarsel: Brukernavnet er rent numerisk, noe so
 rootfs = "Lokal RootFS-fil"
 vhdx = "Importer VHDX-fil"
 store = "Microsoft Store"
+url = "URL-nedlasting"
+
+[add.url]
+select_source_url = "Velg kilde-URL for distribusjon"
+gitee = "Gitee Mirror"
+github = "GitHub"
+custom = "Egendefinert URL"
+custom_url = "Egendefinert URL"
+custom_placeholder = "Skriv inn egendefinert URL..."
+browse = "Bla gjennom lokal fil"
+fetch = "Hent distribusjoner"
+fetching = "Henter..."
+fetch_failed = "Henting av distribusjoner mislyktes: {0}"
+select_distro = "Velg distribusjon"
+download_threads = "Nedlastingstråder (1-8)"
+select_arch = "Arkitektur"
+x64 = "AMD64 (x86_64)"
+arm64 = "ARM64"
+
+[install.url]
+step_1_4 = "[1/4] Laster ned {0}..."
+step_1_4_progress = "{0} / {1} MB ({2}%)"
+step_2_4_failed = "SHA256-bekreftelse mislyktes ({0}/{1}), prøver på nytt..."
+step_2_4_done = "[2/4] Nedlasting bekreftet."
+step_3_4 = "[3/4] Importerer nedlastet distribusjon..."
+step_4_4 = "[4/4] Distribusjon '{0}' installert."
+step_threads = "Nedlasting med {0} tråder"
+step_no_url = "Ingen nedlastings-URL tilgjengelig for denne distribusjonen"
+step_download_failed = "Nedlasting mislyktes etter {0} forsøk: {1}"
 
 [distro]
 start = "Start"

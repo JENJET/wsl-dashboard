@@ -5,6 +5,7 @@ import {
     AppInfo,
     Information,
     RootFSHelpItem,
+    UrlDistroInfo,
     UsbDevice,
     PortProxyRuleUI,
     AppI18n,
@@ -26,7 +27,7 @@ import { AboutView } from "views/about_view.slint";
 import { TaskStatusToast } from "components/task_status_toast.slint";
 
 
-export { Theme, Distro, InstallableDistro, AppInfo, RootFSHelpItem, UsbDevice, PortProxyRuleUI, AppI18n, WslManageStrings }
+export { Theme, Distro, InstallableDistro, AppInfo, RootFSHelpItem, UrlDistroInfo, UsbDevice, PortProxyRuleUI, AppI18n, WslManageStrings }
 
 export component AppWindow inherits Window {
     title: "WSL_DASHBOARD_WINDOW_UI";
@@ -62,7 +63,8 @@ export component AppWindow inherits Window {
     in property <[string]> install_sources: [
         AppI18n.t("add.sources.rootfs", [AppI18n.version]),
         AppI18n.t("add.sources.vhdx", [AppI18n.version]),
-        AppI18n.t("add.sources.store", [AppI18n.version])
+        AppI18n.t("add.sources.store", [AppI18n.version]),
+        AppI18n.t("add.sources.url", [AppI18n.version])
     ];
     in-out property <int> selected_source_idx: 0;
     in-out property <string> install_file_path: "";
@@ -100,6 +102,20 @@ export component AppWindow inherits Window {
     in-out property <bool> show_install_warn_dialog: false;
     in-out property <bool> show_expire_dialog: false;
     in-out property <bool> show_rootfs_help: false;
+    // URL Download mode properties
+    in property <[string]> install_url_sources: [
+        AppI18n.t("add.url.gitee", [AppI18n.version]),
+        AppI18n.t("add.url.github", [AppI18n.version]),
+        AppI18n.t("add.url.custom", [AppI18n.version])
+    ];
+    in-out property <int> selected_install_url_idx: 0;
+    in-out property <string> custom_install_url: "";
+    in-out property <int> download_threads: 4;
+    in property <[UrlDistroInfo]> url_distro_list: [];
+    in property <[string]> url_distro_names: [];
+    in-out property <int> selected_url_distro_idx: -1;
+    in-out property <bool> is_fetching_url_distros: false;
+    in-out property <bool> url_distro_is_arm64: false;
     in-out property <bool> set_root_password: false;
     in-out property <string> root_password: "";
     in-out property <bool> add_new_user: false;
@@ -284,6 +300,9 @@ export component AppWindow inherits Window {
     callback clone_name_changed(string);
     callback distro_selected(string);
     callback show_rootfs_help_clicked();
+    callback fetch_url_distros();
+    callback url_arch_changed();
+    callback is_local_url(string) -> bool;
     callback check_new_username(string);
     callback close_vscode_startup();
     callback close_task_status();
@@ -533,6 +552,15 @@ export component AppWindow inherits Window {
                                 install_file_path <=> root.install_file_path;
                                 show_install_warn_dialog <=> root.show_install_warn_dialog;
                                 show_rootfs_help <=> root.show_rootfs_help;
+                                install_url_sources: root.install_url_sources;
+                                selected_install_url_idx <=> root.selected_install_url_idx;
+                                custom_install_url <=> root.custom_install_url;
+                                download_threads <=> root.download_threads;
+                                url_distro_list: root.url_distro_list;
+                                url_distro_names: root.url_distro_names;
+                                selected_url_distro_idx <=> root.selected_url_distro_idx;
+                                is_fetching_url_distros: root.is_fetching_url_distros;
+                                url_distro_is_arm64 <=> root.url_distro_is_arm64;
                                 set_root_password <=> root.set_root_password;
                                 root_password <=> root.root_password;
                                 add_new_user <=> root.add_new_user;
@@ -561,6 +589,15 @@ export component AppWindow inherits Window {
                                 }
                                 show_rootfs_help_clicked => {
                                     root.show_rootfs_help_clicked();
+                                }
+                                fetch_url_distros => {
+                                    root.fetch_url_distros();
+                                }
+                                url_arch_changed => {
+                                    root.url_arch_changed();
+                                }
+                                is_local_url(path) => {
+                                    root.is_local_url(path)
                                 }
                                 check_new_username(pw) => {
                                     root.check_new_username(pw);

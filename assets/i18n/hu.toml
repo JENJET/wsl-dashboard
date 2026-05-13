@@ -1,4 +1,4 @@
-[common]
+﻿[common]
 app_name = "WSL Dashboard"
 
 [sidebar]
@@ -207,6 +207,7 @@ select_install_file = "Telepítőfájl kiválasztása"
 operation_in_progress = "Egy művelet (exportálás, áthelyezés vagy klónozás) már folyamatban van."
 archive = "Archívum"
 vhdx = "VHDX"
+json = "JSON"
 export_success = "A(z) '{0}' példány sikeresen exportálva ide:\n{1}"
 export_failed = "Exportálás sikertelen: {0}"
 clone_success = "A(z) '{0}' példány sikeresen klónozva ide: '{1}'!"
@@ -352,6 +353,35 @@ username_pure_numeric_warning = "Figyelmeztetés: A felhasználónév tisztán n
 rootfs = "Helyi RootFS fájl"
 vhdx = "VHDX fájl importálása"
 store = "Microsoft Store"
+url = "URL letöltés"
+
+[add.url]
+select_source_url = "Válassza ki a disztribúció forrás URL-jét"
+gitee = "Gitee Mirror"
+github = "GitHub"
+custom = "Egyéni URL"
+custom_url = "Egyéni URL"
+custom_placeholder = "Adja meg az egyéni URL-t..."
+browse = "Helyi fájl tallózása"
+fetch = "Disztribúciók lekérése"
+fetching = "Lekérés..."
+fetch_failed = "Disztribúciók lekérése sikertelen: {0}"
+select_distro = "Disztribúció kiválasztása"
+download_threads = "Letöltési szálak (1-8)"
+select_arch = "Architektúra"
+x64 = "AMD64 (x86_64)"
+arm64 = "ARM64"
+
+[install.url]
+step_1_4 = "[1/4] {0} letöltése..."
+step_1_4_progress = "{0} / {1} MB ({2}%)"
+step_2_4_failed = "SHA256 ellenőrzés sikertelen ({0}/{1}), újra..."
+step_2_4_done = "[2/4] Letöltés sikeresen ellenőrizve."
+step_3_4 = "[3/4] Letöltött disztribúció importálása..."
+step_4_4 = "[4/4] '{0}' disztribúció sikeresen telepítve."
+step_threads = "Letöltés {0} szállal"
+step_no_url = "Nincs letöltési URL ehhez a disztribúcióhoz"
+step_download_failed = "Letöltés sikertelen {0} próbálkozás után: {1}"
 
 [distro]
 start = "Indítás"

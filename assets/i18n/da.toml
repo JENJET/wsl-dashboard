@@ -1,4 +1,4 @@
-[common]
+﻿[common]
 app_name = "WSL Dashboard"
 
 [sidebar]
@@ -207,6 +207,7 @@ select_install_file = "Vælg installationsfil"
 operation_in_progress = "En handling er allerede i gang."
 archive = "Arkiv"
 vhdx = "VHDX"
+json = "JSON"
 export_success = "Instansen '{0}' blev eksporteret til:\n{1}"
 export_failed = "Eksport mislykkedes: {0}"
 clone_success = "Instansen '{0}' blev klonet til '{1}'!"
@@ -352,6 +353,35 @@ username_pure_numeric_warning = "Advarsel: Brugernavnet er rent numerisk, hvilke
 rootfs = "Lokal RootFS-fil"
 vhdx = "Importer VHDX-fil"
 store = "Microsoft Store"
+url = "URL-download"
+
+[add.url]
+select_source_url = "Vælg distributionskilde-URL"
+gitee = "Gitee Mirror"
+github = "GitHub"
+custom = "Brugerdefineret URL"
+custom_url = "Brugerdefineret URL"
+custom_placeholder = "Indtast brugerdefineret URL..."
+browse = "Gennemse lokal fil"
+fetch = "Hent distributioner"
+fetching = "Henter..."
+fetch_failed = "Kunne ikke hente distributioner: {0}"
+select_distro = "Vælg distribution"
+download_threads = "Download-tråde (1-8)"
+select_arch = "Arkitektur"
+x64 = "AMD64 (x86_64)"
+arm64 = "ARM64"
+
+[install.url]
+step_1_4 = "[1/4] Downloader {0}..."
+step_1_4_progress = "{0} / {1} MB ({2}%)"
+step_2_4_failed = "SHA256-bekræftelse mislykkedes ({0}/{1}), prøver igen..."
+step_2_4_done = "[2/4] Download bekræftet."
+step_3_4 = "[3/4] Importerer downloadet distribution..."
+step_4_4 = "[4/4] Distribution '{0}' installeret."
+step_threads = "Download med {0} tråde"
+step_no_url = "Ingen download-URL for denne distribution"
+step_download_failed = "Download mislykkedes efter {0} forsøg: {1}"
 
 [distro]
 start = "Start"

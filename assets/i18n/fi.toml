@@ -1,4 +1,4 @@
-[common]
+﻿[common]
 app_name = "WSL Dashboard"
 
 [sidebar]
@@ -207,6 +207,7 @@ select_install_file = "Valitse asennustiedosto"
 operation_in_progress = "Toiminto on jo käynnissä."
 archive = "Arkisto"
 vhdx = "VHDX"
+json = "JSON"
 export_success = "Instanssi '{0}' viety onnistuneesti kohteeseen:\n{1}"
 export_failed = "Vienti epäonnistui: {0}"
 clone_success = "Instanssi '{0}' kloonattu onnistuneesti nimellä '{1}'!"
@@ -352,6 +353,35 @@ username_pure_numeric_warning = "Varoitus: Käyttäjänimi on täysin numeerinen
 rootfs = "Paikallinen RootFS-tiedosto"
 vhdx = "Tuo VHDX-tiedosto"
 store = "Microsoft Store"
+url = "URL-lataus"
+
+[add.url]
+select_source_url = "Valitse jakelun lähde-URL"
+gitee = "Gitee Mirror"
+github = "GitHub"
+custom = "Mukautettu URL"
+custom_url = "Mukautettu URL"
+custom_placeholder = "Syötä mukautettu URL..."
+browse = "Selaa paikallista tiedostoa"
+fetch = "Nouda jakelut"
+fetching = "Noudetaan..."
+fetch_failed = "Jakeluiden nouto epäonnistui: {0}"
+select_distro = "Valitse jakelu"
+download_threads = "Lataussäikeet (1-8)"
+select_arch = "Arkkitehtuuri"
+x64 = "AMD64 (x86_64)"
+arm64 = "ARM64"
+
+[install.url]
+step_1_4 = "[1/4] Ladataan {0}..."
+step_1_4_progress = "{0} / {1} MB ({2}%)"
+step_2_4_failed = "SHA256-vahvistus epäonnistui ({0}/{1}), yritetään uudelleen..."
+step_2_4_done = "[2/4] Lataus vahvistettu."
+step_3_4 = "[3/4] Tuodaan ladattu jakelu..."
+step_4_4 = "[4/4] Jakelu '{0}' asennettu."
+step_threads = "Lataus käyttäen {0} säiettä"
+step_no_url = "Lataus-URL ei saatavilla tälle jakelulle"
+step_download_failed = "Lataus epäonnistui {0} yrityksen jälkeen: {1}"
 
 [distro]
 start = "Käynnistä"
