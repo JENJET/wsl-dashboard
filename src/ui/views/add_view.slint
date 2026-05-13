@@ -602,9 +602,8 @@ export component AddInstanceView inherits VerticalLayout {
                     border-width: 1px;
                     border-color: Theme.border_color;
                     top-rect := Rectangle { height: 10px; }      
-                    Flickable {
+                    term-flick := Flickable {
                         height: term-rect.height - top-rect.height;
-                        viewport-y: self.height - self.viewport-height;
                         VerticalLayout {
                             padding-left: 8px;
                             padding-right: 8px;
@@ -616,6 +615,13 @@ export component AddInstanceView inherits VerticalLayout {
                                 wrap: word-wrap;
                                 horizontal-alignment: AppI18n.is-rtl ? right : left;
                             }
+                        }
+                    }
+                    term_scroll_timer := Timer {
+                        interval: 200ms;
+                        running: root.is_installing;
+                        triggered => {
+                            term-flick.viewport-y = term-flick.height - term-flick.viewport-height;
                         }
                     }
                 }

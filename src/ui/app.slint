@@ -1231,7 +1231,6 @@ export component AppWindow inherits Window {
                     border-color: Theme.border_color;
                     clip: true;
                     vhdx-flick := Flickable {
-                        viewport-y: vhdx-flick.height - vhdx-flick.viewport-height;
                         VerticalLayout {
                             padding-left: 8px;
                             padding-right: 8px;
@@ -1246,6 +1245,13 @@ export component AppWindow inherits Window {
                                 horizontal-alignment: left;
                                 vertical-alignment: top;
                             }
+                        }
+                    }
+                    auto_scroll_timer := Timer {
+                        interval: 10ms;
+                        running: root.vhdx_resize_running;
+                        triggered => {
+                            vhdx-flick.viewport-y = vhdx-flick.height - vhdx-flick.viewport-height;
                         }
                     }
                 }

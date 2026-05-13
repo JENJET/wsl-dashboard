@@ -954,10 +954,10 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                         let ah2 = ah.clone();
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(app) = ah2.upgrade() {
-                                app.set_vhdx_resize_running(false);
                                 app.set_vhdx_resize_output(
                                     i18n::t("dialog.vhdx_resize_failed").into(),
                                 );
+                                app.set_vhdx_resize_running(false);
                             }
                         });
                         return;
@@ -978,10 +978,10 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     let ah2 = ah.clone();
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(app) = ah2.upgrade() {
-                            app.set_vhdx_resize_running(false);
                             app.set_vhdx_resize_output(
                                 i18n::t("dialog.vhdx_resize_running").into(),
                             );
+                            app.set_vhdx_resize_running(false);
                         }
                     });
                     return;
@@ -1009,39 +1009,54 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 })
                 .await;
 
+                // Helper to stop running after a delay so the auto-scroll Timer can fire first
+                let stop_running = |ah: slint::Weak<AppWindow>| {
+                    tokio::spawn(async move {
+                        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(app) = ah.upgrade() {
+                                app.set_vhdx_resize_running(false);
+                            }
+                        });
+                    });
+                };
+
                 match result {
                     Ok(Ok(())) => {
                         let ah2 = ah.clone();
+                        let ah_stop = ah.clone();
                         let msg =
                             i18n::tr("dialog.vhdx_resize_success", &[format!("{:.0}", size_gb)]);
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(app) = ah2.upgrade() {
-                                app.set_vhdx_resize_running(false);
                                 app.set_vhdx_resize_output(msg.into());
                             }
                         });
+                        stop_running(ah_stop);
                     }
                     Ok(Err(e)) => {
                         let ah2 = ah.clone();
+                        let ah_stop = ah.clone();
                         let msg = i18n::tr("dialog.vhdx_resize_failed", &[e]);
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(app) = ah2.upgrade() {
-                                app.set_vhdx_resize_running(false);
                                 app.set_vhdx_resize_is_error(true);
                                 app.set_vhdx_resize_output(msg.into());
                             }
                         });
+                        stop_running(ah_stop);
                     }
                     Err(e) => {
                         let ah2 = ah.clone();
+                        let ah_stop = ah.clone();
                         let msg = i18n::tr("dialog.vhdx_resize_failed", &[e.to_string()]);
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(app) = ah2.upgrade() {
-                                app.set_vhdx_resize_running(false);
                                 app.set_vhdx_resize_is_error(true);
                                 app.set_vhdx_resize_output(msg.into());
                             }
                         });
+                        stop_running(ah_stop);
                     }
                 }
             });
