@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
+use std::os::windows::process::CommandExt;
 use std::path::Path;
 use tracing::{debug, error, info};
 
@@ -254,10 +255,12 @@ try {{
     );
 
     info!("Launching elevated PowerShell to set sparse flag...");
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
     let output = std::process::Command::new("powershell.exe")
         .args(["-NoProfile", "-NonInteractive", "-Command", &ps_command])
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
+        .creation_flags(CREATE_NO_WINDOW)
         .output()
         .map_err(|e| format!("Failed to run PowerShell: {}", e))?;
 
@@ -343,10 +346,12 @@ try {{
     );
 
     info!("Launching elevated PowerShell for VHDX resize...");
+    const CREATE_NO_WINDOW: u32 = 0x08000000;
     let output = std::process::Command::new("powershell.exe")
         .args(["-NoProfile", "-NonInteractive", "-Command", &ps_command])
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped())
+        .creation_flags(CREATE_NO_WINDOW)
         .output()
         .map_err(|e| format!("Failed to run PowerShell: {}", e))?;
 
