@@ -6,6 +6,7 @@ component DistroInfo inherits VerticalLayout {
     in property <Distro> distro;
     in property <bool> is-rtl;
     callback copy_distro_ip();
+    callback copy_distro_name();
     spacing: 0px;
     alignment: center;
     
@@ -13,17 +14,23 @@ component DistroInfo inherits VerticalLayout {
         spacing: 8px;
         alignment: start;
         
-        Text {
-            text: distro.name;
-            font-size: 14px * LayoutConstants.font-scale;
-            font-weight: 400;
-            font-family: Theme.default_font;
-            color: Theme.text_primary;
-            overflow: elide;
-            horizontal-alignment: is-rtl ? right : left;
+        name_touch := TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                root.copy_distro_name();
+            }
+            Text {
+                text: distro.name;
+                font-size: 14px * LayoutConstants.font-scale;
+                font-weight: 400;
+                font-family: Theme.default_font;
+                color: name_touch.has-hover ? Theme.accent : Theme.text_primary;
+                overflow: elide;
+                horizontal-alignment: is-rtl ? right : left;
+            }
         }
 
-        if (distro.status == "Running" && distro.is_mirrored_network && distro.ip != ""):
+        if (distro.status == "Running" && distro.show_ip && distro.ip != ""):
         Rectangle {
             background: Theme.dark_mode ? #2b3c4e : #e6f4ff98;
             border-radius: 3px;
@@ -399,6 +406,7 @@ export component DistroCard inherits Rectangle {
     callback expand_clicked;
     callback set_default_clicked();
     callback copy_distro_ip();
+    callback copy_distro_name();
     height: expanded ? 96px : 48px;
     background: (distro.is_default && !sole_distro) ? (Theme.dark_mode ? #2b3c4e : #e6f4ff98) : Theme.card_bg;
     border-radius: 6px;
@@ -452,6 +460,9 @@ export component DistroCard inherits Rectangle {
                         copy_distro_ip => {
                             root.copy_distro_ip();
                         }
+                        copy_distro_name => {
+                            root.copy_distro_name();
+                        }
                     }
 
                     DistroBadge {
@@ -491,6 +502,9 @@ export component DistroCard inherits Rectangle {
                         is-rtl: false;
                         copy_distro_ip => {
                             root.copy_distro_ip();
+                        }
+                        copy_distro_name => {
+                            root.copy_distro_name();
                         }
                     }
                 }

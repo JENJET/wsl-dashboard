@@ -242,8 +242,12 @@ vhdx_set_sparse_confirm_title = "Ange som gles fil"
 vhdx_set_sparse_confirm_msg = "Varning: Att ange filen som gles kan orsaka dataförlust. Är du säker på att du vill fortsätta?"
 vhdx_set_sparse_success = "Filen har angetts som gles."
 vhdx_set_sparse_failed = "Det gick inte att ange filen som gles: {0}"
+vhdx_unset_sparse = "Ta bort inställning som gles"
+vhdx_unset_sparse_success = "Gles-filmarkören har tagits bort."
+vhdx_unset_sparse_failed = "Det gick inte att ta bort inställningen som gles: {0}"
 vhdx_resize_title = "Ändra VHDX-storlek"
 vhdx_resize_desc = "Ändra storleken på distributionens VHDX-disk. Distributionen måste stoppas innan storleksändring."
+vhdx_resize_confirm_msg = "Varning: Ändring av VHDX-storlek kan orsaka dataförlust och exekveringstiden varierar beroende på diskstorleken och kan vara tidskrävande. Är du säker på att du vill fortsätta?"
 vhdx_resize_new_size = "Ny storlek (GB)"
 
 [operation]

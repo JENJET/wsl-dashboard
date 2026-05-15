@@ -242,8 +242,12 @@ vhdx_set_sparse_confirm_title = "Establecer como archivo disperso"
 vhdx_set_sparse_confirm_msg = "Advertencia: Establecer el archivo como disperso puede causar pérdida de datos. ¿Está seguro de que desea continuar?"
 vhdx_set_sparse_success = "El archivo se ha establecido como disperso correctamente."
 vhdx_set_sparse_failed = "Error al establecer el archivo como disperso: {0}"
+vhdx_unset_sparse = "Cancelar el establecimiento como disperso"
+vhdx_unset_sparse_success = "El indicador de archivo disperso se ha eliminado correctamente."
+vhdx_unset_sparse_failed = "Error al cancelar el establecimiento como disperso: {0}"
 vhdx_resize_title = "Cambiar tamaño VHDX"
 vhdx_resize_desc = "Cambie el tamaño del disco VHDX de la distribución. La distribución debe detenerse antes de cambiar el tamaño."
+vhdx_resize_confirm_msg = "Advertencia: Redimensionar VHDX puede causar pérdida de datos, y el tiempo de ejecución varía según el tamaño del disco y puede llevar mucho tiempo. ¿Está seguro de que desea continuar?"
 vhdx_resize_new_size = "Nuevo tamaño (GB)"
 
 [operation]

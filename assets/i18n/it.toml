@@ -242,8 +242,12 @@ vhdx_set_sparse_confirm_title = "Imposta come file sparso"
 vhdx_set_sparse_confirm_msg = "Avvertenza: Impostare il file come sparso può causare perdita di dati. Sei sicuro di voler continuare?"
 vhdx_set_sparse_success = "Il file è stato impostato come sparso con successo."
 vhdx_set_sparse_failed = "Impossibile impostare il file come sparso: {0}"
+vhdx_unset_sparse = "Rimuovi impostazione come sparso"
+vhdx_unset_sparse_success = "Indicatore di file sparso rimosso con successo."
+vhdx_unset_sparse_failed = "Impossibile rimuovere l'impostazione come sparso: {0}"
 vhdx_resize_title = "Ridimensiona VHDX"
 vhdx_resize_desc = "Ridimensiona il disco VHDX della distribuzione. La distribuzione deve essere arrestata prima del ridimensionamento."
+vhdx_resize_confirm_msg = "Avvertenza: Il ridimensionamento del VHDX può causare perdita di dati e i tempi di esecuzione variano in base alla dimensione del disco e potrebbero essere lunghi. Sei sicuro di voler continuare?"
 vhdx_resize_new_size = "Nuova dimensione (GB)"
 
 [operation]

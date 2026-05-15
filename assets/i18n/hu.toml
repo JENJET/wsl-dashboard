@@ -242,8 +242,12 @@ vhdx_set_sparse_confirm_title = "Beállítás ritka fájlként"
 vhdx_set_sparse_confirm_msg = "Figyelmeztetés: A fájl ritkaként való beállítása adatvesztést okozhat. Biztosan folytatni szeretné?"
 vhdx_set_sparse_success = "A fájl sikeresen ritkaként lett beállítva."
 vhdx_set_sparse_failed = "A fájl ritkaként történő beállítása sikertelen: {0}"
+vhdx_unset_sparse = "Ritka beállítás eltávolítása"
+vhdx_unset_sparse_success = "A ritka fájl jelölő sikeresen eltávolításra került."
+vhdx_unset_sparse_failed = "A ritka beállítás eltávolítása sikertelen: {0}"
 vhdx_resize_title = "VHDX átméretezése"
 vhdx_resize_desc = "Módosítsa a disztribúció VHDX lemezének méretét. A disztribúciót le kell állítani az átméretezés előtt."
+vhdx_resize_confirm_msg = "Figyelmeztetés: A VHDX átméretezése adatvesztést okozhat, és a végrehajtási idő a lemez méretétől függően változik és időigényes lehet. Biztosan folytatni szeretné?"
 vhdx_resize_new_size = "Új méret (GB)"
 
 [operation]

@@ -1,3 +1,4 @@
+use crate::utils::system::CREATE_NO_WINDOW;
 use crate::{AppI18n, AppState, AppWindow, Theme, config, i18n};
 use slint::ComponentHandle;
 use std::sync::Arc;
@@ -282,7 +283,6 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 #[cfg(windows)]
                 {
                     use std::os::windows::process::CommandExt;
-                    const CREATE_NO_WINDOW: u32 = 0x08000000;
                     cmd.creation_flags(CREATE_NO_WINDOW);
                 }
                 let _ = cmd.spawn().map_err(|e| {

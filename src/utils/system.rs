@@ -1,6 +1,10 @@
 use windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
 use windows::core::HSTRING;
 
+use crate::i18n;
+
+pub const CREATE_NO_WINDOW: u32 = 0x08000000;
+
 pub fn get_disk_free_space(path: &str) -> u64 {
     let mut free_bytes_available: u64 = 0;
     let mut total_number_of_bytes: u64 = 0;
@@ -37,7 +41,6 @@ pub fn copy_to_clipboard(text: &str) -> Result<(), String> {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt;
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
 
@@ -66,9 +69,19 @@ pub fn copy_to_clipboard(text: &str) -> Result<(), String> {
 
 /// Execute a command with UAC elevation using ShellExecuteExW
 pub fn run_command_with_elevation(program_name: &str, args: Vec<String>) -> Result<(), String> {
+    let exit_code = run_elevated_and_wait(program_name, args)?;
+    if exit_code == 0 {
+        Ok(())
+    } else {
+        Err(format!("Process exited with code {}", exit_code))
+    }
+}
+
+/// Execute a command with UAC elevation using ShellExecuteExW and return its exit code.
+pub fn run_elevated_and_wait(program_name: &str, args: Vec<String>) -> Result<u32, String> {
     use tracing::debug;
     use windows::Win32::Foundation::CloseHandle;
-    use windows::Win32::System::Threading::{INFINITE, WaitForSingleObject};
+    use windows::Win32::System::Threading::{GetExitCodeProcess, INFINITE, WaitForSingleObject};
     use windows::Win32::UI::Shell::{
         SEE_MASK_NOASYNC, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW, ShellExecuteExW,
     };
@@ -98,14 +111,17 @@ pub fn run_command_with_elevation(program_name: &str, args: Vec<String>) -> Resu
     unsafe {
         match ShellExecuteExW(&mut sei) {
             Ok(()) => {
-                // Wait for the elevated process to finish
                 if !sei.hProcess.is_invalid() {
                     WaitForSingleObject(sei.hProcess, INFINITE);
+                    let mut exit_code: u32 = 0;
+                    let _ = GetExitCodeProcess(sei.hProcess, &mut exit_code);
                     let _ = CloseHandle(sei.hProcess);
+                    Ok(exit_code)
+                } else {
+                    Ok(0)
                 }
-                Ok(())
             }
-            Err(e) => Err(format!("UAC elevation failed or was denied: {}", e)),
+            Err(e) => Err(i18n::tr("network.error_uac_detail", &[e.to_string()])),
         }
     }
 }

@@ -56,7 +56,7 @@ component CodeBlock inherits Rectangle {
         for line in root.lines: Text {
             text: line == "" ? " " : line;
             font-size: 12.5px * LayoutConstants.font-scale;
-            font-family: "Cascadia Code, Consolas, Courier New, monospace";
+            font-family: Theme.default_font;
             color: Theme.dark_mode ? #cdd6f4 : #24292f;
             vertical-alignment: top;
             horizontal-alignment: AppI18n.is-rtl ? right : left;

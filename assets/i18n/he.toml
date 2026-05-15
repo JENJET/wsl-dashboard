@@ -242,8 +242,12 @@ vhdx_set_sparse_confirm_title = "הגדר כקובץ דליל"
 vhdx_set_sparse_confirm_msg = "אזהרה: הגדרת הקובץ כדליל עלולה לגרום לאובדן נתונים. האם אתה בטוח שברצונך להמשיך?"
 vhdx_set_sparse_success = "הקובץ הוגדר בהצלחה כדליל."
 vhdx_set_sparse_failed = "הגדרת הקובץ כדליל נכשלה: {0}"
+vhdx_unset_sparse = "בטל הגדרה כקובץ דליל"
+vhdx_unset_sparse_success = "דגל הקובץ הדליל הוסר בהצלחה."
+vhdx_unset_sparse_failed = "ביטול הגדרת הקובץ כדליל נכשל: {0}"
 vhdx_resize_title = "שנה גודל VHDX"
 vhdx_resize_desc = "שנה את גודל דיסק ה-VHDX של ההפצה. יש לעצור את ההפצה לפני שינוי הגודל."
+vhdx_resize_confirm_msg = "אזהרה: שינוי גודל VHDX עלול לגרום לאובדן נתונים, וזמן הביצוע משתנה בהתאם לגודל הדיסק ועלול להיות ארוך. האם אתה בטוח שברצונך להמשיך?"
 vhdx_resize_new_size = "גודל חדש (GB)"
 
 [operation]

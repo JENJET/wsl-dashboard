@@ -65,16 +65,13 @@ pub fn spawn_resource_monitor(app_handle: slint::Weak<AppWindow>) {
                         if !running_distros.is_empty() {
                             let ah_async = ah.clone();
                             tokio::task::spawn_blocking(move || {
-                                let is_mirrored =
-                                    crate::utils::wsl_config::get_wsl_networking_mode()
-                                        == "mirrored";
-
+                                let show_ip = crate::utils::wsl_config::show_distro_ip();
                                 let mut ip_results: Vec<(String, String)> = Vec::new();
                                 let mut resource_results: Vec<(String, f64, f64, f64)> = Vec::new();
 
                                 for name in &running_distros {
-                                    // Fetch IP only in mirrored mode
-                                    if is_mirrored {
+                                    // Fetch IP only when show_distro_ip is enabled
+                                    if show_ip {
                                         match crate::network::tracker::get_distro_ip(name, Some(1))
                                         {
                                             Ok(ip) => {
@@ -106,7 +103,7 @@ pub fn spawn_resource_monitor(app_handle: slint::Weak<AppWindow>) {
                                                 if let Some(mut distro) = model.row_data(i) {
                                                     let mut updated = false;
 
-                                                    // Update IP (only in mirrored mode)
+                                                    // Update IP
                                                     if let Some((_, ip)) = ip_results
                                                         .iter()
                                                         .find(|(n, _)| distro.name == *n)

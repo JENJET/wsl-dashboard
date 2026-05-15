@@ -108,6 +108,7 @@ export component InformationDialog inherits Rectangle {
     callback copy_ip_clicked;
     callback resize_vhdx_clicked;
     callback set_sparse_clicked;
+    callback unset_sparse_clicked;
 
     // Background mask
     background: #00000080;
@@ -253,8 +254,8 @@ export component InformationDialog inherits Rectangle {
             HorizontalLayout {
                 alignment: AppI18n.is-rtl ? start : end;
                 spacing: 8px;
-                // Set as sparse button (only when not sparse and VHDX exists)
-                if (root.info.vhdx_path != "" && !root.info.vhdx_is_sparse): Rectangle {
+                // Set as sparse button (only when not sparse, VHDX exists, and not running)
+                if (root.info.vhdx_path != "" && root.info.status != "Running" && !root.info.vhdx_is_sparse): Rectangle {
                     width: 130px;
                     height: 32px;
                     background: sparse_btn_area.has-hover ? #d32f2f.with-alpha(25%) : #d32f2f.with-alpha(12%);
@@ -274,8 +275,29 @@ export component InformationDialog inherits Rectangle {
                         }
                     }
                 }
-                // Resize VHDX button (only for WSL2 with VHDX)
-                if (root.info.vhdx_path != ""): Rectangle {
+                // Unset sparse button (only when sparse, VHDX exists, and not running)
+                if (root.info.vhdx_path != "" && root.info.status != "Running" && root.info.vhdx_is_sparse): Rectangle {
+                    width: 130px;
+                    height: 32px;
+                    background: unsparse_btn_area.has-hover ? #1976d2.with-alpha(25%) : #1976d2.with-alpha(12%);
+                    border-radius: 6px;
+                    Text {
+                        text: AppI18n.t("dialog.vhdx_unset_sparse", [AppI18n.version]);
+                        color: #1976d2;
+                        font-size: 13px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        font-weight: 500;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                    unsparse_btn_area := TouchArea {
+                        clicked => {
+                            root.unset_sparse_clicked();
+                        }
+                    }
+                }
+                // Resize VHDX button (only when stopped and VHDX exists)
+                if (root.info.vhdx_path != "" && root.info.status != "Running"): Rectangle {
                     width: 130px;
                     height: 32px;
                     background: resize_btn_area.has-hover ? #e67e00.with-alpha(25%) : #e67e00.with-alpha(12%);

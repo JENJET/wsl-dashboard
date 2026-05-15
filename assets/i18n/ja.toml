@@ -242,8 +242,12 @@ vhdx_set_sparse_confirm_title = "スパースファイルとして設定"
 vhdx_set_sparse_confirm_msg = "警告: ファイルをスパースとして設定すると、データが失われる可能性があります。続行してもよろしいですか？"
 vhdx_set_sparse_success = "ファイルは正常にスパースとして設定されました。"
 vhdx_set_sparse_failed = "ファイルをスパースとして設定できませんでした: {0}"
+vhdx_unset_sparse = "スパース設定を解除"
+vhdx_unset_sparse_success = "スパースフラグが正常に削除されました。"
+vhdx_unset_sparse_failed = "スパース設定の解除に失敗しました: {0}"
 vhdx_resize_title = "VHDX リサイズ"
 vhdx_resize_desc = "ディストリビューションの VHDX ディスクのサイズを変更します。リサイズ前にディストリビューションを停止する必要があります。"
+vhdx_resize_confirm_msg = "警告: VHDX のリサイズによりデータが失われる可能性があり、実行時間はディスクサイズによって異なり時間がかかる場合があります。続行してもよろしいですか？"
 vhdx_resize_new_size = "新しいサイズ (GB)"
 
 [operation]

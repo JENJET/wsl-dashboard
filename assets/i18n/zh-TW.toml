@@ -242,8 +242,12 @@ vhdx_set_sparse_confirm_title = "設為稀疏檔案"
 vhdx_set_sparse_confirm_msg = "警告：將檔案設為稀疏可能導致資料遺失。您確定要繼續嗎？"
 vhdx_set_sparse_success = "檔案已成功設為稀疏。"
 vhdx_set_sparse_failed = "將檔案設為稀疏失敗：{0}"
+vhdx_unset_sparse = "取消稀疏模式"
+vhdx_unset_sparse_success = "已成功取消稀疏模式。"
+vhdx_unset_sparse_failed = "取消稀疏模式失敗：{0}"
 vhdx_resize_title = "調整 VHDX 大小"
 vhdx_resize_desc = "調整發行版的 VHDX 磁碟大小。調整前必須先停止發行版。"
+vhdx_resize_confirm_msg = "警告：修改 VHDX 大小可能會導致資料遺失，且執行時間會依磁碟大小而有所不同，可能較為耗時。您確定要繼續嗎？"
 vhdx_resize_new_size = "新大小 (GB)"
 
 [operation]

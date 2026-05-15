@@ -242,8 +242,12 @@ vhdx_set_sparse_confirm_title = "Nastavi kot redko datoteko"
 vhdx_set_sparse_confirm_msg = "Opozorilo: Nastavitev datoteke kot redke lahko povzroči izgubo podatkov. Ali ste prepričani, da želite nadaljevati?"
 vhdx_set_sparse_success = "Datoteka je bila uspešno nastavljena kot redka."
 vhdx_set_sparse_failed = "Datoteke ni bilo mogoče nastaviti kot redko: {0}"
+vhdx_unset_sparse = "Odstrani nastavitev kot redko"
+vhdx_unset_sparse_success = "Zastavica redke datoteke je bila uspešno odstranjena."
+vhdx_unset_sparse_failed = "Odstranitev nastavitve kot redke ni uspela: {0}"
 vhdx_resize_title = "Spremeni velikost VHDX"
 vhdx_resize_desc = "Spremenite velikost diska VHDX distribucije. Distribucijo je treba ustaviti pred spreminjanjem velikosti."
+vhdx_resize_confirm_msg = "Opozorilo: Spreminjanje velikosti VHDX lahko povzroči izgubo podatkov in čas izvajanja je odvisen od velikosti diska in je lahko dolgotrajen. Ali ste prepričani, da želite nadaljevati?"
 vhdx_resize_new_size = "Nova velikost (GB)"
 
 [operation]

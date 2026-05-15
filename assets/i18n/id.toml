@@ -242,8 +242,12 @@ vhdx_set_sparse_confirm_title = "Setel sebagai file sparse"
 vhdx_set_sparse_confirm_msg = "Peringatan: Menyetel file sebagai sparse dapat menyebabkan kehilangan data. Apakah Anda yakin ingin melanjutkan?"
 vhdx_set_sparse_success = "File telah berhasil disetel sebagai sparse."
 vhdx_set_sparse_failed = "Gagal menyetel file sebagai sparse: {0}"
+vhdx_unset_sparse = "Batalkan penyetelan sebagai sparse"
+vhdx_unset_sparse_success = "Tanda sparse berhasil dihapus."
+vhdx_unset_sparse_failed = "Gagal membatalkan penyetelan sparse: {0}"
 vhdx_resize_title = "Ubah Ukuran VHDX"
 vhdx_resize_desc = "Ubah ukuran disk VHDX distribusi. Distribusi harus dihentikan sebelum mengubah ukuran."
+vhdx_resize_confirm_msg = "Peringatan: Mengubah ukuran VHDX dapat menyebabkan kehilangan data, dan waktu pelaksanaan bervariasi tergantung pada ukuran disk dan mungkin memakan waktu. Apakah Anda yakin ingin melanjutkan?"
 vhdx_resize_new_size = "Ukuran Baru (GB)"
 
 [operation]

@@ -242,8 +242,12 @@ vhdx_set_sparse_confirm_title = "Aseta harvaksi tiedostoksi"
 vhdx_set_sparse_confirm_msg = "Varoitus: Tiedoston asettaminen harvaksi voi aiheuttaa tietojen menetyksen. Haluatko varmasti jatkaa?"
 vhdx_set_sparse_success = "Tiedosto on asetettu harvaksi onnistuneesti."
 vhdx_set_sparse_failed = "Tiedoston asettaminen harvaksi epäonnistui: {0}"
+vhdx_unset_sparse = "Poista harva asetus"
+vhdx_unset_sparse_success = "Harva-tunniste poistettu onnistuneesti."
+vhdx_unset_sparse_failed = "Harvaksi asetuksen poistaminen epäonnistui: {0}"
 vhdx_resize_title = "Muuta VHDX-kokoa"
 vhdx_resize_desc = "Muuta jakelun VHDX-levyn kokoa. Jakelu on pysäytettävä ennen koon muuttamista."
+vhdx_resize_confirm_msg = "Varoitus: VHDX-koon muuttaminen voi aiheuttaa tietojen menetyksen, ja suoritusaika vaihtelee levyn koon mukaan ja voi olla aikaa vievää. Haluatko varmasti jatkaa?"
 vhdx_resize_new_size = "Uusi koko (GB)"
 
 [operation]

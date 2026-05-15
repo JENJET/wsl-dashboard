@@ -242,8 +242,12 @@ vhdx_set_sparse_confirm_title = "Nastaviť ako riedky súbor"
 vhdx_set_sparse_confirm_msg = "Varovanie: Nastavenie súboru ako riedkeho môže spôsobiť stratu údajov. Ste si istí, že chcete pokračovať?"
 vhdx_set_sparse_success = "Súbor bol úspešne nastavený ako riedky."
 vhdx_set_sparse_failed = "Nepodarilo sa nastaviť súbor ako riedky: {0}"
+vhdx_unset_sparse = "Zrušiť nastavenie ako riedky"
+vhdx_unset_sparse_success = "Príznak riedkeho súboru bol úspešne odstránený."
+vhdx_unset_sparse_failed = "Nepodarilo sa zrušiť nastavenie ako riedky: {0}"
 vhdx_resize_title = "Zmeniť veľkosť VHDX"
 vhdx_resize_desc = "Zmeňte veľkosť disku VHDX distribúcie. Distribúcia musí byť zastavená pred zmenou veľkosti."
+vhdx_resize_confirm_msg = "Varovanie: Zmena veľkosti VHDX môže spôsobiť stratu údajov a čas vykonania sa líši v závislosti od veľkosti disku a môže byť časovo náročný. Ste si istý, že chcete pokračovať?"
 vhdx_resize_new_size = "Nová veľkosť (GB)"
 
 [operation]

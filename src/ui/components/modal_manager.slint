@@ -41,6 +41,7 @@ export component ModalManager inherits Rectangle {
     in-out property <bool> show_network_proxy_help: false;
     in property <bool> is_installing: false;
     in-out property <bool> show_set_sparse_confirm: false;
+    in-out property <bool> show_vhdx_resize_warning: false;
 
     // Data
     in property <string> delete_target_name: "";
@@ -144,6 +145,7 @@ export component ModalManager inherits Rectangle {
     callback copy_ip_clicked();
     callback resize_vhdx_clicked();
     callback set_sparse_clicked();
+    callback unset_sparse_clicked();
     callback confirm_set_sparse();
     callback cancel_set_sparse();
     callback confirm_settings(string, string, string, bool, bool, string, bool);
@@ -337,11 +339,15 @@ export component ModalManager inherits Rectangle {
         set_sparse_clicked => {
             root.set_sparse_clicked();
         }
+        unset_sparse_clicked => {
+            root.unset_sparse_clicked();
+        }
     }
     if (root.show_set_sparse_confirm): ConfirmationDialog {
         width: 100%;
         height: 100%;
         dialog_height: 200px;
+        is_warning: true;
         title_text: AppI18n.t("dialog.vhdx_set_sparse_confirm_title", [AppI18n.version]);
         message: AppI18n.t("dialog.vhdx_set_sparse_confirm_msg", [AppI18n.version]);
         confirm => {

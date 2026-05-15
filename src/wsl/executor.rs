@@ -5,6 +5,7 @@ use tracing::{debug, error, info, warn};
 
 use crate::wsl::models::WslCommandResult;
 
+use crate::utils::system::CREATE_NO_WINDOW;
 use crate::wsl::decoder::{WslOutputDecoder, decode_output};
 
 // WSL command executor, responsible for executing various WSL commands
@@ -59,6 +60,8 @@ impl WslCommandExecutor {
             "--mount",
             "--unmount",
             "--update",
+            "--move",
+            "--resize",
         ];
 
         // Use case-insensitive check for write operations
@@ -87,7 +90,6 @@ impl WslCommandExecutor {
 
             #[cfg(windows)]
             {
-                const CREATE_NO_WINDOW: u32 = 0x08000000;
                 cmd.creation_flags(CREATE_NO_WINDOW);
             }
             // Ensure process is killed if the future is dropped (timeout/cancellation)
@@ -188,7 +190,11 @@ impl WslCommandExecutor {
         // Detect heavy operations that need much longer timeouts (e.g., multi-GiB disk transfers)
         let is_heavy_op = args_owned.iter().any(|arg| {
             let lower = arg.to_lowercase();
-            lower == "--import" || lower == "--export" || lower == "--install"
+            lower == "--import"
+                || lower == "--export"
+                || lower == "--install"
+                || lower == "--move"
+                || lower == "--resize"
         });
 
         let timeout_duration = if is_heavy_op {
@@ -312,9 +318,6 @@ impl WslCommandExecutor {
 
             #[cfg(windows)]
             {
-                #[allow(unused_imports)]
-                use std::os::windows::process::CommandExt;
-                const CREATE_NO_WINDOW: u32 = 0x08000000;
                 cmd.creation_flags(CREATE_NO_WINDOW);
             }
 
@@ -333,6 +336,7 @@ impl WslCommandExecutor {
             let mut stderr = child.stderr.take().unwrap();
 
             let mut full_output = String::new();
+            let mut stderr_output = String::new();
             let mut out_buf = [0u8; 1024];
             let mut err_buf = [0u8; 1024];
 
@@ -360,6 +364,7 @@ impl WslCommandExecutor {
                             }
                             Err(e) => {
                                 error!("Streaming STDOUT read error: {}", e);
+                                stderr_output.push_str(&e.to_string());
                                 stdout_done = true;
                             }
                         }
@@ -372,13 +377,13 @@ impl WslCommandExecutor {
                             }
                             Ok(n) => {
                                 let text = err_decoder.decode(&err_buf[..n]);
-                                if !text.is_empty() {
-                                    full_output.push_str(&text);
-                                    callback(text);
-                                }
+                                full_output.push_str(&text);
+                                //stderr_output.push_str(&text);
+                                callback(text);
                             }
                             Err(e) => {
                                 error!("Streaming STDERR read error: {}", e);
+                                stderr_output.push_str(&e.to_string());
                                 stderr_done = true;
                             }
                         }
@@ -396,7 +401,7 @@ impl WslCommandExecutor {
                 status, command_str
             );
 
-            Ok((full_output, status))
+            Ok((full_output, stderr_output, status))
         };
 
         // Streaming commands usually used for install/import, so 30m timeout
@@ -421,11 +426,11 @@ impl WslCommandExecutor {
         };
 
         match tokio::time::timeout(timeout_duration, future).await {
-            Ok(Ok((full_output, status))) => {
+            Ok(Ok((full_output, stderr_output, status))) => {
                 if status.success() {
                     WslCommandResult::success(full_output, None)
                 } else {
-                    let err_msg = format!("Process exited with error: {}", status);
+                    let err_msg = stderr_output.trim().to_string() + " " + &status.to_string();
                     WslCommandResult::error(full_output, err_msg)
                 }
             }

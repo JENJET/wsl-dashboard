@@ -2,7 +2,10 @@ use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::os::windows::process::CommandExt;
 use std::path::Path;
-use tracing::{debug, error, info};
+use tracing::{debug, info};
+
+use crate::utils::system::CREATE_NO_WINDOW;
+use crate::wsl::executor::WslCommandExecutor;
 
 /// VHDX metadata parsed directly from file headers
 #[derive(Debug, Clone, Default)]
@@ -26,27 +29,18 @@ const VIRTUAL_DISK_SIZE_GUID: [u8; 16] = [
 
 const VHDX_HEADER_SIZE: u64 = 65536; // 64KB
 
-/// Check if a file is sparse
+/// Check if a file is sparse using PowerShell's FileAttributes API (locale-independent).
 fn is_file_sparse(path: &Path) -> bool {
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::MetadataExt;
+    let ps_script = format!(
+        "$a=(Get-Item '{}').Attributes;if($a-band[System.IO.FileAttributes]::SparseFile){{exit 0}}else{{exit 1}}",
+        path.to_string_lossy().replace('\'', "''")
+    );
+    let output = std::process::Command::new("powershell.exe")
+        .args(["-NoProfile", "-NonInteractive", "-Command", &ps_script])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output();
 
-        match std::fs::metadata(path) {
-            Ok(metadata) => {
-                // FILE_ATTRIBUTE_SPARSE_FILE = 0x00000200
-                const FILE_ATTRIBUTE_SPARSE_FILE: u32 = 0x00000200;
-                let attributes = metadata.file_attributes();
-                (attributes & FILE_ATTRIBUTE_SPARSE_FILE) != 0
-            }
-            Err(_) => false,
-        }
-    }
-
-    #[cfg(not(windows))]
-    {
-        false
-    }
+    matches!(output, Ok(out) if out.status.success())
 }
 
 /// Parse VHDX metadata by reading the file headers directly.
@@ -218,166 +212,61 @@ fn format_size(bytes: u64) -> String {
     }
 }
 
-/// Set a file as sparse using elevated PowerShell (fsutil).
-/// This requires admin privileges and will show a UAC prompt.
-pub fn set_sparse_file(vhdx_path: &str) -> Result<(), String> {
-    let path = Path::new(vhdx_path);
-    if !path.exists() {
-        return Err(format!("VHDX file not found: {}", vhdx_path));
-    }
-
-    info!("Setting file as sparse: {}", vhdx_path);
-
-    let temp_dir = std::env::temp_dir();
-    let script_path = temp_dir.join("wsldashboard_set_sparse.ps1");
-    let result_path = temp_dir.join("wsldashboard_set_sparse_result.txt");
-
-    let _ = std::fs::remove_file(&result_path);
-
-    let script = format!(
-        r#"$ErrorActionPreference = "Stop"
-try {{
-    fsutil sparse setflag "{path}"
-    Set-Content -Path '{result}' -Value "SUCCESS" -Encoding UTF8
-}} catch {{
-    Set-Content -Path '{result}' -Value "ERROR:$($_.Exception.Message)" -Encoding UTF8
-}}"#,
-        path = vhdx_path.replace('"', ""),
-        result = result_path.to_string_lossy().replace('\'', "''"),
-    );
-
-    std::fs::write(&script_path, &script)
-        .map_err(|e| format!("Failed to write temp script: {}", e))?;
-
-    let ps_command = format!(
-        "Start-Process powershell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"{}\"' -Verb RunAs -Wait -WindowStyle Hidden",
-        script_path.to_string_lossy()
-    );
-
-    info!("Launching elevated PowerShell to set sparse flag...");
-    const CREATE_NO_WINDOW: u32 = 0x08000000;
-    let output = std::process::Command::new("powershell.exe")
-        .args(["-NoProfile", "-NonInteractive", "-Command", &ps_command])
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .creation_flags(CREATE_NO_WINDOW)
-        .output()
-        .map_err(|e| format!("Failed to run PowerShell: {}", e))?;
-
-    let _ = std::fs::remove_file(&script_path);
-
-    // Wait briefly for the result file to be written
-    for _ in 0..10 {
-        if result_path.exists() {
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    }
-
-    match std::fs::read_to_string(&result_path) {
-        Ok(result_str) => {
-            let _ = std::fs::remove_file(&result_path);
-            // Strip BOM and trim whitespace (Out-File -Encoding UTF8 adds BOM in PS5.1)
-            let content = result_str.trim().trim_start_matches('\u{FEFF}').trim();
-            debug!("Set sparse result content: {:?}", content);
-            if content.starts_with("SUCCESS") {
-                info!("Set sparse completed successfully: {}", vhdx_path);
-                Ok(())
-            } else {
-                let err = content
-                    .strip_prefix("ERROR:")
-                    .unwrap_or(content)
-                    .to_string();
-                error!("Set sparse failed: {}", err);
-                Err(format!("Set sparse failed: {}", err))
-            }
-        }
-        Err(e) => {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            error!(
-                "Set sparse: failed to read result file ({}). stderr: {}",
-                e, stderr
-            );
-            let _ = std::fs::remove_file(&result_path);
-            Err(format!("Operation failed: {}. stderr: {}", e, stderr))
-        }
+/// Run a wsl manage command via executor.
+async fn run_wsl_manage(executor: &WslCommandExecutor, wsl_args: &[&str]) -> Result<(), String> {
+    let result = executor.execute_command(wsl_args).await;
+    if result.success {
+        Ok(())
+    } else {
+        let msg = result.error.unwrap_or_else(|| result.output.clone());
+        Err(if msg.trim().is_empty() {
+            "wsl manage command failed".to_string()
+        } else {
+            msg
+        })
     }
 }
 
-/// Resize a VHDX disk using elevated PowerShell.
-/// This requires admin privileges and will show a UAC prompt.
-pub fn resize_vhdx(vhdx_path: &str, new_size_bytes: u64) -> Result<(), String> {
-    let path = Path::new(vhdx_path);
-    if !path.exists() {
-        return Err(format!("VHDX file not found: {}", vhdx_path));
-    }
+/// Set a VHDX as sparse using `wsl --manage --set-sparse true`.
+pub async fn set_sparse_file(
+    executor: &WslCommandExecutor,
+    distro_name: &str,
+) -> Result<(), String> {
+    info!("Setting VHDX as sparse for distro: {}", distro_name);
+    run_wsl_manage(
+        executor,
+        &[
+            "--manage",
+            distro_name,
+            "--set-sparse",
+            "true",
+            "--allow-unsafe",
+        ],
+    )
+    .await
+}
 
-    info!("Resizing VHDX {} to {} bytes", vhdx_path, new_size_bytes);
-
-    let size_str = new_size_bytes.to_string();
-    // Write a temp script that does the resize and writes result to a temp file
-    let temp_dir = std::env::temp_dir();
-    let script_path = temp_dir.join("wsldashboard_resize_vhdx.ps1");
-    let result_path = temp_dir.join("wsldashboard_resize_result.txt");
-
-    // Clean up any previous result file
-    let _ = std::fs::remove_file(&result_path);
-
-    let script = format!(
-        r#"$ErrorActionPreference = "Stop"
-try {{
-    Resize-VHD -Path '{path}' -SizeBytes {size} -ErrorAction Stop
-    "SUCCESS:{size}" | Out-File -FilePath '{result}' -Encoding UTF8
-}} catch {{
-    "ERROR:$($_.Exception.Message)" | Out-File -FilePath '{result}' -Encoding UTF8
-}}"#,
-        path = vhdx_path.replace('\'', "''"),
-        size = size_str,
-        result = result_path.to_string_lossy().replace('\'', "''"),
+/// Resize a VHDX disk using `wsl --manage --resize`.
+/// Calls `on_output` with each chunk of command output for real-time display.
+pub async fn resize_vhdx(
+    executor: &WslCommandExecutor,
+    distro_name: &str,
+    size_gb: f64,
+    on_output: impl FnMut(String) + Send + 'static,
+) -> Result<String, String> {
+    let size_gb_int = size_gb as u64;
+    info!(
+        "Resizing VHDX for distro {} to {} GB",
+        distro_name, size_gb_int
     );
-
-    std::fs::write(&script_path, &script)
-        .map_err(|e| format!("Failed to write temp script: {}", e))?;
-
-    // Execute script with elevation via Start-Process -Verb RunAs, hidden window
-    let ps_command = format!(
-        "Start-Process powershell.exe -ArgumentList '-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File \"{}\"' -Verb RunAs -Wait -WindowStyle Hidden",
-        script_path.to_string_lossy()
-    );
-
-    info!("Launching elevated PowerShell for VHDX resize...");
-    const CREATE_NO_WINDOW: u32 = 0x08000000;
-    let output = std::process::Command::new("powershell.exe")
-        .args(["-NoProfile", "-NonInteractive", "-Command", &ps_command])
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .creation_flags(CREATE_NO_WINDOW)
-        .output()
-        .map_err(|e| format!("Failed to run PowerShell: {}", e))?;
-
-    // Clean up script
-    let _ = std::fs::remove_file(&script_path);
-
-    // Read result file
-    if let Ok(result_str) = std::fs::read_to_string(&result_path) {
-        let _ = std::fs::remove_file(&result_path);
-        if result_str.starts_with("SUCCESS:") {
-            info!("VHDX resize completed successfully: {}", vhdx_path);
-            Ok(())
-        } else {
-            let err = result_str
-                .strip_prefix("ERROR:")
-                .unwrap_or(&result_str)
-                .trim()
-                .to_string();
-            error!("VHDX resize failed: {}", err);
-            Err(format!("Resize failed: {}", err))
-        }
+    let size_str = format!("{}GB", size_gb_int);
+    let result = executor
+        .execute_command_streaming(&["--manage", distro_name, "--resize", &size_str], on_output)
+        .await;
+    if result.success {
+        Ok(result.output)
     } else {
-        // Maybe the user cancelled the UAC prompt, or something else went wrong
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        error!("VHDX resize: no result file. stderr: {}", stderr);
-        let _ = std::fs::remove_file(&result_path);
-        Err("操作被取消或需要管理员权限".to_string())
+        let msg = result.error.unwrap_or("".to_string());
+        Err(msg.trim().to_string())
     }
 }

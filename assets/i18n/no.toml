@@ -242,8 +242,12 @@ vhdx_set_sparse_confirm_title = "Sett som sparsom fil"
 vhdx_set_sparse_confirm_msg = "Advarsel: Å sette filen som sparsom kan føre til datatap. Er du sikker på at du vil fortsette?"
 vhdx_set_sparse_success = "Filen er satt som sparsom."
 vhdx_set_sparse_failed = "Kunne ikke sette filen som sparsom: {0}"
+vhdx_unset_sparse = "Fjern innstilling som sparsom"
+vhdx_unset_sparse_success = "Sparsom-flagg fjernet."
+vhdx_unset_sparse_failed = "Kunne ikke fjerne innstilling som sparsom: {0}"
 vhdx_resize_title = "Endre VHDX-størrelse"
 vhdx_resize_desc = "Endre størrelsen på distribusjonens VHDX-disk. Distribusjonen må stoppes før størrelsesendring."
+vhdx_resize_confirm_msg = "Advarsel: Endring av VHDX-størrelse kan føre til datatap, og utførelsestiden varierer avhengig av diskstørrelsen og kan være tidkrevende. Er du sikker på at du vil fortsette?"
 vhdx_resize_new_size = "Ny størrelse (GB)"
 
 [operation]

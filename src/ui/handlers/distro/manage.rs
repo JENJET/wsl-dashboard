@@ -912,28 +912,49 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
         });
     }
 
-    // VHDX Resize - confirm
+    // VHDX Resize - confirm (store pending size and show warning)
     {
         let ah_outer = app_handle.clone();
-        let as_outer = app_state.clone();
         app.on_vhdx_resize_confirm(move |new_size_gb| {
             let size_str = new_size_gb.to_string();
             tracing::info!("VHDX resize confirm clicked, size: '{}'", size_str);
 
-            // Read UI properties NOW (on Slint event loop thread) before spawning
-            let (vhdx_path, distro_name) = {
-                if let Some(app) = ah_outer.upgrade() {
-                    (
-                        app.get_vhdx_resize_path().to_string(),
-                        app.get_vhdx_resize_distro_name().to_string(),
-                    )
-                } else {
-                    tracing::error!("VHDX resize: failed to get app handle from UI thread");
+            // Validate size on UI thread
+            let size_gb: f64 = match size_str.trim().parse() {
+                Ok(v) if v > 0.0 => v,
+                _ => {
+                    let ah2 = ah_outer.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah2.upgrade() {
+                            app.set_vhdx_resize_error(i18n::t("dialog.vhdx_resize_failed").into());
+                            app.set_vhdx_resize_running(false);
+                        }
+                    });
                     return;
                 }
             };
 
-            tracing::info!("VHDX resize: path={}, distro={}", vhdx_path, distro_name);
+            if let Some(app) = ah_outer.upgrade() {
+                app.set_vhdx_resize_pending_size_gb(size_gb.to_string().into());
+                app.set_show_vhdx_resize_warning(true);
+            }
+        });
+    }
+
+    // VHDX Resize - execute (after warning confirmed)
+    {
+        let ah_outer = app_handle.clone();
+        let as_outer = app_state.clone();
+        app.on_vhdx_resize_execute(move |pending_size| {
+            let size_str = pending_size.to_string();
+            let distro_name = {
+                if let Some(app) = ah_outer.upgrade() {
+                    app.get_vhdx_resize_distro_name().to_string()
+                } else {
+                    tracing::error!("VHDX resize execute: failed to get app handle");
+                    return;
+                }
+            };
 
             let ah = ah_outer.clone();
             let as_ptr = as_outer.clone();
@@ -942,6 +963,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
             {
                 if let Some(app) = ah.upgrade() {
                     app.set_vhdx_resize_running(true);
+                    app.set_vhdx_resize_is_error(false);
                     app.set_vhdx_resize_output("".into());
                 }
             }
@@ -954,7 +976,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                         let ah2 = ah.clone();
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(app) = ah2.upgrade() {
-                                app.set_vhdx_resize_output(
+                                app.set_vhdx_resize_error(
                                     i18n::t("dialog.vhdx_resize_failed").into(),
                                 );
                                 app.set_vhdx_resize_running(false);
@@ -987,29 +1009,44 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     return;
                 }
 
-                let new_size_bytes = (size_gb * 1024.0 * 1024.0 * 1024.0) as u64;
-
                 // Update output with progress
+                let start_str =
+                    i18n::tr("dialog.vhdx_resize_progress", &[format!("{:.0}", size_gb)]);
                 {
                     let ah2 = ah.clone();
-                    let msg = i18n::tr("dialog.vhdx_resize_progress", &[format!("{:.0}", size_gb)]);
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(app) = ah2.upgrade() {
-                            app.set_vhdx_resize_output(msg.into());
+                            app.set_vhdx_resize_output((start_str + "\n\n").into());
                         }
                     });
                 }
 
                 tracing::info!(
-                    "VHDX resize: calling resize_vhdx with {} bytes",
-                    new_size_bytes
+                    "VHDX resize: calling resize_vhdx for distro {} to {} GB",
+                    distro_name,
+                    size_gb
                 );
-                let result = tokio::task::spawn_blocking(move || {
-                    crate::wsl::ops::vhdx::resize_vhdx(&vhdx_path, new_size_bytes)
-                })
+                let executor = {
+                    let state = as_ptr.lock().await;
+                    state.wsl_dashboard.executor().clone()
+                };
+                let ah_out = ah.clone();
+                let result = crate::wsl::ops::vhdx::resize_vhdx(
+                    &executor,
+                    &distro_name,
+                    size_gb,
+                    move |text| {
+                        let ah = ah_out.clone();
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(app) = ah.upgrade() {
+                                let current = app.get_vhdx_resize_output().to_string();
+                                app.set_vhdx_resize_output((current + &text).into());
+                            }
+                        });
+                    },
+                )
                 .await;
 
-                // Helper to stop running after a delay so the auto-scroll Timer can fire first
                 let stop_running = |ah: slint::Weak<AppWindow>| {
                     tokio::spawn(async move {
                         tokio::time::sleep(std::time::Duration::from_millis(300)).await;
@@ -1020,28 +1057,39 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                         });
                     });
                 };
-
                 match result {
-                    Ok(Ok(())) => {
+                    Ok(_output) => {
                         let ah2 = ah.clone();
                         let ah_stop = ah.clone();
                         let msg =
                             i18n::tr("dialog.vhdx_resize_success", &[format!("{:.0}", size_gb)]);
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(app) = ah2.upgrade() {
+                                let current = app.get_vhdx_resize_output().to_string();
+                                let msg = current.trim_end().to_string() + "\n\n" + &msg;
                                 app.set_vhdx_resize_output(msg.into());
                             }
                         });
-                        stop_running(ah_stop);
-                    }
-                    Ok(Err(e)) => {
-                        let ah2 = ah.clone();
-                        let ah_stop = ah.clone();
-                        let msg = i18n::tr("dialog.vhdx_resize_failed", &[e]);
+                        // Refresh distro information after resize
+                        let dashboard = {
+                            let state = as_ptr.lock().await;
+                            state.wsl_dashboard.clone()
+                        };
+                        let info_data = dashboard
+                            .executor()
+                            .get_distro_information(&distro_name)
+                            .await;
                         let _ = slint::invoke_from_event_loop(move || {
-                            if let Some(app) = ah2.upgrade() {
-                                app.set_vhdx_resize_is_error(true);
-                                app.set_vhdx_resize_output(msg.into());
+                            if let Some(app) = ah.upgrade() {
+                                if let Some(data) = info_data.data {
+                                    let mut slint_data = app.get_information();
+                                    slint_data.vhdx_size = data.vhdx_size.into();
+                                    slint_data.vhdx_path = data.vhdx_path.into();
+                                    slint_data.vhdx_is_sparse = data.vhdx_is_sparse;
+                                    slint_data.vhdx_virtual_size = data.vhdx_virtual_size.into();
+                                    slint_data.vhdx_type = data.vhdx_type.into();
+                                    app.set_information(slint_data);
+                                }
                             }
                         });
                         stop_running(ah_stop);
@@ -1049,11 +1097,14 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     Err(e) => {
                         let ah2 = ah.clone();
                         let ah_stop = ah.clone();
-                        let msg = i18n::tr("dialog.vhdx_resize_failed", &[e.to_string()]);
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(app) = ah2.upgrade() {
                                 app.set_vhdx_resize_is_error(true);
-                                app.set_vhdx_resize_output(msg.into());
+                                let current = app.get_vhdx_resize_output().to_string();
+                                let final_output = current.trim_end().to_string()
+                                    + "\n\n"
+                                    + &i18n::tr("dialog.vhdx_resize_failed", &[e]);
+                                app.set_vhdx_resize_output(final_output.into());
                             }
                         });
                         stop_running(ah_stop);
@@ -1076,6 +1127,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
     // Set sparse - confirm
     {
         let ah_outer = app_handle.clone();
+        let as_outer = app_state.clone();
         app.on_confirm_set_sparse(move || {
             let ah_close = ah_outer.clone();
             // Close confirmation dialog immediately
@@ -1083,26 +1135,26 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 app.set_show_set_sparse_confirm(false);
             }
             let ah = ah_outer.clone();
-            let vhdx_path = {
+            let as_ptr = as_outer.clone();
+            let distro_name = {
                 if let Some(app) = ah.upgrade() {
-                    app.get_information().vhdx_path.to_string()
+                    app.get_information().distro_name.to_string()
                 } else {
                     return;
                 }
             };
 
             tokio::spawn(async move {
-                let ah2 = ah.clone();
-                let result = tokio::task::spawn_blocking(move || {
-                    crate::wsl::ops::vhdx::set_sparse_file(&vhdx_path)
-                })
-                .await;
+                let executor = {
+                    let state = as_ptr.lock().await;
+                    state.wsl_dashboard.executor().clone()
+                };
+                let result = crate::wsl::ops::vhdx::set_sparse_file(&executor, &distro_name).await;
 
                 match result {
-                    Ok(Ok(())) => {
-                        let msg = i18n::tr("dialog.vhdx_set_sparse_success", &[]);
-                        // Update information to reflect sparse status
-                        let ah3 = ah2.clone();
+                    Ok(()) => {
+                        let msg = i18n::t("dialog.vhdx_set_sparse_success");
+                        let ah3 = ah.clone();
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(app) = ah3.upgrade() {
                                 let mut info = app.get_information();
@@ -1113,25 +1165,67 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                             }
                         });
                     }
-                    Ok(Err(e)) => {
+                    Err(e) => {
                         let msg = i18n::tr("dialog.vhdx_set_sparse_failed", &[e]);
                         let _ = slint::invoke_from_event_loop(move || {
-                            if let Some(app) = ah2.upgrade() {
-                                app.set_current_message(msg.into());
-                                app.set_show_message_dialog(true);
-                            }
-                        });
-                    }
-                    Err(e) => {
-                        let msg = i18n::tr("dialog.vhdx_set_sparse_failed", &[e.to_string()]);
-                        let _ = slint::invoke_from_event_loop(move || {
-                            if let Some(app) = ah2.upgrade() {
+                            if let Some(app) = ah.clone().upgrade() {
                                 app.set_current_message(msg.into());
                                 app.set_show_message_dialog(true);
                             }
                         });
                     }
                 }
+            });
+        });
+    }
+
+    // Unset sparse
+    {
+        let ah = app_handle.clone();
+        let as_outer = app_state.clone();
+        app.on_unset_sparse_clicked(move || {
+            let distro_name = {
+                if let Some(app) = ah.upgrade() {
+                    app.get_information().distro_name.to_string()
+                } else {
+                    return;
+                }
+            };
+            let ah_spawn = ah.clone();
+            let as_ptr = as_outer.clone();
+            tokio::spawn(async move {
+                let executor = {
+                    let state = as_ptr.lock().await;
+                    state.wsl_dashboard.executor().clone()
+                };
+                let result = executor
+                    .execute_command(&["--manage", &distro_name, "--set-sparse", "false"])
+                    .await;
+
+                let (success, err_msg) = if result.success {
+                    (true, String::new())
+                } else {
+                    (false, result.error.unwrap_or_else(|| result.output))
+                };
+                let ah2 = ah_spawn.clone();
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(app) = ah2.upgrade() {
+                        if success {
+                            let mut info = app.get_information();
+                            info.vhdx_is_sparse = false;
+                            app.set_information(info);
+                            app.set_current_message(
+                                i18n::t("dialog.vhdx_unset_sparse_success").into(),
+                            );
+                            app.set_show_message_dialog(true);
+                        } else {
+                            app.set_current_message(
+                                i18n::tr("dialog.vhdx_unset_sparse_failed", &[err_msg]).into(),
+                            );
+                            app.set_show_message_dialog(true);
+                        }
+                    }
+                });
             });
         });
     }

@@ -242,8 +242,12 @@ vhdx_set_sparse_confirm_title = "Indstil som sparsom fil"
 vhdx_set_sparse_confirm_msg = "Advarsel: Indstilling af filen som sparsom kan medføre datatab. Er du sikker på, at du vil fortsætte?"
 vhdx_set_sparse_success = "Filen er blevet indstillet som sparsom."
 vhdx_set_sparse_failed = "Kunne ikke indstille filen som sparsom: {0}"
+vhdx_unset_sparse = "Fjern indstilling som sparsom"
+vhdx_unset_sparse_success = "Flag for sparsom fil er blevet fjernet."
+vhdx_unset_sparse_failed = "Kunne ikke fjerne indstilling som sparsom: {0}"
 vhdx_resize_title = "Ændr VHDX-størrelse"
 vhdx_resize_desc = "Ændr størrelsen på distributionens VHDX-disk. Distributionen skal stoppes før størrelsesændring."
+vhdx_resize_confirm_msg = "Advarsel: Ændring af VHDX-størrelse kan medføre datatab, og udførelsestiden varierer afhængigt af diskstørrelsen og kan være tidskrævende. Er du sikker på, at du vil fortsætte?"
 vhdx_resize_new_size = "Ny størrelse (GB)"
 
 [operation]

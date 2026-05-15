@@ -4,6 +4,10 @@ use tracing::{debug, warn};
 /// Get the WSL networking mode from ~/.wslconfig
 /// Returns "nat" as default if file or setting is missing.
 pub fn get_wsl_networking_mode() -> String {
+    get_wsl_networking_mode_impl()
+}
+
+fn get_wsl_networking_mode_impl() -> String {
     let home_dir = match dirs::home_dir() {
         Some(path) => path,
         None => {
@@ -41,4 +45,11 @@ pub fn get_wsl_networking_mode() -> String {
             "nat".to_string()
         }
     }
+}
+
+/// Whether to show distro IP in the instance list.
+/// Controlled by networking mode — only enabled under "virtioproxy" mode.
+pub fn show_distro_ip() -> bool {
+    //get_wsl_networking_mode_impl() == "virtioproxy"
+    false
 }

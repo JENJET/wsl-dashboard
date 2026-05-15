@@ -1,11 +1,10 @@
 use super::models::PortProxyRule;
 use super::tracker::{get_distro_ip, is_distro_running};
+use crate::utils::system::CREATE_NO_WINDOW;
 use std::collections::HashSet;
 use std::os::windows::process::CommandExt;
 use std::process::Command;
 use tracing::{error, info};
-
-const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 fn execute_netsh(args: &[&str]) -> Result<String, String> {
     let output = Command::new("netsh")

@@ -1,3 +1,4 @@
+use crate::utils::system::CREATE_NO_WINDOW;
 use crate::wsl::executor::WslCommandExecutor;
 use crate::wsl::models::WslCommandResult;
 use tokio::task;
@@ -14,7 +15,7 @@ pub async fn open_distro_folder(
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
-            const CREATE_NO_WINDOW: u32 = 0x08000000;
+
             command.creation_flags(CREATE_NO_WINDOW);
         }
         let output = command.status();
@@ -43,7 +44,7 @@ pub async fn open_distro_vscode(
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
-            const CREATE_NO_WINDOW: u32 = 0x08000000;
+
             command.creation_flags(CREATE_NO_WINDOW);
         }
         let output = command.status();
@@ -64,7 +65,7 @@ pub async fn check_vscode_extension(_executor: &WslCommandExecutor) -> WslComman
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
-            const CREATE_NO_WINDOW: u32 = 0x08000000;
+
             command.creation_flags(CREATE_NO_WINDOW);
         }
 
@@ -127,7 +128,7 @@ pub async fn open_distro_terminal(
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
-            const CREATE_NO_WINDOW: u32 = 0x08000000;
+
             command.creation_flags(CREATE_NO_WINDOW);
         }
         let output = command.status();
@@ -158,7 +159,7 @@ pub async fn open_distro_folder_path(
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
-            const CREATE_NO_WINDOW: u32 = 0x08000000;
+
             command.creation_flags(CREATE_NO_WINDOW);
         }
         let output = command.status();

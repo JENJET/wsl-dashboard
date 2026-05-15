@@ -3,9 +3,9 @@ use std::process::Command;
 use tracing::{debug, info};
 
 #[cfg(windows)]
-use std::os::windows::process::CommandExt;
+use crate::utils::system::CREATE_NO_WINDOW;
 #[cfg(windows)]
-const CREATE_NO_WINDOW: u32 = 0x08000000;
+use std::os::windows::process::CommandExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct UsbDeviceModel {

@@ -8,6 +8,7 @@ export component ConfirmationDialog inherits Rectangle {
     in property <length> dialog_height: 160px;
     in property <bool> show_preview_checkbox: false;
     in-out property <bool> preview_checked: false;
+    in property <bool> is_warning: false;
     callback confirm;
     callback cancel;
     
@@ -42,7 +43,7 @@ export component ConfirmationDialog inherits Rectangle {
                 text: root.message;
                 font-size: 14px * LayoutConstants.font-scale;
                 font-family: Theme.default_font;
-                color: Theme.text_primary;
+                color: root.is_warning ? #ef4444 : Theme.text_primary;
                 wrap: word-wrap;
                 horizontal-alignment: AppI18n.is-rtl ? right : left;
             }

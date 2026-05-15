@@ -242,8 +242,12 @@ vhdx_set_sparse_confirm_title = "Seyrek dosya olarak ayarla"
 vhdx_set_sparse_confirm_msg = "Uyarı: Dosyayı seyrek olarak ayarlamak veri kaybına neden olabilir. Devam etmek istediğinize emin misiniz?"
 vhdx_set_sparse_success = "Dosya başarıyla seyrek olarak ayarlandı."
 vhdx_set_sparse_failed = "Dosya seyrek olarak ayarlanamadı: {0}"
+vhdx_unset_sparse = "Seyrek ayarını kaldır"
+vhdx_unset_sparse_success = "Seyrek dosya işareti başarıyla kaldırıldı."
+vhdx_unset_sparse_failed = "Seyrek ayarı kaldırılamadı: {0}"
 vhdx_resize_title = "VHDX'i Yeniden Boyutlandır"
 vhdx_resize_desc = "Dağıtımın VHDX diskini yeniden boyutlandırın. Yeniden boyutlandırmadan önce dağıtım durdurulmalıdır."
+vhdx_resize_confirm_msg = "Uyarı: VHDX yeniden boyutlandırma veri kaybına neden olabilir ve yürütme süresi disk boyutuna göre değişir ve zaman alıcı olabilir. Devam etmek istediğinize emin misiniz?"
 vhdx_resize_new_size = "Yeni Boyut (GB)"
 
 [operation]

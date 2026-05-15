@@ -1,5 +1,6 @@
 use crate::i18n;
 use crate::ui::data;
+use crate::utils::system::CREATE_NO_WINDOW;
 use crate::{AppState, AppWindow, WslManageStrings};
 use slint::{ModelRc, VecModel};
 use std::sync::Arc;
@@ -231,7 +232,6 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
             #[cfg(windows)]
             {
                 use std::os::windows::process::CommandExt;
-                const CREATE_NO_WINDOW: u32 = 0x08000000;
                 cmd.creation_flags(CREATE_NO_WINDOW);
             }
             cmd.stdout(std::process::Stdio::piped());
@@ -355,7 +355,6 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 #[cfg(windows)]
                 {
                     use std::os::windows::process::CommandExt;
-                    const CREATE_NO_WINDOW: u32 = 0x08000000;
                     cmd.creation_flags(CREATE_NO_WINDOW);
                 }
                 let _ = cmd.spawn().map_err(|e| {

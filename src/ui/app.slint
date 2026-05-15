@@ -17,6 +17,7 @@ import {
 import { TitleBar } from "components/title_bar.slint";
 import { Sidebar } from "components/sidebar.slint";
 import { ModalManager } from "components/modal_manager.slint";
+import { ConfirmationDialog } from "components/dialogs/confirmation_dialog.slint";
 import { MainView } from "views/main_view.slint";
 import { AddInstanceView } from "views/add_view.slint";
 import { WslManageView } from "views/wsl_manage_view.slint";
@@ -244,6 +245,8 @@ export component AppWindow inherits Window {
     in property <string> vhdx_resize_output: "";
     in property <bool> vhdx_resize_is_error: false;
     in-out property <float> vhdx_resize_viewport_y: 0.0;
+    in-out property <bool> show_vhdx_resize_warning: false;
+    in-out property <string> vhdx_resize_pending_size_gb: "";
     in-out property <bool> show_set_sparse_confirm: false;
 
     // --- Callbacks ---
@@ -311,6 +314,7 @@ export component AppWindow inherits Window {
     callback show_copy_success();
     callback copy_ip_clicked();
     callback copy_distro_ip(string);
+    callback copy_distro_name(string);
     callback save_wsl_config();
     callback save_wsl_config_and_restart();
     callback request_wsl_config_preview();
@@ -355,10 +359,12 @@ export component AppWindow inherits Window {
     callback vhdx_resize_show(string, string);
     callback vhdx_resize_cancel();
     callback vhdx_resize_confirm(string);
+    callback vhdx_resize_execute(string);
 
     // Set sparse callbacks
     callback confirm_set_sparse();
     callback cancel_set_sparse();
+    callback unset_sparse_clicked();
 
     // Dynamic Font Selection to optimize memory usage
     // Helper function to map language to font (No recursion here)
@@ -533,6 +539,9 @@ export component AppWindow inherits Window {
                                 }
                                 copy_distro_ip(n) => {
                                     root.copy_distro_ip(n);
+                                }
+                                copy_distro_name(n) => {
+                                    root.copy_distro_name(n);
                                 }
                             }
 
@@ -935,6 +944,9 @@ export component AppWindow inherits Window {
         set_sparse_clicked => {
             root.show_set_sparse_confirm = true;
         }
+        unset_sparse_clicked => {
+            root.unset_sparse_clicked();
+        }
         show_set_sparse_confirm: root.show_set_sparse_confirm;
         confirm_set_sparse => {
             root.confirm_set_sparse();
@@ -1152,13 +1164,13 @@ export component AppWindow inherits Window {
                             color: Theme.text_primary;
                             vertical-alignment: center;
                             enabled: !root.vhdx_resize_running;
-                            input-type: number;
+                           // input-type: number;
                         }
                     }
                     if (!root.vhdx_resize_running): Rectangle {
                         width: 110px;
                         height: 30px;
-                        background: Theme.accent;
+                        background: root.vhdx_resize_new_size == "" || root.vhdx_resize_new_size.to-float() <= 0 ? Theme.accent.with-alpha(30%) : Theme.accent;
                         border-radius: 4px;
                         HorizontalLayout {
                             padding-left: 10px;
@@ -1172,17 +1184,12 @@ export component AppWindow inherits Window {
                                 font-family: Theme.default_font;
                                 vertical-alignment: center;
                             }
-                            Image {
-                                source: @image-url("../../assets/feat/microsoft-shield.png");
-                                width: 12px;
-                                height: 12px;
-                                image-fit: contain;
-                                y: (parent.height - self.height) / 2;
-                            }
                         }
                         TouchArea {
                             clicked => {
-                                root.vhdx_resize_confirm(root.vhdx_resize_new_size);
+                                if (root.vhdx_resize_new_size != "" && root.vhdx_resize_new_size.to-float() > 0) {
+                                    root.vhdx_resize_confirm(root.vhdx_resize_new_size);
+                                }
                             }
                         }
                     }
@@ -1192,7 +1199,7 @@ export component AppWindow inherits Window {
                         background: Theme.accent.with-alpha(40%);
                         border-radius: 4px;
                         Text {
-                            text: AppI18n.t("dialog.vhdx_resize", [AppI18n.version]);
+                            text: AppI18n.t("dialog.processing", [AppI18n.version]);
                             color: white;
                             font-size: 12px * LayoutConstants.font-scale;
                             font-family: Theme.default_font;
@@ -1208,7 +1215,7 @@ export component AppWindow inherits Window {
                         border-width: 1px;
                         border-color: Theme.border_color;
                         Text {
-                            text: (root.vhdx_resize_running || root.vhdx_resize_output != "") ? AppI18n.t("dialog.confirm", [AppI18n.version]) : AppI18n.t("dialog.cancel", [AppI18n.version]);
+                            text: AppI18n.t("dialog.cancel", [AppI18n.version]);
                             color: Theme.text_primary;
                             font-size: 12px * LayoutConstants.font-scale;
                             font-family: Theme.default_font;
@@ -1240,7 +1247,7 @@ export component AppWindow inherits Window {
                                 text: root.vhdx_resize_running && root.vhdx_resize_output == "" ? AppI18n.t("dialog.processing", [AppI18n.version]) : root.vhdx_resize_output;
                                 color: root.vhdx_resize_is_error ? #ef4444 : Theme.text_primary;
                                 font-size: 12px * LayoutConstants.font-scale;
-                                font-family: "Cascadia Code, Consolas, Courier New, monospace";
+                                font-family: Theme.default_font;
                                 wrap: word-wrap;
                                 horizontal-alignment: left;
                                 vertical-alignment: top;
@@ -1248,7 +1255,7 @@ export component AppWindow inherits Window {
                         }
                     }
                     auto_scroll_timer := Timer {
-                        interval: 10ms;
+                        interval: 100ms;
                         running: root.vhdx_resize_running;
                         triggered => {
                             vhdx-flick.viewport-y = vhdx-flick.height - vhdx-flick.viewport-height;
@@ -1256,6 +1263,24 @@ export component AppWindow inherits Window {
                     }
                 }
             }
+        }
+    }
+
+    // VHDX Resize Warning (on top of resize dialog)
+    if root.show_vhdx_resize_warning : ConfirmationDialog {
+        width: 100%;
+        height: 100%;
+        z: 101;
+        dialog_height: 200px;
+        is_warning: true;
+        title_text: AppI18n.t("dialog.vhdx_resize_title", [AppI18n.version]);
+        message: AppI18n.t("dialog.vhdx_resize_confirm_msg", [AppI18n.version]);
+        confirm => {
+            root.show_vhdx_resize_warning = false;
+            root.vhdx_resize_execute(root.vhdx_resize_pending_size_gb);
+        }
+        cancel => {
+            root.show_vhdx_resize_warning = false;
         }
     }
 }

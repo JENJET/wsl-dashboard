@@ -1,8 +1,7 @@
+use crate::utils::system::CREATE_NO_WINDOW;
 use std::os::windows::process::CommandExt;
 use std::process::Command;
 use tracing::info;
-
-const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 /// Get the IP address of the specified distribution
 /// `max_retries`: 1 for quick mode (no retry), 30 for full mode (with retry)

@@ -171,7 +171,7 @@ pub async fn perform_save_settings(
                 Err(e) => {
                     error!("Failed to register auto-start task: {}", e);
                     let err_msg = if e.contains("InvalidOperation") || e.contains("denied") {
-                        "Operation denied (UAC)".to_string()
+                        crate::i18n::t("network.error_uac")
                     } else {
                         format!("Failed to schedule: {}", e)
                     };

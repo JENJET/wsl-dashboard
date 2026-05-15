@@ -242,8 +242,12 @@ vhdx_set_sparse_confirm_title = "تعيين كملف متفرق"
 vhdx_set_sparse_confirm_msg = "تحذير: قد يؤدي تعيين الملف كملف متفرق إلى فقدان البيانات. هل أنت متأكد من أنك تريد المتابعة؟"
 vhdx_set_sparse_success = "تم تعيين الملف كملف متفرق بنجاح."
 vhdx_set_sparse_failed = "فشل تعيين الملف كملف متفرق: {0}"
+vhdx_unset_sparse = "إلغاء التعيين كملف متفرق"
+vhdx_unset_sparse_success = "تمت إزالة علامة الملف المتفرق بنجاح."
+vhdx_unset_sparse_failed = "فشل إلغاء تعيين الملف كملف متفرق: {0}"
 vhdx_resize_title = "تغيير حجم VHDX"
 vhdx_resize_desc = "قم بتغيير حجم قرص VHDX للتوزيعة. يجب إيقاف التوزيعة قبل تغيير الحجم."
+vhdx_resize_confirm_msg = "تحذير: قد يؤدي تغيير حجم VHDX إلى فقدان البيانات، ويختلف وقت التنفيذ حسب حجم القرص وقد يستغرق وقتًا طويلاً. هل أنت متأكد أنك تريد المتابعة؟"
 vhdx_resize_new_size = "الحجم الجديد (جيجابايت)"
 
 [operation]

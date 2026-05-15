@@ -25,6 +25,7 @@ component DistroList inherits VerticalLayout {
     callback configs_clicked(string);
     callback set_default_distro(string);
     callback copy_distro_ip(string);
+    callback copy_distro_name(string);
     padding-top: 0px;
     padding-bottom: 0px;
     padding-left: AppI18n.is-rtl ? 16px : 4px;
@@ -93,6 +94,9 @@ component DistroList inherits VerticalLayout {
         copy_distro_ip => {
             root.copy_distro_ip(d.ip);
         }
+        copy_distro_name => {
+            root.copy_distro_name(d.name);
+        }
     }
 }
 
@@ -116,6 +120,7 @@ export component MainView inherits VerticalLayout {
     callback configs_clicked(string);
     callback set_default_distro(string);
     callback copy_distro_ip(string);
+    callback copy_distro_name(string);
     in-out property <string> distro_to_delete;
     in-out property <bool> show_delete_confirmation;
     private property <string> expanded_distro: "";
@@ -184,6 +189,9 @@ export component MainView inherits VerticalLayout {
                 }
                 copy_distro_ip(n) => {
                     root.copy_distro_ip(n);
+                }
+                copy_distro_name(n) => {
+                    root.copy_distro_name(n);
                 }
             }
         }

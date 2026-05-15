@@ -250,9 +250,12 @@ vhdx_set_sparse_confirm_title = "Set as sparse file"
 vhdx_set_sparse_confirm_msg = "Warning: Setting the file as sparse may cause data loss. Are you sure you want to continue?"
 vhdx_set_sparse_success = "File has been set as sparse successfully."
 vhdx_set_sparse_failed = "Failed to set file as sparse: {0}"
-
+vhdx_unset_sparse = "Unset sparse"
+vhdx_unset_sparse_success = "Sparse flag removed successfully."
+vhdx_unset_sparse_failed = "Failed to unset sparse: {0}"
 vhdx_resize_title = "Resize VHDX"
 vhdx_resize_desc = "Resize the VHDX disk of the distro. The distro must be stopped before resizing."
+vhdx_resize_confirm_msg = "Warning: Resizing the VHDX may cause data loss, and the execution time varies depending on the disk size and may be time-consuming. Are you sure you want to continue?"
 vhdx_resize_new_size = "New Size (GB)"
 
 [operation]

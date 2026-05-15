@@ -1,10 +1,9 @@
+use crate::utils::system::CREATE_NO_WINDOW;
 use std::fs;
 use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
 use std::process::Command;
 use tracing::{error, info};
-
-const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 /// Define the elevated task name
 pub const TASK_NAME: &str = r#"\WSLDashboard\WSLDashboardTask"#;

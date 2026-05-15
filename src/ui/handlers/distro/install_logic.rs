@@ -156,7 +156,9 @@ pub async fn perform_install(
         return;
     }
 
-    let name_exists = distro_snapshot.iter().any(|d| d.name == final_name);
+    let name_exists = distro_snapshot
+        .iter()
+        .any(|d| d.name.eq_ignore_ascii_case(&final_name));
 
     if name_exists {
         let new_suggested_name = sanitize_instance_name(&generate_random_suffix(&final_name));
@@ -230,7 +232,10 @@ pub async fn perform_install(
             );
 
             // Check if real_id already exists in WSL to prevent accidental data loss
-            if distro_snapshot.iter().any(|d| d.name == real_id) {
+            if distro_snapshot
+                .iter()
+                .any(|d| d.name.eq_ignore_ascii_case(&real_id))
+            {
                 let ah_err = ah.clone();
                 let real_id_err = real_id.clone();
                 let _ = slint::invoke_from_event_loop(move || {
@@ -391,7 +396,10 @@ pub async fn perform_install(
                     dashboard.refresh_distros().await;
 
                     let distros_final = dashboard.get_distros().await;
-                    if distros_final.iter().any(|d| d.name == real_id) {
+                    if distros_final
+                        .iter()
+                        .any(|d| d.name.eq_ignore_ascii_case(&real_id))
+                    {
                         distro_registered = true;
                         break;
                     }

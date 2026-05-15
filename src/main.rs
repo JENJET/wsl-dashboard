@@ -4,6 +4,7 @@
 #[global_allocator]
 static ALLOC: dhat::Alloc = dhat::Alloc;
 
+use crate::utils::system::CREATE_NO_WINDOW;
 use slint::{ComponentHandle, Model};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -124,10 +125,8 @@ async fn main() {
                     {
                         use std::os::windows::process::CommandExt;
                         use std::process::Command;
-                        const CREATE_NO_WINDOW: u32 = 0x08000000;
-
                         let _ = Command::new("wsl")
-                            .args(&["-d", name, "-u", "root", WSL_INIT_SCRIPT, "start"])
+                            .args(&["-d", name, "-u", "root", "--", WSL_INIT_SCRIPT, "start"])
                             .creation_flags(CREATE_NO_WINDOW)
                             .spawn();
                         distros_spawned += 1;
@@ -184,7 +183,6 @@ async fn main() {
                 #[cfg(windows)]
                 {
                     use std::os::windows::process::CommandExt;
-                    const CREATE_NO_WINDOW: u32 = 0x08000000;
                     cmd.creation_flags(CREATE_NO_WINDOW);
                 }
                 cmd.env("WSL_UTF8", "1");

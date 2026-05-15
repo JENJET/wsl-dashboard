@@ -242,8 +242,12 @@ vhdx_set_sparse_confirm_title = "Definir como arquivo esparso"
 vhdx_set_sparse_confirm_msg = "Aviso: Definir o arquivo como esparso pode causar perda de dados. Tem certeza de que deseja continuar?"
 vhdx_set_sparse_success = "O arquivo foi definido como esparso com sucesso."
 vhdx_set_sparse_failed = "Falha ao definir o arquivo como esparso: {0}"
+vhdx_unset_sparse = "Anular definição como esparso"
+vhdx_unset_sparse_success = "O sinalizador de arquivo esparso foi removido com sucesso."
+vhdx_unset_sparse_failed = "Falha ao anular definição como esparso: {0}"
 vhdx_resize_title = "Redimensionar VHDX"
 vhdx_resize_desc = "Redimensione o disco VHDX da distribuição. A distribuição deve ser interrompida antes de redimensionar."
+vhdx_resize_confirm_msg = "Aviso: Redimensionar o VHDX pode causar perda de dados, e o tempo de execução varia dependendo do tamanho do disco e pode ser demorado. Tem certeza de que deseja continuar?"
 vhdx_resize_new_size = "Novo tamanho (GB)"
 
 [operation]

@@ -1,4 +1,5 @@
 use crate::config::ConfigManager;
+use crate::utils::system::CREATE_NO_WINDOW;
 use crate::wsl::executor::WslCommandExecutor;
 use crate::wsl::models::WslCommandResult;
 use std::time::Duration;
@@ -41,7 +42,6 @@ pub async fn start_distro(
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
-            const CREATE_NO_WINDOW: u32 = 0x08000000;
             cmd.creation_flags(CREATE_NO_WINDOW);
         }
 
@@ -270,7 +270,6 @@ pub async fn delete_distro(
             ]);
             #[cfg(windows)]
             {
-                const CREATE_NO_WINDOW: u32 = 0x08000000;
                 uninstall_cmd.creation_flags(CREATE_NO_WINDOW);
                 uninstall_cmd.kill_on_drop(true);
             }

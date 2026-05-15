@@ -242,8 +242,12 @@ vhdx_set_sparse_confirm_title = "Instellen als spars bestand"
 vhdx_set_sparse_confirm_msg = "Waarschuwing: Het bestand als spars instellen kan gegevensverlies veroorzaken. Weet u zeker dat u wilt doorgaan?"
 vhdx_set_sparse_success = "Bestand is succesvol als spars bestand ingesteld."
 vhdx_set_sparse_failed = "Instellen van bestand als spars bestand is mislukt: {0}"
+vhdx_unset_sparse = "Instelling als spars ongedaan maken"
+vhdx_unset_sparse_success = "Spars-markering succesvol verwijderd."
+vhdx_unset_sparse_failed = "Ongedaan maken van instelling als spars mislukt: {0}"
 vhdx_resize_title = "VHDX-formaat wijzigen"
 vhdx_resize_desc = "Wijzig de grootte van de VHDX-schijf van de distributie. De distributie moet worden gestopt voordat de grootte wordt gewijzigd."
+vhdx_resize_confirm_msg = "Waarschuwing: Het wijzigen van de VHDX-grootte kan gegevensverlies veroorzaken en de uitvoeringstijd varieert afhankelijk van de schijfgrootte en kan tijdrovend zijn. Weet u zeker dat u wilt doorgaan?"
 vhdx_resize_new_size = "Nieuwe grootte (GB)"
 
 [operation]

@@ -359,15 +359,12 @@ pub async fn refresh_distros_ui(
         if !running_distros.is_empty() {
             let ah = app_handle.clone();
             tokio::task::spawn_blocking(move || {
-                // Check if networking mode is mirrored
-                let is_mirrored = crate::utils::wsl_config::get_wsl_networking_mode() == "mirrored";
-
                 let mut ip_results: Vec<(String, String)> = Vec::new();
                 let mut resource_results: Vec<(String, f64, f64, f64)> = Vec::new();
 
                 for name in &running_distros {
-                    // Fetch IP only in mirrored mode
-                    if is_mirrored {
+                    // Fetch IP only when show_distro_ip is enabled
+                    if crate::utils::wsl_config::show_distro_ip() {
                         match crate::network::tracker::get_distro_ip(name, Some(1)) {
                             Ok(ip) => {
                                 debug!("Fetched IP for {}: {}", name, ip);
@@ -402,7 +399,7 @@ pub async fn refresh_distros_ui(
                                 if let Some(mut distro) = model.row_data(i) {
                                     let mut updated = false;
 
-                                    // Update IP (only in mirrored mode)
+                                    // Update IP
                                     if let Some((_, ip)) =
                                         ip_results.iter().find(|(name, _)| distro.name == *name)
                                     {
@@ -501,9 +498,7 @@ pub async fn refresh_distros_ui(
                                 ip: Default::default(),
                                 cpu_usage: Default::default(),
                                 memory_usage: Default::default(),
-                                is_mirrored_network:
-                                    crate::utils::wsl_config::get_wsl_networking_mode()
-                                        == "mirrored",
+                                show_ip: crate::utils::wsl_config::show_distro_ip(),
                             }
                         },
                     )

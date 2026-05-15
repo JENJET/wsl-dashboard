@@ -242,8 +242,12 @@ vhdx_set_sparse_confirm_title = "Définir comme fichier sparse"
 vhdx_set_sparse_confirm_msg = "Avertissement : Définir le fichier comme sparse peut entraîner une perte de données. Êtes-vous sûr de vouloir continuer ?"
 vhdx_set_sparse_success = "Le fichier a été défini comme sparse avec succès."
 vhdx_set_sparse_failed = "Échec de la définition du fichier comme sparse : {0}"
+vhdx_unset_sparse = "Annuler la définition comme sparse"
+vhdx_unset_sparse_success = "L'indicateur sparse a été supprimé avec succès."
+vhdx_unset_sparse_failed = "Échec de l'annulation de la définition comme sparse : {0}"
 vhdx_resize_title = "Redimensionner VHDX"
 vhdx_resize_desc = "Redimensionnez le disque VHDX de la distribution. La distribution doit être arrêtée avant le redimensionnement."
+vhdx_resize_confirm_msg = "Avertissement : Le redimensionnement du VHDX peut entraîner une perte de données, et le temps d'exécution varie en fonction de la taille du disque et peut être long. Êtes-vous sûr de vouloir continuer ?"
 vhdx_resize_new_size = "Nouvelle taille (Go)"
 
 [operation]
