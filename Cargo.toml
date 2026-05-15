@@ -18,6 +18,7 @@ slint = { version = "1.16.1", features = ["backend-winit", "renderer-skia"] }
 tokio = { version = "1.38", features = ["rt-multi-thread", "macros", "sync", "time", "process", "io-util", "fs"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "registry"] }
+icu_provider = { version = "2.2", features = ["logging"] }
 tracing-appender = "0.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

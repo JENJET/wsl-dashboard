@@ -59,6 +59,12 @@ impl<S: Subscriber> Filter<S> for DynamicLevelFilter {
         metadata: &Metadata<'_>,
         _ctx: &tracing_subscriber::layer::Context<'_, S>,
     ) -> bool {
+        // Suppress harmless ICU4X "No segmentation model" WARN messages from
+        // icu_provider::error (bypassed the log crate in debug mode without
+        // the `logging` feature; now goes through proper log → tracing path).
+        if metadata.level() == &Level::WARN && metadata.target().starts_with("icu_provider") {
+            return false;
+        }
         metadata.level() <= &self.get_level()
     }
 }
@@ -82,7 +88,7 @@ struct LocalTimer {
 impl FormatTime for LocalTimer {
     fn format_time(&self, w: &mut fmt::format::Writer<'_>) -> std::fmt::Result {
         let now = chrono::Utc::now().with_timezone(&self.offset);
-        write!(w, "{}", now.format("%Y-%m-%dT%H:%M:%S%.6f%:z"))
+        write!(w, "{}", now.format("%Y-%m-%d %H:%M:%S%.3f"))
     }
 }
 
