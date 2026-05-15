@@ -143,7 +143,7 @@ pub async fn perform_install(
     let is_valid_chars = final_name
         .chars()
         .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.');
-    if !is_valid_chars || final_name.len() > 25 {
+    if !is_valid_chars || final_name.len() > 32 {
         let ah_err = ah.clone();
         let _ = slint::invoke_from_event_loop(move || {
             if let Some(app) = ah_err.upgrade() {
@@ -641,36 +641,50 @@ pub async fn perform_install(
                 let mut buffer = tb_dl;
                 let mut dot_count = 0;
                 let mut last_status = String::new();
+                let mut is_verify = false;
                 loop {
                     tokio::time::sleep(std::time::Duration::from_millis(500)).await;
                     if ui_dl_stop_clone.load(std::sync::atomic::Ordering::Relaxed) {
                         break;
                     }
+
                     dot_count = (dot_count % 3) + 1;
                     let dots = ".".repeat(dot_count);
-
                     // Check for new status (retry) message
-                    let status = dl_status_clone.lock().unwrap().clone();
+                    let mut status = dl_status_clone.lock().unwrap().clone();
                     if !status.is_empty() && status != last_status {
                         // Append new status line to buffer permanently
-                        buffer.push_str(&format!("    {}\n", status));
+                        if status.starts_with("verify_start") {
+                            is_verify = true;
+                            status = i18n::t("install.url.step_1_4_verify_start");
+                            buffer.push_str(&format!("    {}", status));
+                        } else {
+                            is_verify = false;
+                            buffer.push_str(&format!("    {}\n", status));
+                        }
                         last_status = status.clone();
+                        info!("Download status update: {}", status);
+                        if let Ok(mut s) = dl_status_clone.lock() {
+                            *s = "".to_string();
+                        }
                     }
 
-                    // Show download progress in the active line
-                    let progress = dl_progress_clone.lock().unwrap().clone();
-                    let line = if !progress.is_empty() {
-                        format!("    {} {}", progress, dots)
+                    let text = if is_verify {
+                        format!("{}{}", buffer, dots)
                     } else {
-                        format!("    {}", dots)
+                        // Show download progress in the active line
+                        let progress = dl_progress_clone.lock().unwrap().clone();
+                        let line = if !progress.is_empty() {
+                            format!("    {} {}", progress, dots)
+                        } else {
+                            format!("    {}", dots)
+                        };
+                        format!("{}{}", buffer, line)
                     };
-                    let text = format!("{}{}", buffer, line);
-                    let progress_clone = progress.clone();
                     let ah_cb = ah_ui_dl.clone();
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(app) = ah_cb.upgrade() {
                             app.set_terminal_output(text.into());
-                            app.set_task_status_text(progress_clone.into());
                         }
                     });
                 }
@@ -679,12 +693,14 @@ pub async fn perform_install(
 
             let dl_progress_cb = dl_progress.clone();
             let dl_status_cb = dl_status.clone();
+            let max_retries = 3;
             let download_result = download_manager
                 .download(
                     &final_name,
                     &dl_url,
                     &dl_sha256,
                     threads,
+                    max_retries,
                     Some(move |current: u64, total: u64| {
                         let current_mb = current as f64 / (1024.0 * 1024.0);
                         let total_mb = total as f64 / (1024.0 * 1024.0);
@@ -706,25 +722,36 @@ pub async fn perform_install(
                         }
                     }),
                     Some(move |msg: String| {
+                        info!("status callback: {}", msg);
                         if msg.starts_with("verify_failed/") {
                             let retry_count = msg.trim_start_matches("verify_failed/").to_string();
                             let fail_msg = i18n::tr(
-                                "install.url.step_2_4_failed",
-                                &[retry_count, 3.to_string()],
+                                "install.url.step_1_4_verify_failed",
+                                &[retry_count, max_retries.to_string()],
                             );
                             if let Ok(mut s) = dl_status_cb.lock() {
                                 *s = fail_msg;
+                            }
+                        } else {
+                            if let Ok(mut s) = dl_status_cb.lock() {
+                                *s = msg;
                             }
                         }
                     }),
                 )
                 .await;
 
+            tokio::time::sleep(std::time::Duration::from_millis(1000)).await;
+
             ui_dl_stop.store(true, std::sync::atomic::Ordering::Relaxed);
             terminal_buffer = ui_dl_task.await.unwrap_or(terminal_buffer);
-
             match download_result {
                 Ok(cached_path) => {
+                    terminal_buffer = terminal_buffer.trim_end().to_string() + "\n"; // Ensure single newline at end
+                    terminal_buffer.push_str(&format!(
+                        "    {}\n",
+                        i18n::t("install.url.step_1_4_verify_ok")
+                    ));
                     // [2/4] Verify done
                     let step2 = i18n::t("install.url.step_2_4_done");
                     terminal_buffer.push_str(&format!("{}\n", step2));
@@ -875,7 +902,10 @@ pub async fn perform_install(
                     });
                 }
                 Err(e) => {
-                    error_msg = i18n::tr("install.url.step_download_failed", &[3.to_string(), e]);
+                    error_msg = i18n::tr(
+                        "install.url.step_download_failed",
+                        &[max_retries.to_string(), e],
+                    );
                     let ah_err = ah.clone();
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(app) = ah_err.upgrade() {

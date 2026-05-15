@@ -1,3 +1,4 @@
+use crate::i18n;
 use sha2::{Digest, Sha256};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
@@ -180,6 +181,13 @@ pub fn verify_sha256(path: &Path, expected_hex: &str) -> bool {
     hash[..] == expected_bytes[..]
 }
 
+/// Async version: runs verify_sha256 on a blocking thread
+pub async fn verify_sha256_async(path: PathBuf, expected_hex: String) -> bool {
+    tokio::task::spawn_blocking(move || verify_sha256(&path, &expected_hex))
+        .await
+        .unwrap_or(false)
+}
+
 // ─── Download Manager ───
 
 pub struct DownloadManager {
@@ -281,6 +289,7 @@ impl DownloadManager {
         url: &str,
         expected_sha256: &str,
         threads: usize,
+        max_retries: usize,
         progress_callback: Option<impl Fn(u64, u64) + Send + 'static>,
         status_callback: Option<impl Fn(String) + Send + 'static>,
     ) -> Result<PathBuf, String> {
@@ -297,7 +306,10 @@ impl DownloadManager {
         // 1. Check if cached file exists and is valid
         if final_path.exists() {
             info!("[CACHE CHECK] final_path exists, verifying SHA256...");
-            if verify_sha256(&final_path, expected_sha256) {
+            if let Some(ref cb) = status_callback {
+                cb(format!("verify_start"));
+            }
+            if verify_sha256_async(final_path.clone(), expected_sha256.to_owned()).await {
                 info!("[CACHE HIT] using cached file: {:?}", final_path);
                 return Ok(final_path);
             } else {
@@ -311,7 +323,10 @@ impl DownloadManager {
         // 2. Check .part exists (completed merge but not yet renamed)
         if partial_path.exists() {
             info!("[PARTIAL CHECK] .part exists, verifying SHA256...");
-            if verify_sha256(&partial_path, expected_sha256) {
+            if let Some(ref cb) = status_callback {
+                cb(format!("verify_start"));
+            }
+            if verify_sha256_async(partial_path.clone(), expected_sha256.to_owned()).await {
                 info!("[PARTIAL HIT] .part verified OK, renaming to .wsl");
                 std::fs::rename(&partial_path, &final_path)
                     .map_err(|e| format!("Failed to rename .part to .wsl: {}", e))?;
@@ -348,8 +363,7 @@ impl DownloadManager {
         let file_size = get_content_length(url).await?;
         info!("Remote file size: {} bytes", file_size);
 
-        // 4. Retry loop (max 3 attempts)
-        let max_retries = 3;
+        // 4. Retry loop
         let mut last_error = String::new();
 
         for attempt in 1..=max_retries {
@@ -379,7 +393,6 @@ impl DownloadManager {
                     &chunk_dir,
                     threads,
                     current_initial,
-                    attempt,
                     &progress_callback,
                 )
                 .await;
@@ -388,7 +401,10 @@ impl DownloadManager {
                 Ok(()) => {
                     // Verify SHA256
                     info!("Download complete, verifying SHA256...");
-                    if verify_sha256(&partial_path, expected_sha256) {
+                    if let Some(ref cb) = status_callback {
+                        cb(format!("verify_start"));
+                    }
+                    if verify_sha256_async(partial_path.clone(), expected_sha256.to_owned()).await {
                         info!("SHA256 verification passed");
                         std::fs::remove_dir_all(&chunk_dir).ok();
                         std::fs::rename(&partial_path, &final_path)
@@ -399,7 +415,11 @@ impl DownloadManager {
                             "SHA256 verification failed on attempt {}/{}",
                             attempt, max_retries
                         );
-                        last_error = "SHA256 verification failed".to_string();
+                        last_error = i18n::tr(
+                            "install.url.step_1_4_verify_failed",
+                            &[attempt.to_string(), max_retries.to_string()],
+                        )
+                        .to_string();
                         // Delete .part and chunks before retry
                         std::fs::remove_file(&partial_path).ok();
                         std::fs::remove_dir_all(&chunk_dir).ok();
@@ -437,7 +457,6 @@ impl DownloadManager {
         chunk_dir: &Path,
         threads: usize,
         initial_size: u64,
-        _attempt: usize,
         progress_callback: &Option<impl Fn(u64, u64) + Send + 'static>,
     ) -> Result<(), String> {
         std::fs::create_dir_all(chunk_dir).ok();
@@ -447,8 +466,6 @@ impl DownloadManager {
         let url_arc = Arc::new(url.to_string());
         let cancel_flag = Arc::new(AtomicBool::new(false));
         let done_flag = Arc::new(AtomicBool::new(false));
-        // chunk_meta: (chunk_path, skip_bytes_old_data, write_start_full_file)
-        let mut chunk_meta: Vec<(PathBuf, u64, u64)> = Vec::new();
         let mut handles = Vec::new();
         for i in 0..threads {
             let chunk_path = chunk_dir.join(format!("chunk_{}", i));
@@ -470,8 +487,6 @@ impl DownloadManager {
                 continue;
             }
 
-            chunk_meta.push((chunk_path.clone(), old_bytes, wstart));
-
             let url = url_arc.clone();
             let dl = total_init.clone();
             let cancel = cancel_flag.clone();
@@ -483,10 +498,9 @@ impl DownloadManager {
             let handle = tokio::task::spawn_blocking(move || {
                 let max_retries = 3;
                 let mut last_error = String::new();
-                let original_ws = ws;
                 for attempt in 1..=max_retries {
                     let current_size = std::fs::metadata(&cp).map(|m| m.len()).unwrap_or(0);
-                    let retry_ws = original_ws + current_size;
+                    let retry_ws = ws + current_size - old_bytes;
                     if retry_ws >= re {
                         return Ok(());
                     }
