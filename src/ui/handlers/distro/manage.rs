@@ -385,6 +385,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                                 slint_data.vhdx_size = data.vhdx_size.into();
                                 slint_data.actual_used = Default::default();
                                 slint_data.actual_total = Default::default();
+                                slint_data.actual_unused = Default::default();
                                 slint_data.ip = Default::default();
                                 slint_data.vhdx_virtual_size = data.vhdx_virtual_size.into();
                                 slint_data.vhdx_type = data.vhdx_type.into();
@@ -410,6 +411,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                                         });
                                         let mut ip_val = String::new();
                                         let mut used_val = String::new();
+                                        let mut unused_val = String::new();
                                         let mut total_val = String::new();
 
                                         match crate::network::tracker::get_distro_ip(
@@ -423,8 +425,9 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                                             ),
                                         }
 
-                                        // Get free space of the VHDX drive partition
-                                        let mut drive_free_mb: f64 = 0.0;
+                                        // Get disk space info of the VHDX drive partition
+                                        let mut drive_total_mb: f64 = 0.0;
+                                        let mut drive_unused_mb: f64 = 0.0;
                                         if !vhdx_path_for_async.is_empty() {
                                             // Extract drive letter (e.g., "D:\" -> "D:\")
                                             let drive_root = if vhdx_path_for_async.len() >= 3 {
@@ -432,11 +435,12 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                                             } else {
                                                 vhdx_path_for_async.clone()
                                             };
-                                            let free_bytes =
-                                                crate::utils::system::get_disk_free_space(
-                                                    &drive_root,
-                                                );
-                                            drive_free_mb = free_bytes as f64 / (1024.0 * 1024.0);
+                                            let disk_info =
+                                                crate::utils::system::get_disk_space(&drive_root);
+                                            drive_total_mb =
+                                                disk_info.total_bytes as f64 / (1024.0 * 1024.0);
+                                            drive_unused_mb =
+                                                disk_info.unused_bytes as f64 / (1024.0 * 1024.0);
                                         }
 
                                         let df_output = std::process::Command::new("wsl")
@@ -462,8 +466,10 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                                                     let parts: Vec<&str> =
                                                         second_line.split_whitespace().collect();
                                                     if parts.len() >= 3 {
+                                                        let mut used_mb_f = 0.0;
                                                         if let Ok(used_mb) = parts[2].parse::<f64>()
                                                         {
+                                                            used_mb_f = used_mb;
                                                             let used_gb = used_mb / 1024.0;
                                                             used_val = format!("{:.2} GB", used_gb);
                                                         }
@@ -477,17 +483,30 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                                                         };
 
                                                         let effective_total_mb =
-                                                            if drive_free_mb > 0.0 {
-                                                                linux_total_mb.min(drive_free_mb)
+                                                            if drive_total_mb > 0.0 {
+                                                                linux_total_mb.min(drive_total_mb)
                                                             } else {
                                                                 linux_total_mb
                                                             };
-
                                                         if effective_total_mb > 0.0 {
                                                             let total_gb =
                                                                 effective_total_mb / 1024.0;
                                                             total_val =
                                                                 format!("{:.2} GB", total_gb);
+                                                        }
+
+                                                        let effective_unused_mb =
+                                                            if drive_unused_mb > 0.0 {
+                                                                (linux_total_mb - used_mb_f)
+                                                                    .min(drive_unused_mb)
+                                                            } else {
+                                                                linux_total_mb - used_mb_f
+                                                            };
+                                                        if effective_unused_mb > 0.0 {
+                                                            let unused_gb =
+                                                                effective_unused_mb / 1024.0;
+                                                            unused_val =
+                                                                format!("{:.2} GB", unused_gb);
                                                         }
                                                     }
                                                 }
@@ -506,6 +525,9 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                                                     }
                                                     if !total_val.is_empty() {
                                                         info.actual_total = total_val.into();
+                                                    }
+                                                    if !unused_val.is_empty() {
+                                                        info.actual_unused = unused_val.into();
                                                     }
                                                     app.set_information(info);
                                                 }
@@ -879,6 +901,32 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 }
                 Err(e) => {
                     tracing::error!("Failed to copy distro IP to clipboard: {}", e);
+                }
+            }
+        });
+    }
+
+    // Copy distro name to clipboard
+    {
+        let ah = app_handle.clone();
+        app.on_copy_distro_name(move |name| {
+            let name_str = name.to_string();
+            if name_str.is_empty() {
+                return;
+            }
+            use crate::utils::system::copy_to_clipboard;
+            match copy_to_clipboard(&name_str) {
+                Ok(_) => {
+                    tracing::info!("Copied distro name to clipboard: {}", name_str);
+                    let ah_inner = ah.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah_inner.upgrade() {
+                            app.invoke_show_copy_success();
+                        }
+                    });
+                }
+                Err(e) => {
+                    tracing::error!("Failed to copy distro name to clipboard: {}", e);
                 }
             }
         });

@@ -1249,7 +1249,7 @@ export component AppWindow inherits Window {
                                 font-size: 12px * LayoutConstants.font-scale;
                                 font-family: Theme.default_font;
                                 wrap: word-wrap;
-                                horizontal-alignment: left;
+                                horizontal-alignment: AppI18n.is-rtl ? right : left;
                                 vertical-alignment: top;
                             }
                         }

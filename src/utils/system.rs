@@ -5,7 +5,14 @@ use crate::i18n;
 
 pub const CREATE_NO_WINDOW: u32 = 0x08000000;
 
-pub fn get_disk_free_space(path: &str) -> u64 {
+pub struct DiskSpaceInfo {
+    pub total_bytes: u64,
+    pub unused_bytes: u64,
+    #[allow(dead_code)]
+    pub used_bytes: u64,
+}
+
+pub fn get_disk_space(path: &str) -> DiskSpaceInfo {
     let mut free_bytes_available: u64 = 0;
     let mut total_number_of_bytes: u64 = 0;
     let mut total_number_of_free_bytes: u64 = 0;
@@ -20,15 +27,19 @@ pub fn get_disk_free_space(path: &str) -> u64 {
         )
         .is_ok()
         {
-            free_bytes_available
+            DiskSpaceInfo {
+                total_bytes: total_number_of_bytes,
+                unused_bytes: free_bytes_available,
+                used_bytes: total_number_of_bytes - free_bytes_available,
+            }
         } else {
-            0
+            DiskSpaceInfo {
+                total_bytes: 0,
+                unused_bytes: 0,
+                used_bytes: 0,
+            }
         }
     }
-}
-
-pub fn get_c_drive_free_space() -> u64 {
-    get_disk_free_space("C:\\")
 }
 
 pub fn copy_to_clipboard(text: &str) -> Result<(), String> {

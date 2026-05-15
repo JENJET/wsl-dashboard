@@ -132,12 +132,12 @@ pub async fn resolve_temp_path(
     }
 
     // 2. Check C: drive space
-    let c_free_bytes = crate::utils::system::get_c_drive_free_space();
+    let c_space = crate::utils::system::get_disk_space("C:\\");
 
     // Safety margin (e.g., 1GB) since the export might be slightly larger or we want to leave some space
     let required_bytes = vhdx_bytes + 1024 * 1024 * 1024;
 
-    let temp_dir = if c_free_bytes < required_bytes && !distro_loc.is_empty() {
+    let temp_dir = if c_space.unused_bytes < required_bytes && !distro_loc.is_empty() {
         // Use distro_location/temp
         let path = std::path::PathBuf::from(distro_loc).join("temp");
         let _ = std::fs::create_dir_all(&path);
