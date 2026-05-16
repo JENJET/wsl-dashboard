@@ -197,13 +197,14 @@ pub async fn refresh_distros_ui(
                     "refresh_distros_ui: Found {} installed distributions",
                     distros.len()
                 );
-                // Sort by: 1. Default first, 2. Name A-Z
+                // Sort by: 1. Running first, 2. Default first, 3. Name A-Z
                 distros.sort_by(|a, b| {
-                    if a.is_default != b.is_default {
-                        b.is_default.cmp(&a.is_default) // true (1) comes before false (0)
-                    } else {
-                        a.name.to_lowercase().cmp(&b.name.to_lowercase())
-                    }
+                    let a_is_running = matches!(a.status, wsl::models::WslStatus::Running);
+                    let b_is_running = matches!(b.status, wsl::models::WslStatus::Running);
+                    b_is_running
+                        .cmp(&a_is_running)
+                        .then_with(|| b.is_default.cmp(&a.is_default))
+                        .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
                 });
                 (
                     distros,
@@ -457,16 +458,20 @@ pub async fn refresh_distros_ui(
             if data_changed {
                 let slint_distros: Vec<Distro> = intermediate_distros
                     .into_iter()
+                    .enumerate()
                     .map(
                         |(
-                            name,
-                            status,
-                            version,
-                            is_default,
-                            icon_key,
-                            initial,
-                            preloaded_icon,
-                            _is_running,
+                            idx,
+                            (
+                                name,
+                                status,
+                                version,
+                                is_default,
+                                icon_key,
+                                initial,
+                                preloaded_icon,
+                                _is_running,
+                            ),
                         )| {
                             let mut image = slint::Image::default();
                             let mut has_icon = false;
@@ -484,6 +489,7 @@ pub async fn refresh_distros_ui(
                             }
 
                             Distro {
+                                sequence: (idx + 1) as i32,
                                 name: name.into(),
                                 status: status.into(),
                                 version: version.into(),

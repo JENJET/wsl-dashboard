@@ -164,7 +164,7 @@ fn verify_translations() {
     let mut en_keys = HashSet::new();
     flatten_keys("", &en_toml, &mut en_keys);
 
-    println!("cargo:warning=--- i18n Integrity Check (Base: en.toml) ---");
+    println!("cargo:info=--- i18n Integrity Check (Base: en.toml) ---");
 
     if let Ok(entries) = fs::read_dir(i18n_dir) {
         for entry in entries.flatten() {
@@ -202,7 +202,7 @@ fn verify_translations() {
             }
         }
     }
-    println!("cargo:warning=------------------------------------------");
+    println!("cargo:info=------------------------------------------");
 }
 
 fn flatten_keys(prefix: &str, value: &Value, keys: &mut HashSet<String>) {

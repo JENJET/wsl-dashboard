@@ -58,6 +58,7 @@ pub struct WslCommandResult<T> {
     pub output: String,
     pub error: Option<String>,
     pub data: Option<T>,
+    pub timeout: bool,
 }
 
 impl<T> WslCommandResult<T> {
@@ -68,6 +69,7 @@ impl<T> WslCommandResult<T> {
             output,
             error,
             data,
+            timeout: false,
         }
     }
 
@@ -77,6 +79,7 @@ impl<T> WslCommandResult<T> {
             output,
             error: None,
             data,
+            timeout: false,
         }
     }
 
@@ -86,6 +89,7 @@ impl<T> WslCommandResult<T> {
             output,
             error: Some(error),
             data: None,
+            timeout: false,
         }
     }
 }

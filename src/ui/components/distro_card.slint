@@ -63,7 +63,7 @@ component DistroInfo inherits VerticalLayout {
             text: AppI18n.t(distro.status == "Running" ? "distro.running" : (distro.status == "Stopped" ? "distro.stopped" : "distro.installing"), [AppI18n.version]);
             font-size: 12px * LayoutConstants.font-scale;
             font-family: Theme.default_font;
-            color: Theme.text_secondary;
+            color: distro.status == "Running" ? #22c55e : Theme.text_secondary;
             horizontal-alignment: is-rtl ? right : left;
         }
         
@@ -150,6 +150,25 @@ component DistroBadge inherits VerticalLayout {
             height: 24px;
             source: distro.icon;
             image-fit: contain;
+        }
+
+        // Sequence number badge (bottom-right corner of icon)
+        Rectangle {
+            z: 1;
+            x: 18px;
+            y: 18px;
+            width: seq_text.width + 4px;
+            height: 12px;
+            border-radius: 6px;
+            background: Theme.accent;
+            seq_text := Text {
+                text: distro.sequence;
+                font-size: 8px * LayoutConstants.font-scale;
+                font-weight: 700;
+                color: #ffffff;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
         }
 
         // Show initials only when no icon is available
@@ -615,10 +634,10 @@ export component DistroCard inherits Rectangle {
                         }
                         configs => {
                             root.configs_clicked();
-                        }
-                    }
-                }
             }
+        }
+    }
+}
         }
     }
 }

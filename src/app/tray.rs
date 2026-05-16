@@ -1,8 +1,8 @@
-use crate::AppWindow;
 use crate::i18n;
+use crate::{AppState, AppWindow};
 use once_cell::sync::Lazy;
 use slint::ComponentHandle;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tracing::{error, info};
 use tray_icon::{
     Icon, TrayIconBuilder, TrayIconEvent,
@@ -24,6 +24,7 @@ pub struct SystemTray;
 impl SystemTray {
     pub fn initialize(
         app_weak: slint::Weak<AppWindow>,
+        app_state: Arc<tokio::sync::Mutex<AppState>>,
         initially_visible: bool,
     ) -> Result<(), Box<dyn std::error::Error>> {
         info!("Initializing system tray via tray-icon...");
@@ -78,6 +79,7 @@ impl SystemTray {
             .is_ok()
         {
             let app_weak_clone = app_weak.clone();
+            let state_clone = app_state.clone();
             let timer = slint::Timer::default();
             timer.start(
                 slint::TimerMode::Repeated,
@@ -120,7 +122,18 @@ impl SystemTray {
                             }
                             "exit" => {
                                 info!("Exit requested from tray menu");
-                                slint::quit_event_loop().unwrap();
+                                if let Some(app) = app_weak_clone.upgrade() {
+                                    let is_blocked = state_clone
+                                        .try_lock()
+                                        .map(|s| s.wsl_dashboard.is_manual_operation())
+                                        .unwrap_or(false);
+                                    if is_blocked {
+                                        info!("Tray exit blocked: manual operation in progress");
+                                        app.set_show_busy_dialog(true);
+                                    } else {
+                                        slint::quit_event_loop().unwrap();
+                                    }
+                                }
                             }
                             _ => {}
                         }

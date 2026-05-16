@@ -793,7 +793,8 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                         }
                     });
 
-                    // Refresh distros UI immediately after successful operation
+                    // Refresh in-memory state then UI immediately
+                    let _ = manager.refresh_distros().await;
                     refresh_distros_ui(ah.clone(), as_ptr.clone()).await;
                 } else {
                     let error_msg = result.error.unwrap_or_else(|| "Unknown error".to_string());

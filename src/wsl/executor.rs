@@ -5,8 +5,10 @@ use tracing::{debug, error, info, warn};
 
 use crate::wsl::models::WslCommandResult;
 
-use crate::utils::system::CREATE_NO_WINDOW;
+use crate::utils::system::{CREATE_NEW_CONSOLE, CREATE_NO_WINDOW};
 use crate::wsl::decoder::{WslOutputDecoder, decode_output};
+
+const MAX_CONCURRENT: usize = 30;
 
 // WSL command executor, responsible for executing various WSL commands
 #[derive(Clone)]
@@ -27,8 +29,8 @@ impl WslCommandExecutor {
     // Create a new WSL command executor instance
     pub fn new() -> Self {
         Self {
-            // Limit to 16 concurrent operations. Higher than before to buffer hangs.
-            semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(16)),
+            // Limit to 30 concurrent operations. Higher than before to buffer hangs.
+            semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(MAX_CONCURRENT)),
             // Limit to 4 concurrent background heavy operations
             background_semaphore: std::sync::Arc::new(tokio::sync::Semaphore::new(4)),
         }
@@ -213,9 +215,9 @@ impl WslCommandExecutor {
         }
 
         // Acquire semaphore permit with its own timeout to avoid deadlock if slots are stuck
-        let permit_timeout = std::time::Duration::from_secs(20);
+        let permit_timeout = std::time::Duration::from_secs(10);
         debug!(
-            "Acquiring WSL semaphore permit (Available: {}/16) for: {}",
+            "Acquiring WSL semaphore permit (Available: {}/{MAX_CONCURRENT}) for: {}",
             self.semaphore.available_permits(),
             command_str
         );
@@ -287,7 +289,13 @@ impl WslCommandExecutor {
                 );
                 error!("{}", error);
                 // Child is killed automatically due to kill_on_drop(true)
-                WslCommandResult::error(String::new(), error)
+                WslCommandResult {
+                    success: false,
+                    output: String::new(),
+                    error: Some(error),
+                    data: None,
+                    timeout: true,
+                }
             }
         };
 
@@ -445,7 +453,13 @@ impl WslCommandExecutor {
                     command_str
                 );
                 error!("{}", error);
-                WslCommandResult::error(String::new(), error)
+                WslCommandResult {
+                    success: false,
+                    output: String::new(),
+                    error: Some(error),
+                    data: None,
+                    timeout: true,
+                }
             }
         }
     }
@@ -471,5 +485,40 @@ impl WslCommandExecutor {
             .execute_command(&["-d", distro_name, "-u", "root", "-e", "test", "-x", path])
             .await;
         (exists_res.success, exec_res.success)
+    }
+
+    /// Execute a WSL command in a new console window (interactive, fire-and-forget).
+    /// Uses CREATE_NEW_CONSOLE so the user can interact with the terminal.
+    pub async fn spawn_console(&self, args: &[&str]) -> Result<(), String> {
+        let args_owned: Vec<String> = args.iter().map(|&s| s.to_string()).collect();
+        let command_str = format!("wsl {}", args_owned.join(" "));
+        info!("Spawning WSL console: {}", command_str);
+
+        let permit_timeout = std::time::Duration::from_secs(3);
+        let _permit = match tokio::time::timeout(permit_timeout, self.semaphore.acquire()).await {
+            Ok(Ok(p)) => p,
+            Ok(Err(_)) => return Err("Failed to acquire semaphore permit (closed)".to_string()),
+            Err(_) => {
+                return Err(format!(
+                    "WSL spawn console timeout after {}s (Queue full): {}",
+                    permit_timeout.as_secs(),
+                    command_str
+                ));
+            }
+        };
+
+        let mut cmd = tokio::process::Command::new("wsl.exe");
+        cmd.args(&args_owned);
+        #[cfg(windows)]
+        {
+            cmd.creation_flags(CREATE_NEW_CONSOLE);
+        }
+        cmd.kill_on_drop(false);
+
+        cmd.spawn()
+            .map(|_| {
+                info!("WSL console spawned successfully: {}", command_str);
+            })
+            .map_err(|e| format!("Failed to spawn WSL console: {}", e))
     }
 }

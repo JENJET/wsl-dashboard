@@ -126,8 +126,9 @@ impl WslDashboard {
                     self.state_changed.notify_one();
                 }
             }
-        } else {
+        } else if !result.timeout {
             // WSL may be uninstalled or not available, clear distro list
+            // (skip on timeout to preserve existing list)
             let mut distros_lock = self.distros.lock().await;
             if !distros_lock.is_empty() {
                 tracing::debug!("WSL command failed, clearing distro list");

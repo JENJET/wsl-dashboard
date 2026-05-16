@@ -304,12 +304,15 @@ async fn main() {
         .set_issues_url(format!("{}{}", GITHUB_URL, GITHUB_ISSUES).into());
 
     // 9. Initialize system tray
-    if let Err(e) = app::tray::SystemTray::initialize(app.as_weak(), !is_silent_mode) {
+    if let Err(e) =
+        app::tray::SystemTray::initialize(app.as_weak(), app_state.clone(), !is_silent_mode)
+    {
         error!("Failed to initialize system tray: {}", e);
     }
 
     app.on_reinit_tray({
         let ah = app.as_weak();
+        let state = app_state.clone();
         move || {
             let current_visible = if let Some(app) = ah.upgrade() {
                 app.get_is_window_visible()
@@ -320,7 +323,9 @@ async fn main() {
                 "Re-initializing tray, current visibility: {}",
                 current_visible
             );
-            if let Err(e) = app::tray::SystemTray::initialize(ah.clone(), current_visible) {
+            if let Err(e) =
+                app::tray::SystemTray::initialize(ah.clone(), state.clone(), current_visible)
+            {
                 error!("Failed to re-initialize system tray: {}", e);
             }
         }

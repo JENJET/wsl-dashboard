@@ -4,6 +4,7 @@ use windows::core::HSTRING;
 use crate::i18n;
 
 pub const CREATE_NO_WINDOW: u32 = 0x08000000;
+pub const CREATE_NEW_CONSOLE: u32 = 0x00000010;
 
 pub struct DiskSpaceInfo {
     pub total_bytes: u64,

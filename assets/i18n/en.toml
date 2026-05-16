@@ -167,6 +167,7 @@ move_failed_backup = "Move failed (Backup saved):\nThe distro was unregistered, 
 move_wsl2_shutdown_warning = "Moving a WSL2 distro requires shutting down all running WSL instances to release file handles.\n\nThe following distros will be stopped: {0}\n\nPlease click Confirm to proceed."
 move_wsl2_shutdown_warning_no_running = "Moving a WSL2 distro requires executing wsl --shutdown to ensure file handles are fully released.\n\nPlease click Confirm to proceed."
 wsl_update_title = "WSL Update"
+busy_close = "An operation is in progress. Force quitting may cause data loss. Are you sure you want to exit?"
 processing = "Processing..."
 target_path = "Target Path"
 new_name = "New Instance Name"

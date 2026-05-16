@@ -21,26 +21,24 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
 
     // Install WSL
     let ah = app_handle.clone();
+    let as_ptr = app_state.clone();
     app.on_wsl_manage_install(move || {
         let ah = ah.clone();
+        let as_ptr = as_ptr.clone();
         let _ = slint::spawn_local(async move {
-            let mut cmd = std::process::Command::new("wsl.exe");
-            cmd.arg("--install");
-            #[cfg(windows)]
-            {
-                use std::os::windows::process::CommandExt;
-                const CREATE_NEW_CONSOLE: u32 = 0x00000010;
-                cmd.creation_flags(CREATE_NEW_CONSOLE);
-            }
-            match cmd.spawn() {
-                Ok(_) => {
+            let executor = {
+                let state = as_ptr.lock().await;
+                state.wsl_dashboard.executor().clone()
+            };
+            match executor.spawn_console(&["--install"]).await {
+                Ok(()) => {
                     info!("WSL install command launched");
                     let msg = i18n::t("wsl_manage.install_success");
                     data::show_message(&ah, &msg);
                 }
                 Err(e) => {
                     error!("Failed to launch WSL install: {}", e);
-                    let msg = i18n::tr("wsl_manage.install_failed", &[e.to_string()]);
+                    let msg = i18n::tr("wsl_manage.install_failed", &[e]);
                     data::show_message(&ah, &msg);
                 }
             }
@@ -54,15 +52,12 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
         let ah = ah.clone();
         let as_ptr = as_ptr.clone();
         let _ = slint::spawn_local(async move {
-            let mut cmd = std::process::Command::new("wsl.exe");
-            #[cfg(windows)]
-            {
-                use std::os::windows::process::CommandExt;
-                const CREATE_NEW_CONSOLE: u32 = 0x00000010;
-                cmd.creation_flags(CREATE_NEW_CONSOLE);
-            }
-            match cmd.spawn() {
-                Ok(_) => {
+            let executor = {
+                let state = as_ptr.lock().await;
+                state.wsl_dashboard.executor().clone()
+            };
+            match executor.spawn_console(&["--cd", "~"]).await {
+                Ok(()) => {
                     debug!("WSL terminal launched");
                     // Wait for instance to start, then refresh status
                     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
@@ -202,12 +197,14 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
 
             if result.success {
                 info!("WSL shutdown all completed");
-                let msg = i18n::t("wsl_manage.shutdown_success");
-                data::show_message(&ah, &msg);
+                // Refresh state first so the UI shows updated status
                 let state = as_ptr.lock().await;
                 let _ = state.wsl_dashboard.refresh_distros().await;
                 drop(state);
                 refresh_wsl_info(&ah, &as_ptr).await;
+                // Show success dialog after everything is settled
+                let msg = i18n::t("wsl_manage.shutdown_success");
+                data::show_message(&ah, &msg);
             } else {
                 error!(
                     "WSL shutdown failed: {}",
@@ -224,67 +221,55 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
 
     // Set default WSL version
     let ah = app_handle.clone();
+    let as_ptr = app_state.clone();
     app.on_wsl_manage_set_default_version(move |version| {
         let ah = ah.clone();
+        let as_ptr = as_ptr.clone();
         let _ = slint::spawn_local(async move {
-            let mut cmd = std::process::Command::new("wsl.exe");
-            cmd.arg("--set-default-version").arg(version.to_string());
-            #[cfg(windows)]
-            {
-                use std::os::windows::process::CommandExt;
-                cmd.creation_flags(CREATE_NO_WINDOW);
-            }
-            cmd.stdout(std::process::Stdio::piped());
-            cmd.stderr(std::process::Stdio::piped());
-
-            match cmd.output() {
-                Ok(output) => {
-                    if output.status.success() {
-                        info!("WSL default version set to {}", version);
-                        if let Some(app) = ah.upgrade() {
-                            app.set_wsl_default_version(version);
-                        }
-                        let msg = i18n::t("wsl_manage.set_default_success");
-                        data::show_message(&ah, &msg);
-                    } else {
-                        let stderr = String::from_utf8_lossy(&output.stderr);
-                        error!("Failed to set WSL default version: {}", stderr);
-                        let msg = i18n::tr("wsl_manage.set_default_failed", &[stderr.to_string()]);
-                        data::show_message(&ah, &msg);
-                    }
+            let executor = {
+                let state = as_ptr.lock().await;
+                state.wsl_dashboard.executor().clone()
+            };
+            let result = executor
+                .execute_command(&["--set-default-version", &version.to_string()])
+                .await;
+            if result.success {
+                info!("WSL default version set to {}", version);
+                if let Some(app) = ah.upgrade() {
+                    app.set_wsl_default_version(version);
                 }
-                Err(e) => {
-                    error!("Failed to execute set-default-version: {}", e);
-                    let msg = i18n::tr("wsl_manage.set_default_failed", &[e.to_string()]);
-                    data::show_message(&ah, &msg);
-                }
+                let msg = i18n::t("wsl_manage.set_default_success");
+                data::show_message(&ah, &msg);
+                refresh_wsl_info(&ah, &as_ptr).await;
+            } else {
+                let err = result.error.unwrap_or_default();
+                error!("Failed to set WSL default version: {}", err);
+                let msg = i18n::tr("wsl_manage.set_default_failed", &[err]);
+                data::show_message(&ah, &msg);
             }
         });
     });
 
     // Uninstall WSL
     let ah = app_handle.clone();
+    let as_ptr = app_state.clone();
     app.on_wsl_manage_uninstall(move || {
         let ah = ah.clone();
+        let as_ptr = as_ptr.clone();
         let _ = slint::spawn_local(async move {
-            let mut cmd = std::process::Command::new("wsl.exe");
-            cmd.arg("--uninstall");
-            #[cfg(windows)]
-            {
-                use std::os::windows::process::CommandExt;
-                // Needs admin privileges, show console for user interaction
-                const CREATE_NEW_CONSOLE: u32 = 0x00000010;
-                cmd.creation_flags(CREATE_NEW_CONSOLE);
-            }
-            match cmd.spawn() {
-                Ok(_) => {
+            let executor = {
+                let state = as_ptr.lock().await;
+                state.wsl_dashboard.executor().clone()
+            };
+            match executor.spawn_console(&["--uninstall"]).await {
+                Ok(()) => {
                     info!("WSL uninstall command launched");
                     let msg = i18n::t("wsl_manage.uninstall_success");
                     data::show_message(&ah, &msg);
                 }
                 Err(e) => {
                     error!("Failed to launch WSL uninstall: {}", e);
-                    let msg = i18n::tr("wsl_manage.uninstall_failed", &[e.to_string()]);
+                    let msg = i18n::tr("wsl_manage.uninstall_failed", &[e]);
                     data::show_message(&ah, &msg);
                 }
             }

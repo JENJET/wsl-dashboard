@@ -185,6 +185,28 @@ export component WslManageView inherits VerticalLayout {
                                     vertical-alignment: center;
                                 }
                                 touch_stop := TouchArea { clicked => { root.shutdown_all(); } }
+                                // Tooltip
+                                Rectangle {
+                                    visible: touch_stop.has-hover;
+                                    opacity: touch_stop.has-hover ? 1 : 0;
+                                    background: Theme.dark_mode ? #2D2D30 : #FFFFFF;
+                                    border-color: Theme.border_color;
+                                    border-width: 1px;
+                                    border-radius: 4px;
+                                    z: 100;
+                                    x: parent.width + 4px;
+                                    y: (parent.height - self.height) / 2;
+                                    width: tt_text.width + 12px;
+                                    height: tt_text.height + 6px;
+                                    tt_text := Text {
+                                        text: root.strings.shutdown_btn;
+                                        color: Theme.text_primary;
+                                        font-size: 11px * LayoutConstants.font-scale;
+                                        font-family: Theme.default_font;
+                                        horizontal-alignment: center;
+                                        vertical-alignment: center;
+                                    }
+                                }
                             }
                             // Installed but stopped → play icon
                             if (root.wsl_installed && !root.has_running_instances): Rectangle {

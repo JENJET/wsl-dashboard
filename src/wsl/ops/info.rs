@@ -6,7 +6,13 @@ use tracing::{debug, error, info};
 pub async fn list_distros(executor: &WslCommandExecutor) -> WslCommandResult<Vec<WslDistro>> {
     let result = executor.execute_command(&["-l", "-v"]).await;
     if !result.success {
-        return WslCommandResult::error(result.output, result.error.unwrap_or_default());
+        return WslCommandResult {
+            success: false,
+            output: result.output,
+            error: Some(result.error.unwrap_or_default()),
+            data: None,
+            timeout: result.timeout,
+        };
     }
 
     let distros = crate::wsl::parser::parse_distros_list(&result.output);

@@ -259,6 +259,7 @@ async fn move_wsl1(
             output: "BACKUP_SAVED".into(),
             error: Some(temp_file_str),
             data: None,
+            timeout: false,
         };
     }
 
@@ -283,6 +284,7 @@ async fn move_wsl1(
             output: "BACKUP_SAVED".into(),
             error: Some(temp_file_str),
             data: None,
+            timeout: false,
         }
     }
 }

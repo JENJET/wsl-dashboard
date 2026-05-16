@@ -19,7 +19,7 @@ pub async fn setup(
     app_state: Arc<Mutex<AppState>>,
 ) {
     common::setup(app, app_handle.clone(), app_state.clone());
-    window::setup(app, app_handle.clone());
+    window::setup(app, app_handle.clone(), app_state.clone());
     distro::setup(app, app_handle.clone(), app_state.clone());
     settings::setup(app, app_handle.clone(), app_state.clone());
     update::setup(app, app_handle.clone(), app_state.clone());
