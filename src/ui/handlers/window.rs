@@ -1,6 +1,7 @@
 use crate::{AppState, AppWindow};
 use slint::ComponentHandle;
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use tokio::sync::Mutex;
 use tracing::info;
 
@@ -13,6 +14,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
             if app.get_tray_close_to_tray() {
                 info!("Close requested, hiding window to tray...");
                 app.set_is_window_visible(false);
+                crate::ui::data::WINDOW_VISIBLE.store(false, Ordering::Relaxed);
                 crate::app::window::set_skip_taskbar(&app, true);
                 return slint::CloseRequestResponse::KeepWindowShown;
             }
@@ -42,6 +44,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
             if app.get_tray_close_to_tray() {
                 info!("Title bar close clicked, hiding window to tray...");
                 app.set_is_window_visible(false);
+                crate::ui::data::WINDOW_VISIBLE.store(false, Ordering::Relaxed);
                 crate::app::window::set_skip_taskbar(&app, true);
                 return;
             }

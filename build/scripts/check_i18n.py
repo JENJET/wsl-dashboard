@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 扫描 Rust 代码(.rs) 和 SLint 模板 (.slint) 中使用的 i18n key，
 与 en.toml 对比，找出代码中使用了但 TOML 中缺失的 key，
@@ -17,6 +16,18 @@ TOML_DIR = PROJECT_ROOT / "assets" / "i18n"
 REFERENCE_TOML = TOML_DIR / "en.toml"
 SRC_DIR = PROJECT_ROOT / "src"
 OUTPUT_FILE = PROJECT_ROOT / "target" / "i18n_missing_keys.txt"
+
+
+def parse_toml_sections(filepath: Path) -> set[str]:
+    sections: set[str] = set()
+    section_pattern = re.compile(r'^\[([^\]]+)\]')
+    with open(filepath, encoding="utf-8-sig") as f:
+        for line in f:
+            line = line.strip()
+            m = section_pattern.match(line)
+            if m:
+                sections.add(m.group(1))
+    return sections
 
 
 def parse_toml_keys(filepath: Path) -> dict[str, str]:
@@ -46,7 +57,7 @@ def parse_toml_keys(filepath: Path) -> dict[str, str]:
     return keys
 
 
-def extract_keys_from_file(filepath: Path, debug: bool = False) -> tuple[set[str], set[str]]:
+def extract_keys_from_file(filepath: Path, known_sections: set[str] | None = None, debug: bool = True) -> tuple[set[str], set[str]]:
     static_keys: set[str] = set()
     dynamic_patterns: set[str] = set()
     content = filepath.read_text(encoding="utf-8")
@@ -86,6 +97,19 @@ def extract_keys_from_file(filepath: Path, debug: bool = False) -> tuple[set[str
             if debug:
                 print(f"  [i18n::tr-multi] {m.group(1)} <- {rel}")
 
+        # 双引号内 x.x 结构的裸 key（如 "operation.exporting"），
+        # 仅当 known_sections 不为 None 且任一前缀段在集合中时才计入。
+        if known_sections is not None:
+            for m in re.finditer(r'"([a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)+)"', content):
+                key = m.group(1)
+                if key.endswith('.exe') or key.endswith('.toml'):
+                    continue
+                if not key_section_in_known(key, known_sections):
+                    continue
+                static_keys.add(key)
+                if debug:
+                    print(f"  [bare-key] {key} <- {rel}")
+
         # 动态 key
         for m in re.finditer(r'i18n::t\(&([a-zA-Z_]\w*)\)', content):
             dynamic_patterns.add(f"i18n::t(&<variable>) -> {m.group(1)}")
@@ -102,7 +126,37 @@ def extract_keys_from_file(filepath: Path, debug: bool = False) -> tuple[set[str
             if debug:
                 print(f"  [AppI18n.t] {m.group(1)} <- {rel}")
 
+        # 双引号内 x.x 结构的裸 key，仅当 known_sections 不为 None 且任一前缀段在集合中时才计入
+        if known_sections is not None:
+            for m in re.finditer(r'"([a-zA-Z_]\w*(?:\.[a-zA-Z_]\w*)+)"', content):
+                key = m.group(1)
+                if key.endswith('.exe') or key.endswith('.toml'):
+                    continue
+                if not key_section_in_known(key, known_sections):
+                    continue
+                # 跳过 import 行的路径引用（如 import { X } from "common.slint"）
+                bol = content.rfind('\n', 0, m.start()) + 1
+                eol = content.find('\n', m.start())
+                if eol == -1:
+                    eol = len(content)
+                line = content[bol:eol]
+                if line.strip().startswith('import'):
+                    continue
+                static_keys.add(key)
+                if debug:
+                    print(f"  [bare-key] {key} <- {rel}")
+
     return static_keys, dynamic_patterns
+
+
+def key_section_in_known(key: str, known: set[str]) -> bool:
+    """检查 key 的任一前缀段（去掉最后一项）是否在已知段集合中。"""
+    parts = key.split('.')
+    for i in range(len(parts) - 1):
+        prefix = '.'.join(parts[:i + 1])
+        if prefix in known:
+            return True
+    return False
 
 
 def group_keys_by_section(keys: set[str]) -> dict[str, list[str]]:
@@ -121,19 +175,37 @@ def main() -> int:
 
     # 1. Parse en.toml
     defined_keys = parse_toml_keys(REFERENCE_TOML)
-    print(f"en.toml 已定义 key 数: {len(defined_keys)}")
+    toml_sections = parse_toml_sections(REFERENCE_TOML)
+    print(f"en.toml 已定义 key 数: {len(defined_keys)}, 段数: {len(toml_sections)}")
 
-    # 2. Scan code
+    # 2. 第一遍扫描：只取显式 i18n::tr/t key，从中收集代码中出现的段名
+    code_sections: set[str] = set()
+    for f in sorted(SRC_DIR.rglob("*.rs")):
+        sk, _ = extract_keys_from_file(f, known_sections=None, debug=False)
+        for k in sk:
+            if '.' in k:
+                code_sections.add(k.split('.')[0])
+    for f in sorted(SRC_DIR.rglob("*.slint")):
+        sk, _ = extract_keys_from_file(f, known_sections=None, debug=False)
+        for k in sk:
+            if '.' in k:
+                code_sections.add(k.split('.')[0])
+
+    # 合并 en.toml 段 + 代码段，作为裸 key 的有效段集合
+    all_sections = toml_sections | code_sections
+    print(f"合并段数: {len(all_sections)} (en: {len(toml_sections)}, code: {len(code_sections)})")
+
+    # 3. 第二遍扫描：完整扫描含裸 key，使用合并后的段集合过滤
     all_static_keys: set[str] = set()
     all_dynamic: set[str] = set()
 
     for f in sorted(SRC_DIR.rglob("*.rs")):
-        sk, dp = extract_keys_from_file(f)
+        sk, dp = extract_keys_from_file(f, all_sections, debug=False)
         all_static_keys |= sk
         all_dynamic |= dp
 
     for f in sorted(SRC_DIR.rglob("*.slint")):
-        sk, dp = extract_keys_from_file(f)
+        sk, dp = extract_keys_from_file(f, all_sections, debug=False)
         all_static_keys |= sk
         all_dynamic |= dp
 

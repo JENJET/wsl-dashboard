@@ -7,23 +7,37 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::debug;
 
-// Combined WSL state + resource monitor.
-// Runs every 5s on the Home tab: refreshes distro list (wsl -l -v) and fetches
-// CPU/IP resource data for running distros.  Replaces the former two separate
-// 5s timers (spawn_wsl_monitor + spawn_resource_monitor) that ran independently
-// and duplicated work.
+// Adaptive WSL state + resource monitor.
+// Polls distro list (wsl -l -v) and fetches CPU/IP for running distros.
+// Skips entirely when not on Home tab; reduces to 30s when window is hidden.
 pub fn spawn_state_monitor(app_handle: slint::Weak<AppWindow>, app_state: Arc<Mutex<AppState>>) {
     tokio::spawn(async move {
-        let mut interval = tokio::time::interval(std::time::Duration::from_secs(5));
-        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
-            interval.tick().await;
+            // Skip entirely if not on Home tab — avoids unnecessary event loop wakeups
+            if crate::ui::data::CURRENT_TAB.load(std::sync::atomic::Ordering::Relaxed) != 0 {
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                continue;
+            }
+
+            // Visible → 5s interval; hidden → sleep until window restored (REFRESH_NOTIFY)
+            let visible =
+                crate::ui::data::WINDOW_VISIBLE.load(std::sync::atomic::Ordering::Relaxed);
+            if visible {
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            } else {
+                crate::ui::data::REFRESH_NOTIFY.notified().await;
+            }
+
+            // Re-check after sleep in case state changed during sleep
+            if crate::ui::data::CURRENT_TAB.load(std::sync::atomic::Ordering::Relaxed) != 0 {
+                continue;
+            }
 
             let ah = app_handle.clone();
             let as_ptr = app_state.clone();
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(app) = ah.upgrade() {
-                    // Only refresh if the Home tab (index 0) is selected
+                    // Double-check tab inside event loop (race condition safety)
                     if app.get_selected_tab() != 0 {
                         return;
                     }
@@ -142,17 +156,33 @@ pub fn spawn_state_monitor(app_handle: slint::Weak<AppWindow>, app_state: Arc<Mu
     });
 }
 
-// Start USB status monitoring task
+// Adaptive USB status monitoring task — only wakes on USB tab
 pub fn spawn_usb_monitor(app_handle: slint::Weak<AppWindow>) {
     tokio::spawn(async move {
-        let mut interval = tokio::time::interval(std::time::Duration::from_secs(5));
-        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
-            interval.tick().await;
+            // Skip entirely if not on USB tab
+            if crate::ui::data::CURRENT_TAB.load(std::sync::atomic::Ordering::Relaxed) != 2 {
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                continue;
+            }
+
+            // Visible → 5s interval; hidden → sleep until window restored
+            let visible =
+                crate::ui::data::WINDOW_VISIBLE.load(std::sync::atomic::Ordering::Relaxed);
+            if visible {
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            } else {
+                crate::ui::data::REFRESH_NOTIFY.notified().await;
+            }
+
+            // Re-check after sleep
+            if crate::ui::data::CURRENT_TAB.load(std::sync::atomic::Ordering::Relaxed) != 2 {
+                continue;
+            }
+
             let ah = app_handle.clone();
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(app) = ah.upgrade() {
-                    // Only refresh if the USB tab (index 2) is selected to save resources
                     if app.get_selected_tab() == 2 {
                         app.invoke_refresh_usb(false);
                     }

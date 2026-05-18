@@ -178,13 +178,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
         let as_ptr = as_ptr.clone();
         info!("USB refresh requested");
 
-        // 1) Immediately show loading state (non-blocking, UI thread)
-        if let Some(app) = ah.upgrade() {
-            app.set_usb_loading(true);
-            app.set_usb_error(slint::SharedString::default());
-        }
-
-        // 2) Run blocking command on tokio thread pool
+        // 1) Run blocking command on tokio thread pool
         let ah_bg = ah.clone();
         tokio::spawn(async move {
             // Get current auto-attach list from config

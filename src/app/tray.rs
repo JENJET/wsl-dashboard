@@ -2,6 +2,7 @@ use crate::i18n;
 use crate::{AppState, AppWindow};
 use once_cell::sync::Lazy;
 use slint::ComponentHandle;
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use tracing::{error, info};
 use tray_icon::{
@@ -66,6 +67,7 @@ impl SystemTray {
 
         if let Some(app) = app_weak.upgrade() {
             app.set_is_window_visible(initially_visible);
+            crate::ui::data::WINDOW_VISIBLE.store(initially_visible, Ordering::Relaxed);
         }
 
         // Only start the event polling timer once
@@ -97,6 +99,8 @@ impl SystemTray {
                                     if is_visible && !is_minimized {
                                         info!("Tray double-clicked: hiding window");
                                         app.set_is_window_visible(false);
+                                        crate::ui::data::WINDOW_VISIBLE
+                                            .store(false, Ordering::Relaxed);
                                         crate::app::window::set_skip_taskbar(&app, true);
                                     } else {
                                         info!(

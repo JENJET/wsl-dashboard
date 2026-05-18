@@ -1,4 +1,5 @@
 use crate::AppWindow;
+use std::sync::atomic::Ordering;
 #[cfg(target_os = "windows")]
 use tracing::{error, info};
 
@@ -236,6 +237,7 @@ pub fn show_and_center(app: &AppWindow, silent: bool) {
             app.window()
                 .set_position(slint::LogicalPosition::new(-32000.0, -32000.0));
             app.set_is_window_visible(false);
+            crate::ui::data::WINDOW_VISIBLE.store(false, Ordering::Relaxed);
 
             // CRITICAL: Even in silent mode, we must rename and hide any existing helper windows (like tray)
             // so they don't appear as blank icons in the taskbar.
@@ -277,6 +279,8 @@ pub fn show_and_center(app: &AppWindow, silent: bool) {
         }
 
         app.set_is_window_visible(true);
+        crate::ui::data::WINDOW_VISIBLE.store(true, Ordering::Relaxed);
+        crate::ui::data::REFRESH_NOTIFY.notify_one();
         app.window().set_minimized(false);
         let _ = app.show();
 
@@ -350,6 +354,8 @@ pub fn show_and_center(app: &AppWindow, silent: bool) {
     {
         if !silent {
             app.set_is_window_visible(true);
+            crate::ui::data::WINDOW_VISIBLE.store(true, Ordering::Relaxed);
+            crate::ui::data::REFRESH_NOTIFY.notify_one();
             let _ = app.show();
         }
     }

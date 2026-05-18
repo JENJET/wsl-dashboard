@@ -1,8 +1,9 @@
 use slint::{ComponentHandle, Model, ModelRc, VecModel};
 use std::rc::Rc;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use tokio::sync::Mutex;
+use tokio::sync::Notify;
 use tracing::{debug, error, trace};
 
 // Import Slint UI components
@@ -27,6 +28,13 @@ static LAST_WSL_REFRESH: Lazy<std::sync::Mutex<Option<Instant>>> =
     Lazy::new(|| std::sync::Mutex::new(None));
 static LAST_USB_REFRESH: Lazy<std::sync::Mutex<Option<Instant>>> =
     Lazy::new(|| std::sync::Mutex::new(None));
+
+/// Current selected tab index, updated by tab switch handler for adaptive polling.
+pub static CURRENT_TAB: AtomicU32 = AtomicU32::new(0);
+/// Window visibility, updated by window hide/show handlers for adaptive polling.
+pub static WINDOW_VISIBLE: AtomicBool = AtomicBool::new(true);
+/// Notified when window becomes visible, so the state monitor can interrupt sleep.
+pub static REFRESH_NOTIFY: Lazy<Notify> = Lazy::new(|| Notify::new());
 
 pub fn should_refresh_wsl(reason: &str, is_visible: bool) -> bool {
     let mut last = LAST_WSL_REFRESH.lock().unwrap();
@@ -404,7 +412,7 @@ pub async fn refresh_distros_ui(
                 }
             }
 
-            let slint_distros: Vec<Distro> = intermediate_distros
+            let mut slint_distros: Vec<Distro> = intermediate_distros
                 .into_iter()
                 .enumerate()
                 .map(
@@ -466,6 +474,18 @@ pub async fn refresh_distros_ui(
                     },
                 )
                 .collect();
+
+            // In batch mode, sort selected distros to the top
+            if app.get_batch_mode() {
+                slint_distros.sort_by(|a, b| {
+                    b.selected
+                        .cmp(&a.selected)
+                        .then_with(|| a.sequence.cmp(&b.sequence))
+                });
+                for (i, distro) in slint_distros.iter_mut().enumerate() {
+                    distro.sequence = (i + 1) as i32;
+                }
+            }
 
             // Try to update existing model in-place if possible to preserve scroll position
             let needs_full_rebuild = existing_model.row_count() != slint_distros.len();

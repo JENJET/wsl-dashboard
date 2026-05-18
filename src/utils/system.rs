@@ -44,39 +44,10 @@ pub fn get_disk_space(path: &str) -> DiskSpaceInfo {
 }
 
 pub fn copy_to_clipboard(text: &str) -> Result<(), String> {
-    use std::io::Write;
-    use std::process::{Command, Stdio};
-
-    let mut cmd = Command::new("clip");
-    cmd.stdin(Stdio::piped());
-
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        cmd.creation_flags(CREATE_NO_WINDOW);
-    }
-
-    let mut child = cmd
-        .spawn()
-        .map_err(|e| format!("Failed to spawn clip.exe: {}", e))?;
-
-    let mut stdin = child
-        .stdin
-        .take()
-        .ok_or("Failed to open stdin for clip.exe")?;
-    stdin
-        .write_all(text.as_bytes())
-        .map_err(|e| format!("Failed to write to clip.exe: {}", e))?;
-    drop(stdin);
-
-    let status = child
-        .wait()
-        .map_err(|e| format!("Failed to wait for clip.exe: {}", e))?;
-    if status.success() {
-        Ok(())
-    } else {
-        Err(format!("clip.exe exited with status: {}", status))
-    }
+    let mut clip =
+        arboard::Clipboard::new().map_err(|e| format!("Failed to open clipboard: {}", e))?;
+    clip.set_text(text)
+        .map_err(|e| format!("Failed to set clipboard text: {}", e))
 }
 
 /// Execute a command with UAC elevation using ShellExecuteExW

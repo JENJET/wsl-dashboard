@@ -595,9 +595,9 @@ export component MainView inherits VerticalLayout {
         CustomScrollbar {
             opacity: (flick.viewport-height > flick.height) ? 1 : 0;
             visible: flick.viewport-height > flick.height;
-            x: AppI18n.is-rtl ? 2px : parent.width - 8px;
+            x: AppI18n.is-rtl ? 2px : parent.width - 4px;
             y: 0;
-            width: 8px;
+            width: 4px;
             height: 100%;
             maximum: flick.viewport-height - flick.height;
             page_size: flick.height;
@@ -609,28 +609,36 @@ export component MainView inherits VerticalLayout {
     }
 
     // Bottom bar: info bar (non-batch) or batch action bar
-    if root.batch_mode && !root.batch_operating : BatchBar {
-        selected_count: root.selected_count;
-        operating: root.batch_operating;
-        start => { root.batch_start(); }
-        stop => { root.batch_stop(); }
-        restart => { root.batch_restart(); }
-        select_all => { root.batch_select_all(); }
-        invert_selection => { root.batch_invert_selection(); }
-        select_running => { root.batch_select_running(); }
-        select_stopped => { root.batch_select_stopped(); }
-        export => { root.batch_export(); }
-        clone => { root.batch_clone(); }
-        move_distro => { root.batch_move(); }
-        delete => { root.batch_delete(); }
-        cancel => {
-            root.cancel_batch();
+    if root.batch_mode && !root.batch_operating : HorizontalLayout {
+        padding-right: 10px;
+        BatchBar {
+            horizontal-stretch: 1;
+            selected_count: root.selected_count;
+            operating: root.batch_operating;
+            start => { root.batch_start(); }
+            stop => { root.batch_stop(); }
+            restart => { root.batch_restart(); }
+            select_all => { root.batch_select_all(); }
+            invert_selection => { root.batch_invert_selection(); }
+            select_running => { root.batch_select_running(); }
+            select_stopped => { root.batch_select_stopped(); }
+            export => { root.batch_export(); }
+            clone => { root.batch_clone(); }
+            move_distro => { root.batch_move(); }
+            delete => { root.batch_delete(); }
+            cancel => {
+                root.cancel_batch();
+            }
         }
     }
-    if !root.batch_mode && root.distro_count > 1 : DistroInfoBar {
-        total_count: root.distro_count;
-        toggle_batch_mode => {
-            root.toggle_batch_mode();
+    if !root.batch_mode && root.distro_count > 1 : HorizontalLayout {
+        padding-right: 10px;
+        DistroInfoBar {
+            horizontal-stretch: 1;
+            total_count: root.distro_count;
+            toggle_batch_mode => {
+                root.toggle_batch_mode();
+            }
         }
     }
 }

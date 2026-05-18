@@ -1,5 +1,6 @@
 use crate::{AppState, AppWindow};
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 use tracing::debug;
@@ -17,6 +18,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
     app.on_select_tab(move |tab| {
         if let Some(app) = ah.upgrade() {
             app.set_selected_tab(tab);
+            crate::ui::data::CURRENT_TAB.store(tab as u32, Ordering::Relaxed);
 
             // Tab 1 is "Add an instance"
             if tab == 1 {

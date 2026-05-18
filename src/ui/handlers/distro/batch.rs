@@ -387,6 +387,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
 
                     if success {
                         success_count += 1;
+                        deselect_distro(&as_ptr, &ah, name).await;
                     } else {
                         failed_count += 1;
                     }
@@ -644,6 +645,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                             );
                             if success {
                                 success_count += 1;
+                                deselect_distro(&as_ptr, &ah, name).await;
                             } else {
                                 failed_count += 1;
                             }
@@ -867,6 +869,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
 
                             if success {
                                 success_count += 1;
+                                deselect_distro(&as_ptr, &ah, name).await;
                             } else {
                                 failed_count += 1;
                             }
@@ -933,6 +936,23 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
             });
         });
     }
+}
+
+async fn deselect_distro(as_ptr: &Arc<Mutex<AppState>>, ah: &slint::Weak<AppWindow>, name: &str) {
+    let mut state = as_ptr.lock().await;
+    state.selected_distros.remove(name);
+    let count = state.selected_distros.len() as i32;
+    drop(state);
+    let _ = slint::invoke_from_event_loop({
+        let ah = ah.clone();
+        let n = name.to_string();
+        move || {
+            if let Some(app) = ah.upgrade() {
+                update_model_selection(&app, &n, false);
+                app.set_selected_count(count);
+            }
+        }
+    });
 }
 
 fn finish_batch(
@@ -1114,6 +1134,7 @@ async fn run_batch_op<F>(
             failed_count += 1;
         } else {
             success_count += 1;
+            deselect_distro(as_ptr, ah, name).await;
         }
     }
 
