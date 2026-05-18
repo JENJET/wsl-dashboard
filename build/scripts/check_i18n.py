@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 """
 扫描 Rust 代码(.rs) 和 SLint 模板 (.slint) 中使用的 i18n key，
 与 en.toml 对比，找出代码中使用了但 TOML 中缺失的 key，
