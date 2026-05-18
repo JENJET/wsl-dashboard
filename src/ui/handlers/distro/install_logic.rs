@@ -23,9 +23,6 @@ pub async fn perform_install(
     set_default_user: bool,
     // URL mode parameters
     url_threads: u8,
-    _url_is_arm64: bool,
-    _url_source_idx: u8,
-    _custom_url: String,
     url_distro_url: String,
     url_distro_sha256: String,
 ) {
@@ -143,7 +140,7 @@ pub async fn perform_install(
     let is_valid_chars = final_name
         .chars()
         .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.');
-    if !is_valid_chars || final_name.len() > 32 {
+    if !is_valid_chars || final_name.len() > crate::app::MAX_INSTANCE_NAME_LEN {
         let ah_err = ah.clone();
         let _ = slint::invoke_from_event_loop(move || {
             if let Some(app) = ah_err.upgrade() {

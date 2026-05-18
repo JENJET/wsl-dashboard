@@ -163,8 +163,11 @@ pub async fn refresh_data(app_handle: slint::Weak<AppWindow>, app_state: Arc<Mut
 static IS_REFRESHING: AtomicBool = AtomicBool::new(false);
 
 // Global static snapshot to prevent redundant refreshes across all threads
+// SAFETY: The Option<&'static str> field stores icon keys from map_name_to_icon_key,
+// which only returns string literals (e.g., "ubuntu", "debian"). These have 'static
+// lifetime and remain valid for the entire program duration.
 static LAST_REFRESH_SNAPSHOT: Lazy<
-    std::sync::Mutex<Option<Vec<(String, String, String, bool, Option<&'static str>)>>>,
+    std::sync::Mutex<Option<Vec<(String, String, String, bool, Option<&'static str>, String)>>>,
 > = Lazy::new(|| std::sync::Mutex::new(None));
 static LAST_INSTALLABLE_SNAPSHOT: Lazy<std::sync::Mutex<Option<Vec<String>>>> =
     Lazy::new(|| std::sync::Mutex::new(None));
@@ -187,8 +190,8 @@ pub async fn refresh_distros_ui(
         IS_REFRESHING.store(false, Ordering::SeqCst);
     });
 
-    // Acquire all needed data under a single lock
-    let (distros, executor, is_manual_op) = {
+    // Acquire all needed data under a single lock (avoid second lock acquisition race)
+    let (distros, executor, active_ops) = {
         let lock_timeout = std::time::Duration::from_millis(1000);
         match tokio::time::timeout(lock_timeout, app_state.lock()).await {
             Ok(app_state_lock) => {
@@ -206,10 +209,15 @@ pub async fn refresh_distros_ui(
                         .then_with(|| b.is_default.cmp(&a.is_default))
                         .then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase()))
                 });
+                let dashboard = app_state_lock.wsl_dashboard.clone();
+                let active_ops: Vec<String> = distros
+                    .iter()
+                    .map(|d| dashboard.get_active_op(&d.name).unwrap_or_default())
+                    .collect();
                 (
                     distros,
                     app_state_lock.wsl_dashboard.executor().clone(),
-                    app_state_lock.wsl_dashboard.is_manual_operation(),
+                    active_ops,
                 )
             }
             Err(_) => {
@@ -220,18 +228,21 @@ pub async fn refresh_distros_ui(
     };
 
     // Quick check: has the actual data changed before we do heavy icon loading?
-    let current_snapshot: Vec<(String, String, String, bool, Option<&'static str>)> = distros
-        .iter()
-        .map(|d| {
-            (
-                d.name.clone(),
-                format!("{:?}", d.status),
-                format!("{:?}", d.version),
-                d.is_default,
-                crate::utils::icon_mapper::map_name_to_icon_key(&d.name),
-            )
-        })
-        .collect();
+    let current_snapshot: Vec<(String, String, String, bool, Option<&'static str>, String)> =
+        distros
+            .iter()
+            .zip(active_ops.iter())
+            .map(|(d, op)| {
+                (
+                    d.name.clone(),
+                    format!("{:?}", d.status),
+                    format!("{:?}", d.version),
+                    d.is_default,
+                    crate::utils::icon_mapper::map_name_to_icon_key(&d.name),
+                    op.clone(),
+                )
+            })
+            .collect();
 
     let data_changed = {
         let mut last = LAST_REFRESH_SNAPSHOT.lock().unwrap();
@@ -254,193 +265,7 @@ pub async fn refresh_distros_ui(
         return;
     }
 
-    let mut intermediate_distros = Vec::new();
-    if data_changed {
-        debug!(
-            "refresh_distros_ui: Data changed, proceeding with icon loading (count: {})",
-            distros.len()
-        );
-        let mut needs_background_icon_check = Vec::new();
-
-        for d in distros {
-            let icon_key: Option<&'static str> =
-                crate::utils::icon_mapper::map_name_to_icon_key(&d.name);
-
-            if icon_key.is_none() && d.status == wsl::models::WslStatus::Running {
-                if !crate::utils::icon_mapper::is_distro_probed(&d.name) {
-                    needs_background_icon_check.push(d.name.clone());
-                }
-            }
-
-            intermediate_distros.push((
-                d.name.clone(),
-                match d.status {
-                    wsl::models::WslStatus::Running => "Running",
-                    wsl::models::WslStatus::Stopped => "Stopped",
-                },
-                match d.version {
-                    wsl::models::WslVersion::V1 => "1",
-                    wsl::models::WslVersion::V2 => "2",
-                },
-                d.is_default,
-                icon_key,
-                crate::utils::icon_mapper::get_initial(&d.name),
-                icon_key.and_then(crate::utils::icon_mapper::load_icon_data),
-                d.status == wsl::models::WslStatus::Running,
-            ));
-        }
-
-        // Trigger background icon check if needed
-        if !needs_background_icon_check.is_empty() {
-            let as_ptr = app_state.clone();
-            let exec = executor.clone();
-            tokio::spawn(async move {
-                let mut found_any = false;
-                for name in needs_background_icon_check {
-                    if !crate::utils::icon_mapper::start_probing(name.clone()) {
-                        continue; // Already probing or probed
-                    }
-
-                    let result = exec
-                        .execute_command(&["-d", &name, "--exec", "cat", "/etc/os-release"])
-                        .await;
-                    if result.success {
-                        // Mark as probed so we don't retry constantly even if we don't find a match
-                        crate::utils::icon_mapper::mark_distro_probed(name.clone());
-
-                        for line in result.output.lines() {
-                            let line = line.trim();
-                            if line.is_empty() {
-                                continue;
-                            }
-                            if let Some(eq_pos) = line.find('=') {
-                                let key = line[..eq_pos].trim().to_lowercase();
-                                let value = line[eq_pos + 1..].trim().trim_matches('"').trim();
-                                if !value.is_empty() {
-                                    match key.as_str() {
-                                        "id" | "id_like" | "name" | "pretty_name" => {
-                                            if let Some(icon_key) =
-                                                crate::utils::icon_mapper::map_name_to_icon_key(
-                                                    value,
-                                                )
-                                            {
-                                                crate::utils::icon_mapper::add_dynamic_mapping(
-                                                    name.clone(),
-                                                    icon_key,
-                                                );
-                                                found_any = true;
-                                                break;
-                                            }
-                                        }
-                                        _ => {}
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        // If failed, also mark as probed to avoid infinite retry loop if distro is temporarily broken
-                        // or we could retry with backoff, but for now safe approach:
-                        crate::utils::icon_mapper::mark_distro_probed(name.clone());
-                    }
-                }
-                if found_any {
-                    let state = as_ptr.lock().await;
-                    state.wsl_dashboard.state_changed().notify_one();
-                }
-            });
-        }
-
-        // Background resource usage fetch for running distros
-        let running_distros: Vec<String> = intermediate_distros
-            .iter()
-            .filter(|(_, _, _, _, _, _, _, is_running)| *is_running)
-            .map(|(name, _, _, _, _, _, _, _)| name.clone())
-            .collect();
-
-        if !running_distros.is_empty() {
-            let ah = app_handle.clone();
-            tokio::task::spawn_blocking(move || {
-                let mut ip_results: Vec<(String, String)> = Vec::new();
-                let mut resource_results: Vec<(String, f64, f64, f64)> = Vec::new();
-
-                for name in &running_distros {
-                    // Fetch IP only when show_distro_ip is enabled
-                    if crate::utils::wsl_config::show_distro_ip() {
-                        match crate::network::tracker::get_distro_ip(name, Some(1)) {
-                            Ok(ip) => {
-                                debug!("Fetched IP for {}: {}", name, ip);
-                                ip_results.push((name.clone(), ip));
-                            }
-                            Err(e) => {
-                                debug!("Failed to fetch IP for {}: {}", name, e);
-                            }
-                        }
-                    }
-
-                    // Fetch CPU and Memory usage
-                    match crate::network::tracker::get_distro_resource_usage(name) {
-                        Ok((cpu, mem_used, mem_total)) => {
-                            debug!(
-                                "Fetched resources for {}: CPU={:.1}%, Mem={:.1}/{:.1} GB",
-                                name, cpu, mem_used, mem_total
-                            );
-                            resource_results.push((name.clone(), cpu, mem_used, mem_total));
-                        }
-                        Err(e) => {
-                            debug!("Failed to fetch resources for {}: {}", name, e);
-                        }
-                    }
-                }
-
-                if !ip_results.is_empty() || !resource_results.is_empty() {
-                    let _ = slint::invoke_from_event_loop(move || {
-                        if let Some(app) = ah.upgrade() {
-                            let model = app.get_distros();
-                            for i in 0..model.row_count() {
-                                if let Some(mut distro) = model.row_data(i) {
-                                    let mut updated = false;
-
-                                    // Update IP
-                                    if let Some((_, ip)) =
-                                        ip_results.iter().find(|(name, _)| distro.name == *name)
-                                    {
-                                        if distro.ip != ip.as_str() {
-                                            distro.ip = ip.into();
-                                            updated = true;
-                                        }
-                                    }
-
-                                    // Update CPU and Memory
-                                    if let Some((_, cpu, mem_used, mem_total)) = resource_results
-                                        .iter()
-                                        .find(|(name, _, _, _)| distro.name == *name)
-                                    {
-                                        let cpu_str = format!("{:.1}%", cpu);
-                                        let mem_str =
-                                            format!("{:.1}/{:.1} GB", mem_used, mem_total);
-
-                                        if distro.cpu_usage != cpu_str.as_str() {
-                                            distro.cpu_usage = cpu_str.into();
-                                            updated = true;
-                                        }
-                                        if distro.memory_usage != mem_str.as_str() {
-                                            distro.memory_usage = mem_str.into();
-                                            updated = true;
-                                        }
-                                    }
-
-                                    if updated {
-                                        model.set_row_data(i, distro);
-                                    }
-                                }
-                            }
-                        }
-                    });
-                }
-            });
-        }
-    }
-
+    // Set UI update guard BEFORE heavy processing to avoid wasted work
     static IS_UI_UPDATING: AtomicBool = AtomicBool::new(false);
     if IS_UI_UPDATING
         .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
@@ -449,100 +274,233 @@ pub async fn refresh_distros_ui(
         return;
     }
 
+    let mut intermediate_distros = Vec::new();
+    debug!(
+        "refresh_distros_ui: Data changed, proceeding with icon loading (count: {})",
+        distros.len()
+    );
+    let mut needs_background_icon_check = Vec::new();
+
+    for d in &distros {
+        let icon_key: Option<&'static str> =
+            crate::utils::icon_mapper::map_name_to_icon_key(&d.name);
+
+        if icon_key.is_none() && d.status == wsl::models::WslStatus::Running {
+            if !crate::utils::icon_mapper::is_distro_probed(&d.name) {
+                needs_background_icon_check.push(d.name.clone());
+            }
+        }
+    }
+
+    for (d, active_op) in distros.into_iter().zip(active_ops.into_iter()) {
+        let icon_key: Option<&'static str> =
+            crate::utils::icon_mapper::map_name_to_icon_key(&d.name);
+
+        let status_str = format!("{:?}", d.status);
+        intermediate_distros.push((
+            d.name.clone(),
+            status_str,
+            match d.version {
+                crate::wsl::models::WslVersion::V1 => "1",
+                crate::wsl::models::WslVersion::V2 => "2",
+            },
+            d.is_default,
+            icon_key,
+            crate::utils::icon_mapper::get_initial(&d.name),
+            icon_key.and_then(crate::utils::icon_mapper::load_icon_data),
+            d.status == wsl::models::WslStatus::Running,
+            active_op,
+        ));
+    }
+
+    // Trigger background icon check if needed
+    if !needs_background_icon_check.is_empty() {
+        let as_ptr = app_state.clone();
+        let exec = executor.clone();
+        tokio::spawn(async move {
+            let mut found_any = false;
+            for name in needs_background_icon_check {
+                if !crate::utils::icon_mapper::start_probing(name.clone()) {
+                    continue; // Already probing or probed
+                }
+
+                let result = exec
+                    .execute_command(&["-d", &name, "--exec", "cat", "/etc/os-release"])
+                    .await;
+                if result.success {
+                    // Mark as probed so we don't retry constantly even if we don't find a match
+                    crate::utils::icon_mapper::mark_distro_probed(name.clone());
+
+                    for line in result.output.lines() {
+                        let line = line.trim();
+                        if line.is_empty() {
+                            continue;
+                        }
+                        if let Some(eq_pos) = line.find('=') {
+                            let key = line[..eq_pos].trim().to_lowercase();
+                            let value = line[eq_pos + 1..].trim().trim_matches('"').trim();
+                            if !value.is_empty() {
+                                match key.as_str() {
+                                    "id" | "id_like" | "name" | "pretty_name" => {
+                                        if let Some(icon_key) =
+                                            crate::utils::icon_mapper::map_name_to_icon_key(value)
+                                        {
+                                            crate::utils::icon_mapper::add_dynamic_mapping(
+                                                name.clone(),
+                                                icon_key,
+                                            );
+                                            found_any = true;
+                                            break;
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    // If failed, also mark as probed to avoid infinite retry loop if distro is temporarily broken
+                    // or we could retry with backoff, but for now safe approach:
+                    crate::utils::icon_mapper::mark_distro_probed(name.clone());
+                }
+            }
+            if found_any {
+                let state = as_ptr.lock().await;
+                state.wsl_dashboard.state_changed().notify_one();
+            }
+        });
+    }
+
+    // Resource (CPU/IP) fetching is handled by the periodic spawn_state_monitor,
+    // not here, to avoid duplicating the 5s timer work. The monitor ensures
+    // running-distro resources are updated every cycle regardless of state changes.
+
+    let (selected_distros, dashboard) = {
+        let state = app_state.lock().await;
+        (state.selected_distros.clone(), state.wsl_dashboard.clone())
+    };
+    let ops_count = dashboard.get_active_ops_count();
+    let is_manual_op = dashboard.is_manual_operation();
+
     let _ = slint::invoke_from_event_loop(move || {
-        let _update_guard = scopeguard::guard((), |_| {
+        // Reset UI update guard when callback completes
+        let _reset_guard = scopeguard::guard((), |_| {
             IS_UI_UPDATING.store(false, Ordering::SeqCst);
         });
 
         if let Some(app) = app_handle.upgrade() {
-            if data_changed {
-                let slint_distros: Vec<Distro> = intermediate_distros
-                    .into_iter()
-                    .enumerate()
-                    .map(
-                        |(
-                            idx,
-                            (
-                                name,
-                                status,
-                                version,
-                                is_default,
-                                icon_key,
-                                initial,
-                                preloaded_icon,
-                                _is_running,
-                            ),
-                        )| {
-                            let mut image = slint::Image::default();
-                            let mut has_icon = false;
-
-                            if let Some(icon_data) = preloaded_icon {
-                                let cache_key = icon_key
-                                    .map(|s| s.to_string())
-                                    .unwrap_or_else(|| name.clone());
-                                if let Some(img) = crate::utils::icon_mapper::load_image_from_data(
-                                    cache_key, icon_data,
-                                ) {
-                                    image = img;
-                                    has_icon = true;
-                                }
-                            }
-
-                            Distro {
-                                sequence: (idx + 1) as i32,
-                                name: name.into(),
-                                status: status.into(),
-                                version: version.into(),
-                                is_default,
-                                icon: image,
-                                has_icon,
-                                initial: initial.into(),
-                                distro_display_name: crate::utils::icon_mapper::get_display_name(
-                                    icon_key,
-                                )
-                                .into(),
-                                ip: Default::default(),
-                                cpu_usage: Default::default(),
-                                memory_usage: Default::default(),
-                                show_ip: crate::utils::wsl_config::show_distro_ip(),
-                            }
-                        },
-                    )
-                    .collect();
-
-                // Try to update existing model in-place if possible to minimize Repeater churn
-                let existing_model = app.get_distros();
-                let needs_full_rebuild = existing_model.row_count() != slint_distros.len();
-
-                let mut data_actually_changed = true;
-                if !needs_full_rebuild {
-                    data_actually_changed = false;
-                    for (i, new_distro) in slint_distros.iter().enumerate() {
-                        if let Some(old_distro) = existing_model.row_data(i) {
-                            if old_distro.name != new_distro.name
-                                || old_distro.status != new_distro.status
-                                || old_distro.is_default != new_distro.is_default
-                                || old_distro.has_icon != new_distro.has_icon
-                                || old_distro.ip != new_distro.ip
-                            {
-                                data_actually_changed = true;
-                                break;
-                            }
-                        } else {
-                            data_actually_changed = true;
-                            break;
-                        }
-                    }
-                }
-
-                if data_actually_changed {
-                    let model = VecModel::from(slint_distros);
-                    let model_rc = ModelRc::from(Rc::new(model));
-                    app.set_distros(model_rc);
+            // Preserve existing ip/cpu/memory from current model so refresh_distros_ui
+            // does not race with spawn_state_monitor Phase 2 updates.
+            let existing_model = app.get_distros();
+            let mut existing_resources: Vec<(String, String, String, String)> = Vec::new();
+            for i in 0..existing_model.row_count() {
+                if let Some(d) = existing_model.row_data(i) {
+                    existing_resources.push((
+                        d.name.to_string(),
+                        d.ip.to_string(),
+                        d.cpu_usage.to_string(),
+                        d.memory_usage.to_string(),
+                    ));
                 }
             }
 
-            if !is_manual_op && app.get_task_status_visible() {
+            let slint_distros: Vec<Distro> = intermediate_distros
+                .into_iter()
+                .enumerate()
+                .map(
+                    |(
+                        idx,
+                        (
+                            name,
+                            status,
+                            version,
+                            is_default,
+                            icon_key,
+                            initial,
+                            preloaded_icon,
+                            _is_running,
+                            active_op,
+                        ),
+                    )| {
+                        let mut image = slint::Image::default();
+                        let mut has_icon = false;
+
+                        if let Some(icon_data) = preloaded_icon {
+                            let cache_key = icon_key
+                                .map(|s| s.to_string())
+                                .unwrap_or_else(|| name.clone());
+                            if let Some(img) = crate::utils::icon_mapper::load_image_from_data(
+                                cache_key, icon_data,
+                            ) {
+                                image = img;
+                                has_icon = true;
+                            }
+                        }
+
+                        let name = name.clone();
+                        let (ip_val, cpu, mem) = existing_resources
+                            .iter()
+                            .find(|(n, _, _, _)| n == &name)
+                            .map(|(_, i, c, m)| (i.clone(), c.clone(), m.clone()))
+                            .unwrap_or_default();
+                        Distro {
+                            sequence: (idx + 1) as i32,
+                            name: name.clone().into(),
+                            status: status.into(),
+                            version: version.into(),
+                            is_default,
+                            icon: image,
+                            has_icon,
+                            initial: initial.into(),
+                            distro_display_name: crate::utils::icon_mapper::get_display_name(
+                                icon_key,
+                            )
+                            .into(),
+                            ip: ip_val.into(),
+                            cpu_usage: cpu.into(),
+                            memory_usage: mem.into(),
+                            show_ip: crate::utils::wsl_config::show_distro_ip(),
+                            selected: selected_distros.contains(&name),
+                            active_op: active_op.into(),
+                        }
+                    },
+                )
+                .collect();
+
+            // Try to update existing model in-place if possible to preserve scroll position
+            let needs_full_rebuild = existing_model.row_count() != slint_distros.len();
+
+            if !needs_full_rebuild {
+                for (i, new_distro) in slint_distros.iter().enumerate() {
+                    if let Some(old_distro) = existing_model.row_data(i) {
+                        if old_distro.name != new_distro.name
+                            || old_distro.status != new_distro.status
+                            || old_distro.version != new_distro.version
+                            || old_distro.is_default != new_distro.is_default
+                            || old_distro.has_icon != new_distro.has_icon
+                            || old_distro.initial != new_distro.initial
+                            || old_distro.distro_display_name != new_distro.distro_display_name
+                            || old_distro.ip != new_distro.ip
+                            || old_distro.cpu_usage != new_distro.cpu_usage
+                            || old_distro.memory_usage != new_distro.memory_usage
+                            || old_distro.show_ip != new_distro.show_ip
+                            || old_distro.selected != new_distro.selected
+                            || old_distro.active_op != new_distro.active_op
+                        {
+                            existing_model.set_row_data(i, new_distro.clone());
+                        }
+                    }
+                }
+            } else {
+                let model = VecModel::from(slint_distros);
+                let model_rc = ModelRc::from(Rc::new(model));
+                app.set_distros(model_rc);
+            }
+            if app.get_task_status_visible()
+                && !app.get_batch_operating()
+                && !is_manual_op
+                && ops_count == 0
+            {
                 app.set_task_status_visible(false);
             }
         }

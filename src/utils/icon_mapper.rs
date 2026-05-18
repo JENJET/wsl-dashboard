@@ -27,19 +27,36 @@ static PENDING_PROBES: Lazy<Mutex<std::collections::HashSet<String>>> =
     Lazy::new(|| Mutex::new(std::collections::HashSet::new()));
 
 pub fn is_distro_probed(name: &str) -> bool {
-    let probed = PROBED_DISTROS.lock().unwrap().contains(name);
-    let pending = PENDING_PROBES.lock().unwrap().contains(name);
+    let probed = PROBED_DISTROS
+        .lock()
+        .expect("icon_mapper mutex poisoned")
+        .contains(name);
+    let pending = PENDING_PROBES
+        .lock()
+        .expect("icon_mapper mutex poisoned")
+        .contains(name);
     probed || pending
 }
 
 pub fn mark_distro_probed(name: String) {
-    PENDING_PROBES.lock().unwrap().remove(&name);
-    PROBED_DISTROS.lock().unwrap().insert(name);
+    PENDING_PROBES
+        .lock()
+        .expect("icon_mapper mutex poisoned")
+        .remove(&name);
+    PROBED_DISTROS
+        .lock()
+        .expect("icon_mapper mutex poisoned")
+        .insert(name);
 }
 
 pub fn start_probing(name: String) -> bool {
-    let mut pending = PENDING_PROBES.lock().unwrap();
-    if pending.contains(&name) || PROBED_DISTROS.lock().unwrap().contains(&name) {
+    let mut pending = PENDING_PROBES.lock().expect("icon_mapper mutex poisoned");
+    if pending.contains(&name)
+        || PROBED_DISTROS
+            .lock()
+            .expect("icon_mapper mutex poisoned")
+            .contains(&name)
+    {
         false
     } else {
         pending.insert(name);
@@ -58,7 +75,7 @@ pub fn get_initial(name: &str) -> String {
 pub fn map_name_to_icon_key(name: &str) -> Option<&'static str> {
     // 1. Check dynamic map first
     {
-        let dynamic_map = DYNAMIC_ICON_MAP.lock().unwrap();
+        let dynamic_map = DYNAMIC_ICON_MAP.lock().expect("icon_mapper mutex poisoned");
         if let Some(key) = dynamic_map.get(name) {
             return Some(key);
         }
@@ -137,12 +154,12 @@ pub fn map_name_to_icon_key(name: &str) -> Option<&'static str> {
     } else if lower_name.contains("solus") {
         Some("solus")
     } else {
-        None
+        Some("linux")
     }
 }
 
 pub fn add_dynamic_mapping(distro_name: String, icon_key: &'static str) {
-    let mut dynamic_map = DYNAMIC_ICON_MAP.lock().unwrap();
+    let mut dynamic_map = DYNAMIC_ICON_MAP.lock().expect("icon_mapper mutex poisoned");
     dynamic_map.insert(distro_name, icon_key);
 }
 
@@ -183,7 +200,7 @@ pub fn get_display_name(key: Option<&str>) -> String {
         Some("q4os") => "Q4OS".to_string(),
         Some("sparky") => "SparkyLinux".to_string(),
         Some("solus") => "Solus".to_string(),
-        _ => "".to_string(),
+        _ => "Linux".to_string(),
     }
 }
 
@@ -226,7 +243,7 @@ pub fn load_image_from_data(key: String, data: IconData) -> Option<Image> {
 
 pub fn load_icon_data(key: &str) -> Option<IconData> {
     {
-        let cache = ICON_CACHE.lock().unwrap();
+        let cache = ICON_CACHE.lock().expect("icon_mapper mutex poisoned");
         if let Some(data) = cache.get(key) {
             return Some(data.clone());
         }
@@ -325,11 +342,13 @@ pub fn load_icon_data(key: &str) -> Option<IconData> {
         "zorin" => Some(IconData::Pixels(load_png_buffer(include_bytes!(
             "../../assets/icons/zorin.png"
         )))),
-        _ => None,
+        _ => Some(IconData::Pixels(load_png_buffer(include_bytes!(
+            "../../assets/icons/linux.png"
+        )))),
     };
 
     if let Some(d) = &data {
-        let mut cache = ICON_CACHE.lock().unwrap();
+        let mut cache = ICON_CACHE.lock().expect("icon_mapper mutex poisoned");
         cache.insert(key.to_string(), d.clone());
     }
     data

@@ -7,6 +7,7 @@ use std::path::Path;
 use std::rc::Rc;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tracing::debug;
 
 /// Detect host Windows architecture to auto-select matching WSL distro downloads.
 fn is_host_arm64() -> bool {
@@ -214,15 +215,17 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
     let url_entries_cache: Arc<Mutex<Option<Vec<FlatDistroEntry>>>> = Arc::new(Mutex::new(None));
 
     // Helper: rebuild UI models from cache filtered by current architecture.
-    // Preserves the previous selection if the distro still exists in the filtered list.
+    // Preserves the previous in-memory selection, falling back to `last_selected`.
     fn rebuild_url_models_from(
         ah: &slint::Weak<AppWindow>,
         cache: &Arc<Mutex<Option<Vec<FlatDistroEntry>>>>,
+        last_selected: &Arc<Mutex<Option<String>>>,
     ) {
         let ah = ah.clone();
         let cache = cache.clone();
+        let last_selected = last_selected.clone();
         let _ = slint::spawn_local(async move {
-            // Read previous selection before rebuilding
+            // Read previous selection before rebuilding (current in-memory)
             let prev_selected_name = ah.upgrade().and_then(|a| {
                 let list = a.get_url_distro_list();
                 let idx = a.get_selected_url_distro_idx();
@@ -232,6 +235,12 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     None
                 }
             });
+            // Fall back to remembered last selection if no current in-memory selection
+            let prev_selected_name =
+                prev_selected_name.or_else(|| match last_selected.try_lock() {
+                    Ok(g) => g.clone(),
+                    Err(_) => None,
+                });
 
             let is_arm64 = is_host_arm64();
             let entries_opt = cache.lock().await;
@@ -302,12 +311,26 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
         });
     }
 
+    // Remember last selected URL distro name (in-memory only)
+    let last_url_distro: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+    let last_url_distro_sel = last_url_distro.clone();
+    app.on_url_distro_selected(move |name| {
+        let store = last_url_distro_sel.clone();
+        let distro_name = name.to_string();
+        // Use try_lock since we're in a slint callback (not async)
+        if let Ok(mut g) = store.try_lock() {
+            *g = Some(distro_name);
+        }
+    });
+
     // Fetch URL distribution list
     let ah_fetch = app_handle.clone();
     let cache_fetch = url_entries_cache.clone();
+    let last_url_distro_fetch = last_url_distro.clone();
     app.on_fetch_url_distros(move || {
         let ah = ah_fetch.clone();
         let cache = cache_fetch.clone();
+        let last = last_url_distro_fetch.clone();
         let _ = slint::spawn_local(async move {
             if let Some(app) = ah.upgrade() {
                 app.set_is_fetching_url_distros(true);
@@ -364,7 +387,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                                 app.set_host_arch(host_arch_display().into());
                             }
                             // Rebuild models for current architecture
-                            rebuild_url_models_from(&ah, &cache);
+                            rebuild_url_models_from(&ah, &cache, &last);
                         }
                         Err(e) => {
                             if let Some(app) = ah.upgrade() {
@@ -455,23 +478,15 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
             let ah = ah.clone();
             let as_ptr = as_ptr.clone();
 
-            println!(
-                "\n[UI Event] on_install_distro: name={}, source={}",
-                name, source_idx
-            );
+            debug!("on_install_distro: name={}, source={}", name, source_idx);
 
             let ah_weak = ah.clone();
             let as_ptr = as_ptr.clone();
 
-            println!(
-                "\n[UI Event] on_install_distro: name={}, source={}",
-                name, source_idx
-            );
-
             let _ = slint::spawn_local(async move {
                 let (manager, internal_id) = if let Some(app) = ah_weak.upgrade() {
                     if app.get_is_installing() {
-                        println!("[UI Event] Installation already in progress, ignoring click.");
+                        debug!("Installation already in progress, ignoring click.");
                         return;
                     }
 
@@ -508,21 +523,6 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                         app.get_download_threads() as u8
                     } else {
                         4
-                    };
-                    let _url_is_arm64 = if source_idx == 3 {
-                        is_host_arm64()
-                    } else {
-                        false
-                    };
-                    let url_source_idx = if source_idx == 3 {
-                        app.get_selected_install_url_idx() as u8
-                    } else {
-                        0
-                    };
-                    let custom_url = if source_idx == 3 {
-                        app.get_custom_install_url().to_string()
-                    } else {
-                        String::new()
                     };
                     let url_distro_url = if source_idx == 3 {
                         let list = app.get_url_distro_list();
@@ -572,9 +572,6 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                             new_pw,
                             set_default,
                             url_download_threads,
-                            _url_is_arm64,
-                            url_source_idx,
-                            custom_url,
                             url_distro_url,
                             url_distro_sha256,
                         )

@@ -4,7 +4,7 @@ use rand::distr::Alphanumeric;
 use slint::{ComponentHandle, Model};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::{error, info};
+use tracing::info;
 
 pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc<Mutex<AppState>>) {
     // Clone process
@@ -24,7 +24,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 };
 
                 // Sentinel Check: Distro busy?
-                if let Some(op) = manager.get_active_op(&name_str).await {
+                if let Some(op) = manager.get_active_op(&name_str) {
                     let msg = i18n::tr("toast.distro_busy", &[name_str.clone(), op.to_string()]);
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(app) = ah.upgrade() {
@@ -130,23 +130,16 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                         return;
                     }
 
-                    // 1. Validation: Name length <= 24
-                    if target_name.len() > 24 {
-                        error!("Clone failed: name too long");
-                        app.set_clone_error(i18n::t("dialog.name_too_long").into());
-                        return;
-                    }
-
-                    // 2. Validation: ASCII Alphanumeric and -_.
+                    // 1. Validation: Name length <= MAX_INSTANCE_NAME_LEN, ASCII Alphanumeric and -_.
                     let is_valid_name = target_name
                         .chars()
                         .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_' || c == '.');
-                    if !is_valid_name {
-                        app.set_clone_error(i18n::t("dialog.name_invalid").into());
+                    if !is_valid_name || target_name.len() > crate::app::MAX_INSTANCE_NAME_LEN {
+                        app.set_clone_error(i18n::t("dialog.install_name_invalid").into());
                         return;
                     }
 
-                    // 3. Validation: Instance exists
+                    // 2. Validation: Instance exists
                     let distros = app.get_distros();
                     for i in 0..distros.row_count() {
                         if let Some(d) = distros.row_data(i) {
@@ -157,7 +150,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                         }
                     }
 
-                    // 4. Validation: Directory emptiness
+                    // 3. Validation: Directory emptiness
                     let p = std::path::Path::new(target_path.as_str());
                     if p.exists() {
                         if p.is_dir() {
@@ -180,6 +173,21 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                         }
                     }
 
+                    // 4. Validation: Target not overlapping with existing install location
+                    let old_location = manager
+                        .executor()
+                        .get_distro_install_location(&source_name)
+                        .await
+                        .data;
+                    if let Some(ref old) = old_location {
+                        if super::paths_overlap(old, &target_path) {
+                            app.set_clone_error(
+                                i18n::tr("dialog.path_overlap", &[old.clone()]).into(),
+                            );
+                            return;
+                        }
+                    }
+
                     app.set_clone_error("".into());
                     app.set_show_clone_dialog(false);
 
@@ -197,7 +205,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                             state.wsl_dashboard.clone()
                         };
 
-                        if let Some(op) = manager.get_active_op(&source_name_inner).await {
+                        if let Some(op) = manager.get_active_op(&source_name_inner) {
                             let msg = i18n::tr(
                                 "toast.distro_busy",
                                 &[source_name_inner.clone(), op.to_string()],

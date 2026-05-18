@@ -6,8 +6,12 @@ use tracing::{debug, info, warn};
 
 impl WslDashboard {
     pub async fn start_distro(&self, name: &str) -> WslCommandResult<String> {
-        let _guard =
-            DistroOpGuard::create(self.clone(), name.to_string(), "Starting".to_string()).await;
+        let _guard = DistroOpGuard::create(
+            self.clone(),
+            name.to_string(),
+            "operation.starting".to_string(),
+        )
+        .await;
         self.increment_manual_operation();
         let result = self.executor.start_distro(name).await;
         if result.success {
@@ -35,8 +39,12 @@ impl WslDashboard {
     }
 
     pub async fn stop_distro(&self, name: &str) -> WslCommandResult<String> {
-        let _guard =
-            DistroOpGuard::create(self.clone(), name.to_string(), "Stopping".to_string()).await;
+        let _guard = DistroOpGuard::create(
+            self.clone(),
+            name.to_string(),
+            "operation.stopping".to_string(),
+        )
+        .await;
         self.increment_manual_operation();
         info!("Calling executor.stop_distro for '{}'", name);
         let result = self.executor.stop_distro(name).await;
@@ -52,6 +60,23 @@ impl WslDashboard {
             );
             let _ = self.refresh_distros().await;
             info!("Immediate refresh after stop completed for '{}'", name);
+
+            // Retry terminate if the distro is still running (resource monitor may have delayed VM shutdown)
+            let max_retries = 3;
+            for attempt in 1..=max_retries {
+                if let Some(distro) = self.get_distro(name).await {
+                    if matches!(distro.status, WslStatus::Stopped) {
+                        break;
+                    }
+                }
+                info!(
+                    "Distro '{}' still running after terminate, retrying (attempt {}/{})",
+                    name, attempt, max_retries
+                );
+                let _ = self.executor.stop_distro(name).await;
+                let _ = self.refresh_distros().await;
+                tokio::time::sleep(Duration::from_millis(500)).await;
+            }
 
             let manager_clone = self.clone();
             let name_clone = name.to_string();
@@ -71,31 +96,40 @@ impl WslDashboard {
     }
 
     pub async fn restart_distro(&self, name: &str) -> WslCommandResult<String> {
-        let _guard =
-            DistroOpGuard::create(self.clone(), name.to_string(), "Restarting".to_string()).await;
+        let _guard = DistroOpGuard::create(
+            self.clone(),
+            name.to_string(),
+            "operation.restarting".to_string(),
+        )
+        .await;
+        self.increment_manual_operation();
         info!("WSL distro '{}' restart initiated", name);
 
-        // 1. Terminate
-        let stop_result = self.stop_distro(name).await;
+        // 1. Terminate via executor directly (not self.stop_distro) to avoid
+        // nested increment/decrement and duplicate DistroOpGuard.
+        info!("Stopping '{}' as part of restart...", name);
+        let stop_result = self.executor.stop_distro(name).await;
         if !stop_result.success {
             warn!(
                 "Stop failed during restart for '{}', aborting restart",
                 name
             );
+            self.decrement_manual_operation();
             return stop_result;
         }
 
-        // 2. Poll for Stopped status (Smart Wait)
+        // 2. Refresh and poll for Stopped status (Smart Wait)
         info!(
             "Stop successful for '{}', polling for Stopped status...",
             name
         );
+        let _ = self.refresh_distros().await;
+
         let start_wait = Instant::now();
         let timeout = Duration::from_secs(10);
         let mut is_stopped = false;
 
         while start_wait.elapsed() < timeout {
-            // Use refresh_distros to get latest state from system
             let _ = self.refresh_distros().await;
             if let Some(distro) = self.get_distro(name).await {
                 if matches!(distro.status, WslStatus::Stopped) {
@@ -117,13 +151,36 @@ impl WslDashboard {
                 name
             );
         } else {
-            // Give WSL a tiny moment to breathe before starting again
             tokio::time::sleep(Duration::from_millis(500)).await;
         }
 
-        // 3. Start
+        // 3. Start via executor directly
         info!("Initiating start for '{}'...", name);
-        self.start_distro(name).await
+        let start_result = self.executor.start_distro(name).await;
+
+        if start_result.success {
+            info!(
+                "WSL distro '{}' startup command executed (restart), waiting for status update",
+                name
+            );
+            let _ = self.refresh_distros().await;
+
+            let manager_clone = self.clone();
+            let name_clone = name.to_string();
+            tokio::spawn(async move {
+                tokio::time::sleep(Duration::from_secs(3)).await;
+                info!(
+                    "Delayed refresh of WSL distro '{}' status after restart",
+                    name_clone
+                );
+                let _ = manager_clone.refresh_distros().await;
+                manager_clone.decrement_manual_operation();
+            });
+        } else {
+            self.decrement_manual_operation();
+        }
+
+        start_result
     }
 
     pub async fn shutdown_wsl(&self) -> WslCommandResult<String> {
@@ -143,8 +200,12 @@ impl WslDashboard {
         config_manager: &crate::config::ConfigManager,
         name: &str,
     ) -> WslCommandResult<String> {
-        let _guard =
-            DistroOpGuard::create(self.clone(), name.to_string(), "Deleting".to_string()).await;
+        let _guard = DistroOpGuard::create(
+            self.clone(),
+            name.to_string(),
+            "operation.deleting".to_string(),
+        )
+        .await;
         let _heavy_lock = self.heavy_op_lock.lock().await;
         self.increment_manual_operation();
 
@@ -178,8 +239,12 @@ impl WslDashboard {
     }
 
     pub async fn export_distro(&self, name: &str, file_path: &str) -> WslCommandResult<String> {
-        let _guard =
-            DistroOpGuard::create(self.clone(), name.to_string(), "Exporting".to_string()).await;
+        let _guard = DistroOpGuard::create(
+            self.clone(),
+            name.to_string(),
+            "operation.exporting".to_string(),
+        )
+        .await;
         let _heavy_lock = self.heavy_op_lock.lock().await;
         self.increment_manual_operation();
         let result = self.executor.export_distro(name, file_path).await;
@@ -192,14 +257,19 @@ impl WslDashboard {
         name: &str,
         install_location: &str,
         file_path: &str,
+        is_vhd: bool,
     ) -> WslCommandResult<String> {
-        let _guard =
-            DistroOpGuard::create(self.clone(), name.to_string(), "Importing".to_string()).await;
+        let _guard = DistroOpGuard::create(
+            self.clone(),
+            name.to_string(),
+            "install.importing".to_string(),
+        )
+        .await;
         let _heavy_lock = self.heavy_op_lock.lock().await;
         self.increment_manual_operation();
         let result = self
             .executor
-            .import_distro(name, install_location, file_path)
+            .import_distro(name, install_location, file_path, is_vhd)
             .await;
         if result.success {
             let _ = self.refresh_distros().await;
@@ -208,12 +278,24 @@ impl WslDashboard {
         result
     }
 
-    pub async fn move_distro(&self, name: &str, new_path: &str) -> WslCommandResult<String> {
-        let _guard =
-            DistroOpGuard::create(self.clone(), name.to_string(), "Moving".to_string()).await;
+    pub async fn move_distro(
+        &self,
+        name: &str,
+        new_path: &str,
+        use_elevation: bool,
+    ) -> WslCommandResult<String> {
+        let _guard = DistroOpGuard::create(
+            self.clone(),
+            name.to_string(),
+            "operation.moving".to_string(),
+        )
+        .await;
         let _heavy_lock = self.heavy_op_lock.lock().await;
         self.increment_manual_operation();
-        let result = self.executor.move_distro(name, new_path).await;
+        let result = self
+            .executor
+            .move_distro(name, new_path, use_elevation)
+            .await;
         if result.success {
             let _ = self.refresh_distros().await;
         }

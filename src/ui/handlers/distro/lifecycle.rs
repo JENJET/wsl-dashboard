@@ -1,4 +1,4 @@
-use crate::{AppState, AppWindow, i18n};
+﻿use crate::{AppState, AppWindow, i18n};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::info;
@@ -19,7 +19,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 };
 
                 // Sentinel Check: Distro busy?
-                if let Some(op) = manager.get_active_op(&name).await {
+                if let Some(op) = manager.get_active_op(&name) {
                     let msg = i18n::tr("toast.distro_busy", &[name.to_string(), op.to_string()]);
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(app) = ah.upgrade() {
@@ -64,7 +64,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 };
 
                 // Sentinel Check: Distro busy?
-                if let Some(op) = manager.get_active_op(&name).await {
+                if let Some(op) = manager.get_active_op(&name) {
                     let msg = i18n::tr("toast.distro_busy", &[name.to_string(), op.to_string()]);
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(app) = ah.upgrade() {
@@ -109,7 +109,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 };
 
                 // Sentinel Check: Distro busy?
-                if let Some(op) = manager.get_active_op(&name).await {
+                if let Some(op) = manager.get_active_op(&name) {
                     let msg = i18n::tr("toast.distro_busy", &[name.to_string(), op.to_string()]);
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(app) = ah.upgrade() {
@@ -158,7 +158,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 };
 
                 // Sentinel Check: Distro busy?
-                if let Some(op) = dashboard.get_active_op(&name).await {
+                if let Some(op) = dashboard.get_active_op(&name) {
                     let msg = i18n::tr("toast.distro_busy", &[name.to_string(), op.to_string()]);
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(app) = ah.upgrade() {

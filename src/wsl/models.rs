@@ -7,11 +7,33 @@ pub enum WslVersion {
     V2,
 }
 
+impl WslVersion {
+    pub fn as_string(&self) -> &'static str {
+        match self {
+            WslVersion::V1 => "1",
+            WslVersion::V2 => "2",
+        }
+    }
+}
+
+impl std::fmt::Display for WslVersion {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_string())
+    }
+}
+
 // WSL subsystem status
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum WslStatus {
     Running,
     Stopped,
+    Installing,
+    Converting,
+    Uninstalling,
+    Exporting,
+    Deleting,
+    Disabled,
+    Unknown(String),
 }
 
 // WSL subsystem information

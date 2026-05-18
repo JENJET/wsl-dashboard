@@ -1,8 +1,8 @@
-use crate::{AppState, AppWindow, i18n};
+﻿use crate::{AppState, AppWindow, i18n};
 use slint::ComponentHandle;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::info;
+use tracing::{info, warn};
 
 pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc<Mutex<AppState>>) {
     // Export process
@@ -22,7 +22,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 };
 
                 // Sentinel Check: Distro busy?
-                if let Some(op) = manager.get_active_op(&name_str).await {
+                if let Some(op) = manager.get_active_op(&name_str) {
                     let msg = i18n::tr("toast.distro_busy", &[name_str.clone(), op.to_string()]);
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(app) = ah.upgrade() {
@@ -131,92 +131,29 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     let target_path_inner = target_path.to_string();
 
                     let _ = slint::spawn_local(async move {
-                        let stop_signal = Arc::new(std::sync::atomic::AtomicBool::new(false));
-                        if let Some(app) = ah_clone.upgrade() {
-                            let initial_msg = i18n::tr(
-                                "operation.exporting_msg",
-                                &[distro_source_inner.clone(), "0 MB".to_string()],
-                            );
-                            app.set_task_status_text(initial_msg.into());
-                            app.set_task_status_visible(true);
-                        }
-
-                        let extension = if use_compress_inner { "tar.gz" } else { "tar" };
-                        let mut filename = format!("{}.{}", distro_source_inner, extension);
-                        let mut export_file =
-                            std::path::Path::new(&target_path_inner).join(&filename);
-
-                        if export_file.exists() {
-                            let timestamp = chrono::Local::now().format("%Y%m%d%H%M%S").to_string();
-                            filename =
-                                format!("{}.{}.{}", distro_source_inner, timestamp, extension);
-                            export_file = std::path::Path::new(&target_path_inner).join(&filename);
-                        }
-
-                        let export_file_str = export_file.to_string_lossy().to_string();
-
-                        super::spawn_file_size_monitor(
+                        let (success, error_msg, file_path) = do_export(
                             ah_clone.clone(),
-                            export_file_str.clone(),
-                            distro_source_inner.clone(),
-                            "operation.exporting_msg".into(),
-                            stop_signal.clone(),
-                        );
-
-                        tokio::task::yield_now().await;
-                        let result = {
-                            let dashboard = {
-                                let state = as_ptr.lock().await;
-                                state.wsl_dashboard.clone()
-                            };
-
-                            if let Some(op) = dashboard.get_active_op(&distro_source_inner).await {
-                                let msg = i18n::tr(
-                                    "toast.distro_busy",
-                                    &[distro_source_inner.clone(), op.to_string()],
-                                );
-                                let ah_toast = ah_clone.clone();
-                                let _ = slint::invoke_from_event_loop(move || {
-                                    if let Some(app) = ah_toast.upgrade() {
-                                        app.set_current_message(msg.into());
-                                        app.set_show_message_dialog(true);
-                                    }
-                                });
-                                let ah_flags = ah_clone.clone();
-                                let _ = slint::invoke_from_event_loop(move || {
-                                    if let Some(app) = ah_flags.upgrade() {
-                                        app.set_task_status_visible(false);
-                                        app.set_is_exporting(false);
-                                    }
-                                });
-                                return;
-                            }
-
-                            info!(
-                                "Exporting distribution '{}' to '{}'...",
-                                distro_source_inner, export_file_str
-                            );
-                            dashboard
-                                .export_distro(&distro_source_inner, &export_file_str)
-                                .await
-                        };
-
-                        stop_signal.store(true, std::sync::atomic::Ordering::Relaxed);
+                            as_ptr,
+                            &distro_source_inner,
+                            &target_path_inner,
+                            use_compress_inner,
+                        )
+                        .await;
 
                         if let Some(app) = ah_clone.upgrade() {
                             app.set_task_status_visible(false);
                             app.set_is_exporting(false);
 
-                            if result.success {
+                            if success {
                                 app.set_current_message(
                                     i18n::tr(
                                         "dialog.export_success",
-                                        &[distro_source_inner.clone(), export_file_str.clone()],
+                                        &[distro_source_inner.clone(), file_path.clone()],
                                     )
                                     .into(),
                                 );
                             } else {
-                                let err = result.error.unwrap_or_else(|| i18n::t("dialog.error"));
+                                let err = error_msg.unwrap_or_else(|| i18n::t("dialog.error"));
                                 app.set_current_message(
                                     i18n::tr("dialog.export_failed", &[err]).into(),
                                 );
@@ -227,5 +164,64 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 }
             });
         });
+    }
+}
+
+/// Core export logic: generate file path, run export, clean up on failure.
+/// Returns (success, error_message, final_file_path).
+pub async fn do_export(
+    ah: slint::Weak<AppWindow>,
+    as_ptr: Arc<Mutex<AppState>>,
+    distro_name: &str,
+    target_dir: &str,
+    compress: bool,
+) -> (bool, Option<String>, String) {
+    let stop_signal = Arc::new(std::sync::atomic::AtomicBool::new(false));
+
+    // Generate file path (handle duplicates with timestamp)
+    let extension = if compress { "tar.gz" } else { "tar" };
+    let mut filename = format!("{}.{}", distro_name, extension);
+    let mut export_file = std::path::Path::new(target_dir).join(&filename);
+
+    if export_file.exists() {
+        let timestamp = chrono::Local::now().format("%Y%m%d%H%M%S").to_string();
+        filename = format!("{}.{}.{}", distro_name, timestamp, extension);
+        export_file = std::path::Path::new(target_dir).join(&filename);
+    }
+
+    let export_file_str = export_file.to_string_lossy().to_string();
+
+    // Start file size monitor
+    super::spawn_file_size_monitor(
+        ah.clone(),
+        export_file_str.clone(),
+        distro_name.to_string(),
+        "operation.exporting_msg".into(),
+        stop_signal.clone(),
+        None,
+    );
+
+    tokio::task::yield_now().await;
+
+    // Execute export
+    let dashboard = {
+        let state = as_ptr.lock().await;
+        state.wsl_dashboard.clone()
+    };
+
+    info!(
+        "Exporting distribution '{}' to '{}'...",
+        distro_name, export_file_str
+    );
+    let result = dashboard.export_distro(distro_name, &export_file_str).await;
+    stop_signal.store(true, std::sync::atomic::Ordering::Relaxed);
+
+    if result.success {
+        (true, None, export_file_str)
+    } else {
+        let err = result.error.unwrap_or_else(|| i18n::t("dialog.error"));
+        let _ = std::fs::remove_file(&export_file_str);
+        warn!("Export failed for '{}': {}", distro_name, err);
+        (false, Some(err), export_file_str)
     }
 }

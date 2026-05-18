@@ -44,7 +44,12 @@ pub fn parse_distros_list(output: &str) -> Vec<WslDistro> {
         // Parse status
         let status = match state_part.to_lowercase().as_str() {
             "running" => WslStatus::Running,
-            _ => WslStatus::Stopped,
+            "stopped" => WslStatus::Stopped,
+            "installing" => WslStatus::Installing,
+            "converting" => WslStatus::Converting,
+            "uninstalling" => WslStatus::Uninstalling,
+            "disabled" => WslStatus::Disabled,
+            other => WslStatus::Unknown(other.to_string()),
         };
 
         // Parse version

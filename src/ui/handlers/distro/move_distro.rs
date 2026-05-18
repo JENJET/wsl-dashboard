@@ -21,7 +21,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
             };
 
             // Sentinel Check: Distro busy?
-            if let Some(op) = manager.get_active_op(&name_str).await {
+            if let Some(op) = manager.get_active_op(&name_str) {
                 let msg = i18n::tr("toast.distro_busy", &[name_str.clone(), op.to_string()]);
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(app) = ah.upgrade() {
@@ -123,7 +123,8 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     source_name,
                     target_name,
                     target_path,
-                    "2".to_string(),
+                    crate::wsl::models::WslVersion::V2.to_string(),
+                    true,
                 );
             }
         });
@@ -162,7 +163,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
             };
 
             // Sentinel Check: Distro busy?
-            if let Some(op) = manager.get_active_op(&source_name).await {
+            if let Some(op) = manager.get_active_op(&source_name) {
                 let msg = i18n::tr("toast.distro_busy", &[source_name.clone(), op.to_string()]);
                 if let Some(app) = ah_weak.upgrade() {
                     app.set_current_message(msg.into());
@@ -213,8 +214,21 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     }
                 }
 
+                // Validation: Target not overlapping with existing install location
+                let old_location = manager
+                    .executor()
+                    .get_distro_install_location(&source_name)
+                    .await
+                    .data;
+                if let Some(ref old) = old_location {
+                    if super::paths_overlap(old, &target_path) {
+                        app.set_move_error(i18n::tr("dialog.path_overlap", &[old.clone()]).into());
+                        return;
+                    }
+                }
+
                 // Get distro version
-                let mut version = "2".to_string();
+                let mut version = crate::wsl::models::WslVersion::V2.to_string();
                 let distros = app.get_distros();
                 for i in 0..distros.row_count() {
                     if let Some(d) = distros.row_data(i) {
@@ -227,7 +241,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
 
                 app.set_move_error("".into());
 
-                if version == "2" {
+                if version == crate::wsl::models::WslVersion::V2.to_string() {
                     // Check if there are other running distros
                     let mut running_names = Vec::new();
                     for i in 0..distros.row_count() {
@@ -258,6 +272,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                         target_name,
                         target_path,
                         version,
+                        true,
                     );
                 }
             }
@@ -272,6 +287,7 @@ fn run_move_process(
     target_name: String,
     target_path: String,
     version: String,
+    use_elevation: bool,
 ) {
     super::move_logic::run_move_process(
         ah_move,
@@ -280,5 +296,6 @@ fn run_move_process(
         target_name,
         target_path,
         version,
+        use_elevation,
     );
 }

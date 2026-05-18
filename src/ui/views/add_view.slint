@@ -60,6 +60,7 @@ export component AddInstanceView inherits VerticalLayout {
     callback check_new_username(string);
     callback fetch_url_distros();
     callback is_local_url(string) -> bool;
+    callback url_distro_selected(string);
 
     // Page-level scroll
     outer-flick := Flickable {
@@ -220,6 +221,7 @@ export component AddInstanceView inherits VerticalLayout {
                             root.new_instance_name = root.url_distro_list[idx].name;
                             let base = root.distro_location;
                             root.new_instance_path = base + "\\" + root.new_instance_name;
+                            root.url_distro_selected(root.url_distro_list[idx].name);
                         }
                     }
                 }

@@ -129,6 +129,9 @@ export component CustomComboBox inherits Rectangle {
                 height: parent.height - 2px;
                 viewport-height: root.model.length * 32px;
                 interactive: true;
+                init => {
+                    self.viewport-y = -root.current-index * 32px;
+                }
                 VerticalLayout {
                     padding: 0;
                     spacing: 0;

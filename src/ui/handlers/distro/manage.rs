@@ -1,3 +1,4 @@
+use crate::handlers::network::show_toast;
 use crate::ui::data::refresh_distros_ui;
 use crate::ui::handlers::instance;
 use crate::{AppState, AppWindow, i18n};
@@ -46,7 +47,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     app_state.wsl_dashboard.clone()
                 };
 
-                if let Some(op) = manager.get_active_op(&name).await {
+                if let Some(op) = manager.get_active_op(&name) {
                     let msg = i18n::tr("toast.distro_busy", &[name.to_string(), op.to_string()]);
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(app) = ah.upgrade() {
@@ -122,7 +123,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     app_state.wsl_dashboard.clone()
                 };
 
-                if let Some(op) = manager.get_active_op(&name).await {
+                if let Some(op) = manager.get_active_op(&name) {
                     let msg = i18n::tr("toast.distro_busy", &[name.to_string(), op.to_string()]);
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(app) = ah.upgrade() {
@@ -160,7 +161,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     let app_state = as_ptr.lock().await;
                     app_state.wsl_dashboard.clone()
                 };
-                if let Some(op) = manager.get_active_op(&distro_name).await {
+                if let Some(op) = manager.get_active_op(&distro_name) {
                     let msg = i18n::tr(
                         "toast.distro_busy",
                         &[distro_name.to_string(), op.to_string()],
@@ -201,7 +202,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     state.wsl_dashboard.clone()
                 };
 
-                if let Some(op) = manager.get_active_op(&name).await {
+                if let Some(op) = manager.get_active_op(&name) {
                     let msg = i18n::tr("toast.distro_busy", &[name.to_string(), op.to_string()]);
                     if let Some(app) = ah.upgrade() {
                         app.set_current_message(msg.into());
@@ -272,7 +273,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     (app_state.wsl_dashboard.clone(), name.to_string())
                 };
 
-                if let Some(op) = dashboard.get_active_op(&name_str).await {
+                if let Some(op) = dashboard.get_active_op(&name_str) {
                     let msg = i18n::tr("toast.distro_busy", &[name_str.clone(), op.to_string()]);
                     if let Some(app) = ah.upgrade() {
                         app.set_current_message(msg.into());
@@ -332,7 +333,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     (app_state.wsl_dashboard.clone(), name.clone())
                 };
 
-                if let Some(op) = dashboard.get_active_op(&name_str).await {
+                if let Some(op) = dashboard.get_active_op(&name_str) {
                     let msg = i18n::tr("toast.distro_busy", &[name_str.clone(), op.to_string()]);
                     let ah_clone = ah.clone();
                     let _ = slint::invoke_from_event_loop(move || {
@@ -562,7 +563,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     app_state.wsl_dashboard.clone()
                 };
 
-                if let Some(op) = manager.get_active_op(&name).await {
+                if let Some(op) = manager.get_active_op(&name) {
                     let msg = i18n::tr("toast.distro_busy", &[name.clone(), op.to_string()]);
                     if let Some(app) = ah.upgrade() {
                         app.set_current_message(msg.into());
@@ -667,7 +668,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     app_state.wsl_dashboard.clone()
                 };
 
-                if let Some(op) = manager.get_active_op(&name).await {
+                if let Some(op) = manager.get_active_op(&name) {
                     let msg = i18n::tr("toast.distro_busy", &[name.clone(), op.to_string()]);
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(app) = ah.upgrade() {
@@ -767,7 +768,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     app_state.wsl_dashboard.clone()
                 };
 
-                if let Some(op) = manager.get_active_op(&name).await {
+                if let Some(op) = manager.get_active_op(&name) {
                     let msg = i18n::tr("toast.distro_busy", &[name.to_string(), op.to_string()]);
                     let ah_clone = ah.clone();
                     let _ = slint::invoke_from_event_loop(move || {
@@ -834,22 +835,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
     {
         let ah = app_handle.clone();
         app.on_show_copy_success(move || {
-            if let Some(app) = ah.upgrade() {
-                let msg = i18n::t("toast.copy_success");
-                app.set_task_status_text(msg.into());
-                app.set_task_status_visible(true);
-
-                // Auto-hide toast after 3 seconds
-                let ah_inner = ah.clone();
-                tokio::spawn(async move {
-                    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
-                    let _ = slint::invoke_from_event_loop(move || {
-                        if let Some(app) = ah_inner.upgrade() {
-                            app.set_task_status_visible(false);
-                        }
-                    });
-                });
-            }
+            show_toast(ah.clone(), "toast.copy_success".into());
         });
     }
 

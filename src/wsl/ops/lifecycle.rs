@@ -312,12 +312,16 @@ pub async fn move_distro(
     executor: &WslCommandExecutor,
     distro_name: &str,
     new_path: &str,
+    use_elevation: bool,
 ) -> WslCommandResult<String> {
     info!(
-        "Operation: Move WSL distribution - {} to {}",
-        distro_name, new_path
+        "Operation: Move WSL distribution - {} to {} (elevated: {})",
+        distro_name, new_path, use_elevation
     );
-    executor
-        .execute_command(&["--manage", distro_name, "--move", new_path])
-        .await
+    let args = vec!["--manage", distro_name, "--move", new_path];
+    if use_elevation {
+        executor.execute_command_elevated(&args).await
+    } else {
+        executor.execute_command(&args).await
+    }
 }

@@ -1,163 +1,141 @@
 use crate::config::models::CachedDistro;
 use crate::ui::data::refresh_distros_ui;
+use crate::wsl::models::WslStatus;
 use crate::{AppState, AppWindow};
-use slint::Model;
+use slint::{ComponentHandle, Model};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::debug;
 
-// Start WSL status monitoring task
-pub fn spawn_wsl_monitor(app_handle: slint::Weak<AppWindow>, app_state: Arc<Mutex<AppState>>) {
+// Combined WSL state + resource monitor.
+// Runs every 5s on the Home tab: refreshes distro list (wsl -l -v) and fetches
+// CPU/IP resource data for running distros.  Replaces the former two separate
+// 5s timers (spawn_wsl_monitor + spawn_resource_monitor) that ran independently
+// and duplicated work.
+pub fn spawn_state_monitor(app_handle: slint::Weak<AppWindow>, app_state: Arc<Mutex<AppState>>) {
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(5));
         interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
         loop {
             interval.tick().await;
+
             let ah = app_handle.clone();
             let as_ptr = app_state.clone();
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(app) = ah.upgrade() {
-                    let is_visible = app.get_is_window_visible();
-                    // Only refresh if the Home tab (index 0) is selected to save resources
-                    if app.get_selected_tab() == 0 {
-                        let as_ptr_res = as_ptr.clone();
-                        tokio::spawn(async move {
-                            if crate::ui::data::should_refresh_wsl("periodic trigger", is_visible) {
-                                let dashboard = {
-                                    let state = as_ptr_res.lock().await;
-                                    state.wsl_dashboard.clone()
-                                };
-                                let _ = dashboard.refresh_distros().await;
-                            }
-                        });
+                    // Only refresh if the Home tab (index 0) is selected
+                    if app.get_selected_tab() != 0 {
+                        return;
                     }
-                }
-            });
-        }
-    });
-}
+                    let is_visible = app.get_is_window_visible();
+                    let is_batch_operating = app.get_batch_operating();
+                    let as_ptr_res = as_ptr.clone();
+                    let ah_weak = app.as_weak();
+                    tokio::spawn(async move {
+                        let dashboard = {
+                            let state = as_ptr_res.lock().await;
+                            state.wsl_dashboard.clone()
+                        };
 
-// Start resource usage monitoring task (CPU and Memory)
-pub fn spawn_resource_monitor(app_handle: slint::Weak<AppWindow>) {
-    tokio::spawn(async move {
-        let mut interval = tokio::time::interval(std::time::Duration::from_secs(5));
-        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-        loop {
-            interval.tick().await;
-            let ah = app_handle.clone();
-            let _ = slint::invoke_from_event_loop(move || {
-                if let Some(app) = ah.upgrade() {
-                    // Only refresh if the Home tab (index 0) is selected and window is visible
-                    if app.get_selected_tab() == 0 && app.get_is_window_visible() {
-                        let model = app.get_distros();
-                        let running_distros: Vec<String> = (0..model.row_count())
-                            .filter_map(|i| {
-                                model.row_data(i).and_then(|distro| {
-                                    if distro.status == "Running" {
-                                        Some(distro.name.to_string())
-                                    } else {
-                                        None
-                                    }
-                                })
-                            })
+                        // Phase 1: Refresh WSL distro list (triggers state_listener → refresh_distros_ui)
+                        let _ = dashboard.refresh_distros().await;
+
+                        // Phase 2: Fetch CPU/IP for running distros (only when window is visible)
+                        if !is_visible {
+                            return;
+                        }
+                        if is_batch_operating
+                            || !crate::ui::data::should_refresh_wsl("periodic trigger", is_visible)
+                        {
+                            return;
+                        }
+                        let running = dashboard.get_distros().await;
+                        let running_names: Vec<String> = running
+                            .into_iter()
+                            .filter(|d| matches!(d.status, WslStatus::Running))
+                            .map(|d| d.name)
                             .collect();
+                        if running_names.is_empty() {
+                            return;
+                        }
 
-                        if !running_distros.is_empty() {
-                            let ah_async = ah.clone();
-                            tokio::task::spawn_blocking(move || {
-                                let show_ip = crate::utils::wsl_config::show_distro_ip();
-                                let mut ip_results: Vec<(String, String)> = Vec::new();
-                                let mut resource_results: Vec<(String, f64, f64, f64)> = Vec::new();
+                        tokio::task::spawn_blocking(move || {
+                            let show_ip = crate::utils::wsl_config::show_distro_ip();
+                            let mut ip_results: Vec<(String, String)> = Vec::new();
+                            let mut resource_results: Vec<(String, f64, f64, f64)> = Vec::new();
 
-                                for name in &running_distros {
-                                    // Fetch IP only when show_distro_ip is enabled
-                                    if show_ip {
-                                        match crate::network::tracker::get_distro_ip(name, Some(1))
-                                        {
-                                            Ok(ip) => {
-                                                ip_results.push((name.clone(), ip));
-                                            }
-                                            Err(_) => {}
-                                        }
-                                    }
-
-                                    // Fetch CPU and Memory usage
-                                    match crate::network::tracker::get_distro_resource_usage(name) {
-                                        Ok((cpu, mem_used, mem_total)) => {
-                                            resource_results.push((
-                                                name.clone(),
-                                                cpu,
-                                                mem_used,
-                                                mem_total,
-                                            ));
-                                        }
-                                        Err(_) => {}
+                            for name in &running_names {
+                                if show_ip {
+                                    if let Ok(ip) =
+                                        crate::network::tracker::get_distro_ip(name, Some(1))
+                                    {
+                                        ip_results.push((name.clone(), ip));
                                     }
                                 }
+                                if let Ok((cpu, mem_used, mem_total)) =
+                                    crate::network::tracker::get_distro_resource_usage(name)
+                                {
+                                    resource_results.push((name.clone(), cpu, mem_used, mem_total));
+                                }
+                            }
 
-                                if !ip_results.is_empty() || !resource_results.is_empty() {
-                                    let _ = slint::invoke_from_event_loop(move || {
-                                        if let Some(app) = ah_async.upgrade() {
-                                            let model = app.get_distros();
-                                            for i in 0..model.row_count() {
-                                                if let Some(mut distro) = model.row_data(i) {
-                                                    let mut updated = false;
+                            if ip_results.is_empty() && resource_results.is_empty() {
+                                return;
+                            }
 
-                                                    // Update IP
-                                                    if let Some((_, ip)) = ip_results
-                                                        .iter()
-                                                        .find(|(n, _)| distro.name == *n)
-                                                    {
-                                                        if distro.ip != ip.as_str() {
-                                                            distro.ip = ip.into();
-                                                            updated = true;
-                                                        }
-                                                    }
+                            let _ = slint::invoke_from_event_loop(move || {
+                                if let Some(app) = ah_weak.upgrade() {
+                                    let model = app.get_distros();
+                                    for i in 0..model.row_count() {
+                                        if let Some(mut distro) = model.row_data(i) {
+                                            let mut updated = false;
 
-                                                    // Update CPU and Memory for running distros
-                                                    if let Some((_, cpu, mem_used, mem_total)) =
-                                                        resource_results
-                                                            .iter()
-                                                            .find(|(n, _, _, _)| distro.name == *n)
-                                                    {
-                                                        let cpu_str = format!("{:.1}%", cpu);
-                                                        let mem_str = format!(
-                                                            "{:.1}/{:.1} GB",
-                                                            mem_used, mem_total
-                                                        );
-
-                                                        if distro.cpu_usage != cpu_str.as_str() {
-                                                            distro.cpu_usage = cpu_str.into();
-                                                            updated = true;
-                                                        }
-                                                        if distro.memory_usage != mem_str.as_str() {
-                                                            distro.memory_usage = mem_str.into();
-                                                            updated = true;
-                                                        }
-                                                    } else if distro.status == "Stopped" {
-                                                        // Clear resource usage for stopped distros
-                                                        if !distro.cpu_usage.is_empty() {
-                                                            distro.cpu_usage = Default::default();
-                                                            updated = true;
-                                                        }
-                                                        if !distro.memory_usage.is_empty() {
-                                                            distro.memory_usage =
-                                                                Default::default();
-                                                            updated = true;
-                                                        }
-                                                    }
-
-                                                    if updated {
-                                                        model.set_row_data(i, distro);
-                                                    }
+                                            if let Some((_, ip)) =
+                                                ip_results.iter().find(|(n, _)| distro.name == *n)
+                                            {
+                                                if distro.ip != ip.as_str() {
+                                                    distro.ip = ip.into();
+                                                    updated = true;
                                                 }
                                             }
+
+                                            if let Some((_, cpu, mem_used, mem_total)) =
+                                                resource_results
+                                                    .iter()
+                                                    .find(|(n, _, _, _)| distro.name == *n)
+                                            {
+                                                let cpu_str = format!("{:.1}%", cpu);
+                                                let mem_str =
+                                                    format!("{:.1}/{:.1} GB", mem_used, mem_total);
+
+                                                if distro.cpu_usage != cpu_str.as_str() {
+                                                    distro.cpu_usage = cpu_str.into();
+                                                    updated = true;
+                                                }
+                                                if distro.memory_usage != mem_str.as_str() {
+                                                    distro.memory_usage = mem_str.into();
+                                                    updated = true;
+                                                }
+                                            } else if distro.status != "Running" {
+                                                if !distro.cpu_usage.is_empty() {
+                                                    distro.cpu_usage = Default::default();
+                                                    updated = true;
+                                                }
+                                                if !distro.memory_usage.is_empty() {
+                                                    distro.memory_usage = Default::default();
+                                                    updated = true;
+                                                }
+                                            }
+
+                                            if updated {
+                                                model.set_row_data(i, distro);
+                                            }
                                         }
-                                    });
+                                    }
                                 }
                             });
-                        }
-                    }
+                        });
+                    });
                 }
             });
         }

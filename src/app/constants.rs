@@ -56,3 +56,7 @@ pub fn is_chinese_lang(lang: &str) -> bool {
 /// WSL distribution initialization script path
 #[allow(dead_code)]
 pub const WSL_INIT_SCRIPT: &str = "/etc/init.wsl-dashboard";
+
+/// Maximum length for WSL instance names
+#[allow(dead_code)]
+pub const MAX_INSTANCE_NAME_LEN: usize = 32;

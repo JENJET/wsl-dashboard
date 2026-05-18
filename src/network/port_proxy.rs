@@ -57,6 +57,7 @@ pub fn get_active_listen_ports() -> Result<HashSet<(String, u16)>, String> {
     Ok(active_sets)
 }
 
+#[allow(dead_code)]
 pub fn add_port_proxy(
     listen_addr: &str,
     listen_port: u16,
@@ -84,6 +85,7 @@ pub fn add_port_proxy(
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn delete_port_proxy(listen_addr: &str, listen_port: u16) -> Result<(), String> {
     let port_str = listen_port.to_string();
     // Ignore deletion failures as the rule might not exist
@@ -247,7 +249,7 @@ pub fn delete_port_proxies_elevated(rules: Vec<PortProxyRule>) -> Result<(), Str
 pub struct SyncResult {}
 
 /// Execute the main port synchronization flow (PortProxySyncFlow).
-/// This call requires elevation and should only be executed by privileged tasks or elevated instances.
+/// This function handles elevation internally and can be called from non-elevated processes.
 pub fn sync_port_proxies(
     distro_name: &str,
     rules: &[PortProxyRule],
@@ -271,7 +273,7 @@ pub fn sync_port_proxies(
         }
     } else {
         info!(
-            "Distro '{}' is NOT running. Skipping rule application (Applying step), but will still clean up existing rules.",
+            "Distro '{}' is NOT running. Skipping rule application, but will still clean up existing rules.",
             distro_name
         );
         None
@@ -283,46 +285,59 @@ pub fn sync_port_proxies(
 
     let mut results = Vec::new();
 
-    // 3. Iterate and process rules
+    // 3. Collect rules for batch operations (single UAC prompt)
+    let mut rules_to_delete: Vec<PortProxyRule> = Vec::new();
+    let mut rules_to_add: Vec<(PortProxyRule, String)> = Vec::new();
+
     for rule in rules {
         if rule.distro_name != distro_name {
             continue;
         }
 
-        // 3.a Delete existing rules (if any) - Always executed
-        info!(
-            "Step 1/2: Deleting existing rule (if any) for {}:{}",
-            rule.listen_address, rule.listen_port
-        );
-        let _ = delete_port_proxy(&rule.listen_address, rule.listen_port);
+        // Always collect for deletion
+        rules_to_delete.push(rule.clone());
 
-        // 3.b Add new rule - Executed only if distro is running and IP is available
+        // Only collect for addition if distro is running and IP is available
         if let Some(ref ip) = target_ip {
-            info!(
-                "Step 2/2: Applying port proxy rule: {}:{} -> {}:{}",
-                rule.listen_address, rule.listen_port, ip, rule.target_port
-            );
-            match add_port_proxy(&rule.listen_address, rule.listen_port, ip, rule.target_port) {
-                Ok(_) => {
-                    info!(
-                        "Successfully applied rule: {}:{} -> {}:{}",
-                        rule.listen_address, rule.listen_port, ip, rule.target_port
-                    );
-                    results.push(SyncResult {});
-                }
-                Err(e) => {
-                    error!(
-                        "CRITICAL: Failed to apply port proxy for {}: {}. Ensure the app is running with Administrator privileges.",
-                        rule.listen_port, e
-                    );
-                    results.push(SyncResult {});
-                }
+            rules_to_add.push((rule.clone(), ip.clone()));
+        }
+    }
+
+    // 4. Execute batch deletion (single UAC)
+    if !rules_to_delete.is_empty() {
+        info!(
+            "Step 1/2: Batch deleting {} existing rule(s)",
+            rules_to_delete.len()
+        );
+        if let Err(e) = delete_port_proxies_elevated(rules_to_delete) {
+            error!("Failed to batch delete port proxy rules: {}", e);
+        }
+    }
+
+    // 5. Execute batch addition (single UAC)
+    if !rules_to_add.is_empty() {
+        info!(
+            "Step 2/2: Batch applying {} port proxy rule(s)",
+            rules_to_add.len()
+        );
+        match apply_port_proxies_elevated(rules_to_add) {
+            Ok(_) => {
+                info!("Successfully applied all port proxy rules");
             }
-        } else {
-            info!(
-                "Step 2/2: Skipping Applying step for {}:{} (Reason: Distro not running or IP unavailable)",
-                rule.listen_address, rule.listen_port
-            );
+            Err(e) => {
+                error!(
+                    "CRITICAL: Failed to apply port proxy rules: {}. Ensure the app is running with Administrator privileges.",
+                    e
+                );
+            }
+        }
+    } else if target_ip.is_none() {
+        info!("Step 2/2: Skipping apply step (Reason: Distro not running or IP unavailable)");
+    }
+
+    // 6. Build results
+    for rule in rules {
+        if rule.distro_name == distro_name {
             results.push(SyncResult {});
         }
     }

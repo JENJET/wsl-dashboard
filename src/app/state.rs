@@ -2,6 +2,7 @@ use crate::config::ConfigManager;
 use crate::utils::logging::LoggingSystem;
 use crate::wsl::dashboard::WslDashboard;
 use crate::wsl::models::{WslDistro, WslStatus, WslVersion};
+use std::collections::HashSet;
 
 // Define application state
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -17,6 +18,7 @@ pub struct AppState {
     pub vscode_extension: Option<VSCodeExtensionData>,
     pub is_silent_mode: bool,
     pub theme_watcher: Option<crate::utils::theme::ThemeWatcher>,
+    pub selected_distros: HashSet<String>,
 }
 
 impl AppState {
@@ -31,10 +33,16 @@ impl AppState {
             .into_iter()
             .map(|c| WslDistro {
                 name: c.name,
-                status: if c.status == "Running" {
-                    WslStatus::Running
-                } else {
-                    WslStatus::Stopped
+                status: match c.status.as_str() {
+                    "Running" => WslStatus::Running,
+                    "Stopped" => WslStatus::Stopped,
+                    "Installing" => WslStatus::Installing,
+                    "Converting" => WslStatus::Converting,
+                    "Uninstalling" => WslStatus::Uninstalling,
+                    "Exporting" => WslStatus::Exporting,
+                    "Deleting" => WslStatus::Deleting,
+                    "Disabled" => WslStatus::Disabled,
+                    other => WslStatus::Unknown(other.to_string()),
                 },
                 version: if c.version == "V1" || c.version == "1" {
                     WslVersion::V1
@@ -53,6 +61,7 @@ impl AppState {
             vscode_extension: None,
             is_silent_mode,
             theme_watcher: None,
+            selected_distros: HashSet::new(),
         }
     }
 }

@@ -5,6 +5,7 @@
 static ALLOC: dhat::Alloc = dhat::Alloc;
 
 use crate::utils::system::CREATE_NO_WINDOW;
+use crate::wsl::models::WslVersion;
 use slint::{ComponentHandle, Model};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -197,7 +198,8 @@ async fn main() {
                                 let lower = line.to_lowercase();
                                 let parts: Vec<&str> = line.split_whitespace().collect();
                                 // Must be Running AND Version 2
-                                lower.contains("running") && parts.iter().any(|&p| p == "2")
+                                lower.contains("running")
+                                    && parts.iter().any(|&p| p == WslVersion::V2.to_string())
                             })
                     }
                     Err(_) => false,
@@ -359,8 +361,7 @@ async fn main() {
 
     // 13. Start background tasks (check for updates, monitor WSL/USB status)
     app::startup::spawn_check_task(app.as_weak(), app_state.clone());
-    app::tasks::spawn_wsl_monitor(app.as_weak(), app_state.clone());
-    app::tasks::spawn_resource_monitor(app.as_weak());
+    app::tasks::spawn_state_monitor(app.as_weak(), app_state.clone());
     app::tasks::spawn_usb_monitor(app.as_weak());
     app::tasks::spawn_state_listener(app.as_weak(), app_state.clone());
 

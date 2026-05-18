@@ -186,6 +186,69 @@ foreach ($File in $TargetFiles) {
     $TotalRemoved += $FileDeletedCount
 }
 
+# -----------------------------------------------------------------------------
+# PHASE 3: Normalize Blank Lines in All TOML Files
+# -----------------------------------------------------------------------------
+Write-Host "`n--- Phase 3: Normalizing blank lines in all TOML files ---" -ForegroundColor Magenta
+
+function Format-TomlFile {
+    param([string]$Path)
+    $lines = Get-Content $Path -Encoding UTF8
+    $originalBlanks = 0
+    $result = [System.Collections.Generic.List[string]]::new()
+
+    foreach ($line in $lines) {
+        $trimmed = $line.Trim()
+        if ([string]::IsNullOrWhiteSpace($trimmed)) {
+            $originalBlanks++
+            continue   # drop blank line
+        }
+        # Section header
+        if ($trimmed -match '^\[.+\]$') {
+            # Remove trailing blanks accumulated so far
+            while ($result.Count -gt 0 -and [string]::IsNullOrWhiteSpace($result[-1])) {
+                $result.RemoveAt($result.Count - 1)
+            }
+            # Add exactly one blank before section (skip for very first line)
+            if ($result.Count -gt 0) {
+                $result.Add("")
+            }
+            $result.Add($trimmed)
+        }
+        # Non-blank content line (key-value or comment)
+        else {
+            $result.Add($trimmed)
+        }
+    }
+
+    # Remove trailing blank lines
+    while ($result.Count -gt 0 -and [string]::IsNullOrWhiteSpace($result[-1])) {
+        $result.RemoveAt($result.Count - 1)
+    }
+
+    # Count remaining blanks in output
+    $outputBlanks = 0
+    foreach ($line in $result) {
+        if ([string]::IsNullOrWhiteSpace($line)) { $outputBlanks++ }
+    }
+
+    $removed = $originalBlanks - $outputBlanks
+    $output = ($result -join "`r`n") + "`r`n"
+    [System.IO.File]::WriteAllText($Path, $output, [System.Text.Encoding]::UTF8)
+    return $removed
+}
+
+$TotalBlanksRemoved = 0
+$AllTomlFiles = Get-ChildItem -Path $I18nDir -Filter "*.toml"
+foreach ($File in $AllTomlFiles) {
+    Write-Host "  Formatting $($File.Name)..." -NoNewline
+    $removed = Format-TomlFile -Path $File.FullName
+    $TotalBlanksRemoved += $removed
+    Write-Host " $removed blank lines removed" -ForegroundColor $(if ($removed -gt 0) { "Yellow" } else { "Green" })
+}
+
 Write-Host "`n============================================="
 Write-Host "[Complete] i18n Cleanup and Sync Finished." -ForegroundColor Cyan
-Write-Host "Total Phase 2 labels removed: $TotalRemoved" -ForegroundColor Green
+Write-Host "Phase 1 (unused keys removed) : $($UnusedKeys.Count)" -ForegroundColor Green
+Write-Host "Phase 2 (extra keys removed)  : $TotalRemoved" -ForegroundColor Green
+Write-Host "Phase 3 (blank lines cleaned) : $TotalBlanksRemoved total, from $($AllTomlFiles.Count) files" -ForegroundColor Green

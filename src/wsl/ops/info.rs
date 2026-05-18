@@ -136,11 +136,7 @@ pub async fn get_distro_information(
     if let Some(distros) = distros_result.data {
         if let Some(d) = distros.iter().find(|d| d.name == distro_name_owned) {
             is_running = d.status == WslStatus::Running;
-            information.status = match d.status {
-                WslStatus::Running => "Running",
-                WslStatus::Stopped => "Stopped",
-            }
-            .to_string();
+            information.status = format!("{:?}", d.status);
         }
     }
 

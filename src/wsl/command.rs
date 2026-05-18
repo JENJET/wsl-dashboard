@@ -33,8 +33,13 @@ impl WslCommandExecutor {
     }
 
     // Move specified WSL subsystem
-    pub async fn move_distro(&self, distro_name: &str, new_path: &str) -> WslCommandResult<String> {
-        crate::wsl::ops::lifecycle::move_distro(self, distro_name, new_path).await
+    pub async fn move_distro(
+        &self,
+        distro_name: &str,
+        new_path: &str,
+        use_elevation: bool,
+    ) -> WslCommandResult<String> {
+        crate::wsl::ops::lifecycle::move_distro(self, distro_name, new_path, use_elevation).await
     }
 
     // Export specified WSL subsystem
@@ -52,9 +57,16 @@ impl WslCommandExecutor {
         distro_name: &str,
         install_location: &str,
         file_path: &str,
+        is_vhd: bool,
     ) -> WslCommandResult<String> {
-        crate::wsl::ops::transfer::import_distro(self, distro_name, install_location, file_path)
-            .await
+        crate::wsl::ops::transfer::import_distro(
+            self,
+            distro_name,
+            install_location,
+            file_path,
+            is_vhd,
+        )
+        .await
     }
 
     // Probe for optimal download source

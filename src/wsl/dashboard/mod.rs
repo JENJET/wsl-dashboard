@@ -1,5 +1,7 @@
+use crate::i18n;
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::Mutex as StdMutex;
 use std::sync::atomic::Ordering;
 use tokio::sync::{Mutex, Notify};
 use tokio::time::Duration;
@@ -24,7 +26,8 @@ pub struct WslDashboard {
     // Heavy operation lock
     heavy_op_lock: Arc<Mutex<()>>,
     // Active operations per distro (DistroName -> OpName)
-    active_ops: Arc<Mutex<HashMap<String, String>>>,
+    // Use std::sync::Mutex so Drop can synchronously unregister without needing a tokio runtime handle
+    active_ops: Arc<StdMutex<HashMap<String, String>>>,
 }
 
 impl WslDashboard {
@@ -36,7 +39,7 @@ impl WslDashboard {
             state_changed: Arc::new(Notify::new()),
             manual_operation: Arc::new(std::sync::atomic::AtomicI32::new(0)),
             heavy_op_lock: Arc::new(Mutex::new(())),
-            active_ops: Arc::new(Mutex::new(HashMap::new())),
+            active_ops: Arc::new(StdMutex::new(HashMap::new())),
         }
     }
 
@@ -74,17 +77,21 @@ impl WslDashboard {
     }
 
     pub fn decrement_manual_operation(&self) {
-        let old = self.manual_operation.fetch_sub(1, Ordering::SeqCst);
-        if old == 1 {
-            // Just finished the last manual operation
+        let prev = self.manual_operation.fetch_sub(1, Ordering::SeqCst);
+        if prev <= 0 {
+            // Underflow (prev==0) or already negative (prev<0): decrement called
+            // more times than increment. Clamp back to 0 immediately so the
+            // counter doesn't drift permanently negative.
+            self.manual_operation.store(0, Ordering::SeqCst);
+            return;
+        }
+        if prev == 1 {
+            // Just transitioned from 1 -> 0, no more manual operations
             let self_clone = self.clone();
             tokio::spawn(async move {
                 debug!("All manual operations complete, performing final sync...");
                 let _ = self_clone.refresh_distros().await;
             });
-        }
-        if old <= 0 {
-            self.manual_operation.store(0, Ordering::SeqCst);
         }
     }
 
@@ -173,22 +180,35 @@ impl WslDashboard {
         false
     }
 
-    pub async fn register_operation(&self, distro_name: String, op_name: String) {
-        let mut ops = self.active_ops.lock().await;
+    pub fn register_operation(&self, distro_name: String, op_name: String) {
+        let mut ops = self.active_ops.lock().unwrap();
         ops.insert(distro_name.clone(), op_name.clone());
         debug!("Operation registered for '{}': {}", distro_name, op_name);
+        self.state_changed.notify_one();
     }
 
-    pub async fn unregister_operation(&self, distro_name: &str) {
-        let mut ops = self.active_ops.lock().await;
+    pub fn unregister_operation(&self, distro_name: &str) {
+        let mut ops = self.active_ops.lock().unwrap();
         if let Some(op) = ops.remove(distro_name) {
             debug!("Operation unregistered for '{}': {}", distro_name, op);
+            self.state_changed.notify_one();
         }
     }
 
-    pub async fn get_active_op(&self, distro_name: &str) -> Option<String> {
-        let ops = self.active_ops.lock().await;
-        ops.get(distro_name).cloned()
+    pub fn get_active_ops_count(&self) -> u32 {
+        let ops = self.active_ops.lock().unwrap();
+        ops.len() as u32
+    }
+
+    pub fn get_active_op(&self, distro_name: &str) -> Option<String> {
+        let ops = self.active_ops.lock().unwrap();
+        let op = ops.get(distro_name).cloned();
+        if let Some(ref op_str) = op {
+            if op_str.contains("operation.") {
+                return Some(i18n::t(op_str));
+            }
+        }
+        return op;
     }
 }
 

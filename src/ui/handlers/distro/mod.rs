@@ -5,6 +5,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::sync::Mutex;
 use uuid;
 
+pub mod batch;
 pub mod clone;
 pub mod clone_logic;
 pub mod config_logic;
@@ -17,14 +18,20 @@ pub mod move_distro;
 pub mod move_logic;
 pub mod settings_logic;
 
+pub fn paths_overlap(a: &str, b: &str) -> bool {
+    let pa = std::path::Path::new(a);
+    let pb = std::path::Path::new(b);
+    pa == pb || pa.starts_with(pb) || pb.starts_with(pa)
+}
+
 pub fn sanitize_instance_name(name: &str) -> String {
     let mut sanitized: String = name
         .chars()
         .filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_' || *c == '.')
         .collect();
 
-    if sanitized.len() > 25 {
-        sanitized.truncate(25);
+    if sanitized.len() > crate::app::MAX_INSTANCE_NAME_LEN {
+        sanitized.truncate(crate::app::MAX_INSTANCE_NAME_LEN);
     }
     sanitized
 }
@@ -39,6 +46,7 @@ pub fn generate_random_suffix(name: &str) -> String {
 }
 
 pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc<Mutex<AppState>>) {
+    batch::setup(app, app_handle.clone(), app_state.clone());
     lifecycle::setup(app, app_handle.clone(), app_state.clone());
     manage::setup(app, app_handle.clone(), app_state.clone());
     export::setup(app, app_handle.clone(), app_state.clone());
@@ -53,31 +61,64 @@ pub fn spawn_file_size_monitor(
     distro_name: String,
     i18n_key: String,
     stop_signal: Arc<AtomicBool>,
-) {
+    expected_size: Option<u64>,
+) -> Arc<AtomicBool> {
+    let done_signal = Arc::new(AtomicBool::new(false));
+    let done_signal_clone = done_signal.clone();
+
+    let ah_inner = ah.clone();
+    let distro_name_inner = distro_name.clone();
+    let i18n_key_inner = i18n_key.clone();
+
+    let _ = slint::invoke_from_event_loop(move || {
+        if let Some(app) = ah_inner.upgrade() {
+            let msg = i18n::tr(&i18n_key_inner, &[distro_name_inner, "0 MB".to_string()]);
+            app.set_task_status_text(msg.into());
+            app.set_task_status_visible(true);
+        }
+    });
+
     tokio::spawn(async move {
         while !stop_signal.load(Ordering::Relaxed) {
-            let size_mb = if let Ok(metadata) = std::fs::metadata(&file_path) {
-                metadata.len() / (1024 * 1024)
+            let size_bytes = if let Ok(metadata) = std::fs::metadata(&file_path) {
+                metadata.len() as f64
             } else {
-                0
+                0.0
             };
+            let size_u64 = size_bytes as u64;
+            if size_u64 == 0 {
+                // If file doesn't exist yet, wait a bit longer before checking again
+                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                continue;
+            }
+
+            if let Some(exp) = expected_size {
+                if exp > 0 && size_u64 >= exp {
+                    done_signal_clone.store(true, Ordering::Relaxed);
+                }
+            }
 
             let ah_inner = ah.clone();
             let distro_name_inner = distro_name.clone();
             let i18n_key_inner = i18n_key.clone();
-
-            let size_str = format!("{} MB", size_mb);
-
+            let size_str = if size_bytes >= 1024.0 * 1024.0 * 1024.0 {
+                format!("{:.2} GB", size_bytes / (1024.0 * 1024.0 * 1024.0))
+            } else {
+                format!("{:.2} MB", size_bytes / (1024.0 * 1024.0))
+            };
             let _ = slint::invoke_from_event_loop(move || {
                 if let Some(app) = ah_inner.upgrade() {
                     let msg = i18n::tr(&i18n_key_inner, &[distro_name_inner, size_str]);
                     app.set_task_status_text(msg.into());
+                    app.set_task_status_visible(true);
                 }
             });
 
             tokio::time::sleep(std::time::Duration::from_millis(500)).await;
         }
     });
+
+    done_signal
 }
 
 pub async fn resolve_temp_path(

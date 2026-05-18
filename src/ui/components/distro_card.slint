@@ -5,26 +5,39 @@ import { Theme, Distro, AppI18n, LayoutConstants } from "../theme.slint";
 component DistroInfo inherits VerticalLayout {
     in property <Distro> distro;
     in property <bool> is-rtl;
+    in property <bool> batch_mode: false;
     callback copy_distro_ip();
     callback copy_distro_name();
     spacing: 0px;
     alignment: center;
+
+    pure function status-key(s: string) -> string {
+        if (s == "Running") { return "distro.running"; }
+        if (s == "Installing") { return "install.installing"; }
+        if (s == "Converting") { return "operation.converting"; }
+        if (s == "Uninstalling") { return "operation.uninstalling"; }
+        if (s == "Deleting") { return "operation.deleting"; }
+        if (s == "Exporting") { return "operation.exporting"; }
+        if (s == "Importing") { return "install.importing"; }
+        if (s == "Cloning") { return "operation.cloning"; }
+        return "distro.stopped";
+    }
     
     HorizontalLayout {
         spacing: 8px;
         alignment: start;
         
         name_touch := TouchArea {
-            mouse-cursor: pointer;
+            mouse-cursor: root.batch_mode ? default : pointer;
             clicked => {
-                root.copy_distro_name();
+                if (!root.batch_mode) { root.copy_distro_name(); }
             }
             Text {
                 text: distro.name;
                 font-size: 14px * LayoutConstants.font-scale;
                 font-weight: 400;
                 font-family: Theme.default_font;
-                color: name_touch.has-hover ? Theme.accent : Theme.text_primary;
+                color: name_touch.has-hover && !root.batch_mode ? Theme.accent : Theme.text_primary;
                 overflow: elide;
                 horizontal-alignment: is-rtl ? right : left;
             }
@@ -38,16 +51,16 @@ component DistroInfo inherits VerticalLayout {
             height: 16px;
             
             ip_touch := TouchArea {
-                mouse-cursor: pointer;
+                mouse-cursor: root.batch_mode ? default : pointer;
                 clicked => {
-                    root.copy_distro_ip();
+                    if (!root.batch_mode) { root.copy_distro_ip(); }
                 }
 
                 ip_text := Text {
                     text: distro.ip;
                     font-size: 10px * LayoutConstants.font-scale;
                     font-family: Theme.default_font;
-                    color: ip_touch.has-hover ? Theme.accent : Theme.text_secondary;
+                    color: ip_touch.has-hover && !root.batch_mode ? Theme.accent : Theme.text_secondary;
                     horizontal-alignment: center;
                     vertical-alignment: center;
                 }
@@ -58,12 +71,12 @@ component DistroInfo inherits VerticalLayout {
     HorizontalLayout {
         spacing: 6px;
         alignment: start;
-        
+
         Text {
-            text: AppI18n.t(distro.status == "Running" ? "distro.running" : (distro.status == "Stopped" ? "distro.stopped" : "distro.installing"), [AppI18n.version]);
+            text: distro.active_op != "" ? AppI18n.t(distro.active_op, [AppI18n.version]) : AppI18n.t(status-key(distro.status), [AppI18n.version]);
             font-size: 12px * LayoutConstants.font-scale;
             font-family: Theme.default_font;
-            color: distro.status == "Running" ? #22c55e : Theme.text_secondary;
+            color: distro.active_op != "" ? Theme.accent : (distro.status == "Running" ? #22c55e : Theme.text_secondary);
             horizontal-alignment: is-rtl ? right : left;
         }
         
@@ -74,7 +87,7 @@ component DistroInfo inherits VerticalLayout {
             height: 16px;
             
             ver_text := Text {
-                text: AppI18n.t("distro.wsl_version_label", [distro.version]);
+                text: AppI18n.t("distro.wsl_version_label", [distro.version, AppI18n.version]);
                 font-size: 10px * LayoutConstants.font-scale;
                 font-family: Theme.default_font;
                 color: Theme.text_secondary;
@@ -90,7 +103,7 @@ component DistroInfo inherits VerticalLayout {
             height: 16px;
             
             def_text := Text {
-                text: AppI18n.t("distro.is_default", []);
+                text: AppI18n.t("distro.is_default", [AppI18n.version]);
                 font-size: 10px * LayoutConstants.font-scale;
                 font-family: Theme.default_font;
                 color: #FFFFFF;
@@ -222,7 +235,7 @@ component StartStopButton inherits VerticalLayout {
     alignment: center; // Vertically center
 
     ActionIcon {
-        icon: (distro.status == "Running") ? "\u{E769}" : "\u{E768}";
+        icon: (distro.status == "Running") ? "\u{E71A}" : "\u{E768}";
         is_font_icon: true;
         tooltip: (distro.status == "Running") ? AppI18n.t("distro.stop", [AppI18n.version]) : AppI18n.t("distro.start", [AppI18n.version]);
         clicked => {
@@ -377,7 +390,7 @@ component ExpandedActionIcons inherits VerticalLayout {
         ActionIcon {
             icon: "\u{E734}";
             is_font_icon: true;
-            tooltip: AppI18n.t("distro.set_as_default", []);
+            tooltip: AppI18n.t("distro.set_as_default", [AppI18n.version]);
             clicked => {
                 root.set_default();
             }
@@ -407,6 +420,9 @@ export component DistroCard inherits Rectangle {
     in property <Distro> distro;
     in property <bool> expanded: false;
     in property <bool> sole_distro: false;
+    in property <bool> batch_mode: false;
+    in property <bool> selected: false;
+    callback selection_toggled;
     callback start_clicked();
     callback stop_clicked();
     callback restart_clicked();
@@ -442,9 +458,13 @@ export component DistroCard inherits Rectangle {
         Rectangle {
             height: 48px;
             touch := TouchArea {
-                mouse-cursor: pointer;
+                mouse-cursor: root.batch_mode ? default : pointer;
                 clicked => {
-                    root.expand_clicked();
+                    if (root.batch_mode) {
+                        root.selection_toggled();
+                    } else {
+                        root.expand_clicked();
+                    }
                 }
             }
             HorizontalLayout {
@@ -453,7 +473,7 @@ export component DistroCard inherits Rectangle {
                 spacing: 0px; // Use Spacer to control spacing
 
                 // --- RTL branch: Icons on left, text on right ---
-                if (AppI18n.is-rtl): QuickActionIcons {
+                if (!root.batch_mode && AppI18n.is-rtl): QuickActionIcons {
                     expanded: root.expanded;
                     terminal => {
                         root.terminal_clicked();
@@ -471,11 +491,32 @@ export component DistroCard inherits Rectangle {
                 if (AppI18n.is-rtl): Rectangle {
                     horizontal-stretch: 1;
                 } // Middle spring
+                if (root.batch_mode && AppI18n.is-rtl): Rectangle {
+                    width: 18px;
+                    height: 18px;
+                    y: (parent.height - self.height) / 2;
+                    border-width: 1px;
+                    border-color: root.selected ? Theme.accent : Theme.input_border;
+                    background: root.selected ? Theme.accent : Theme.input_bg;
+                    border-radius: 3px;
+                    Path {
+                        width: 100%;
+                        height: 100%;
+                        commands: "M 4 9 L 7 12 L 14 5";
+                        stroke: #FFFFFF;
+                        stroke-width: 1.5px;
+                        opacity: root.selected ? 1 : 0;
+                    }
+                    TouchArea {
+                        clicked => { root.selection_toggled(); }
+                    }
+                }
                 if (AppI18n.is-rtl): HorizontalLayout {
                     spacing: 8px;
                     DistroInfo {
                         distro: root.distro;
                         is-rtl: true;
+                        batch_mode: root.batch_mode;
                         copy_distro_ip => {
                             root.copy_distro_ip();
                         }
@@ -488,7 +529,7 @@ export component DistroCard inherits Rectangle {
                         distro: root.distro;
                     }
 
-                    StartStopButton {
+                    if (!root.batch_mode): StartStopButton {
                         distro: root.distro;
                         start => {
                             root.start_clicked();
@@ -502,7 +543,27 @@ export component DistroCard inherits Rectangle {
                 // --- LTR branch: Text on left, icons on right ---
                 if (!AppI18n.is-rtl): HorizontalLayout {
                     spacing: 8px;
-                    StartStopButton {
+                    if (root.batch_mode): Rectangle {
+                        width: 18px;
+                        height: 18px;
+                        y: (parent.height - self.height) / 2;
+                        border-width: 1px;
+                        border-color: root.selected ? Theme.accent : Theme.input_border;
+                        background: root.selected ? Theme.accent : Theme.input_bg;
+                        border-radius: 3px;
+                        Path {
+                            width: 100%;
+                            height: 100%;
+                            commands: "M 4 9 L 7 12 L 14 5";
+                            stroke: #FFFFFF;
+                            stroke-width: 1.5px;
+                            opacity: root.selected ? 1 : 0;
+                        }
+                        TouchArea {
+                            clicked => { root.selection_toggled(); }
+                        }
+                    }
+                    if (!root.batch_mode): StartStopButton {
                         distro: root.distro;
                         start => {
                             root.start_clicked();
@@ -519,6 +580,7 @@ export component DistroCard inherits Rectangle {
                     DistroInfo {
                         distro: root.distro;
                         is-rtl: false;
+                        batch_mode: root.batch_mode;
                         copy_distro_ip => {
                             root.copy_distro_ip();
                         }
@@ -527,10 +589,10 @@ export component DistroCard inherits Rectangle {
                         }
                     }
                 }
-                if (!AppI18n.is-rtl): Rectangle {
+                if (!root.batch_mode && !AppI18n.is-rtl): Rectangle {
                     horizontal-stretch: 1;
                 } // Middle spring
-                if (!AppI18n.is-rtl): QuickActionIcons {
+                if (!root.batch_mode && !AppI18n.is-rtl): QuickActionIcons {
                     expanded: root.expanded;
                     terminal => {
                         root.terminal_clicked();
@@ -551,7 +613,7 @@ export component DistroCard inherits Rectangle {
         // Expansion area
         Rectangle {
             opacity: root.expanded ? 1 : 0;
-            visible: root.expanded;
+            visible: root.expanded && !root.batch_mode;
             height: 48px;
             Rectangle {
                 y: -1px;

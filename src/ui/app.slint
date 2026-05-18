@@ -72,6 +72,7 @@ export component AppWindow inherits Window {
     in-out property <string> install_file_path: "";
     in-out property <bool> show_delete_confirmation: false;
     in-out property <string> distro_to_delete: "";
+    in-out property <string> expanded_distro: "";
     in-out property <bool> show_export_dialog: false;
     in-out property <bool> export_compress: true;
     in-out property <string> export_distro_name: "";
@@ -141,6 +142,8 @@ export component AppWindow inherits Window {
     in-out property <bool> system_color <=> Theme.system_color;
     in property <string> task_status_text: "";
     in property <bool> task_status_visible: false;
+    in-out property <bool> batch_abort_triggered: false;
+    in property <string> batch_progress_suffix: "";
     in property <Information> information;
     in property <[RootFSHelpItem]> rootfs_help_list: [{ name: "Ubuntu", url: "https://cdimages.ubuntu.com/ubuntu-wsl/" }];
     in property <SettingsStrings> settings_strings;
@@ -308,6 +311,7 @@ export component AppWindow inherits Window {
     callback fetch_url_distros();
     callback is_local_url(string) -> bool;
     callback check_new_username(string);
+    callback url_distro_selected(string);
     callback close_vscode_startup();
     callback close_task_status();
     callback configs_clicked(string);
@@ -371,6 +375,28 @@ export component AppWindow inherits Window {
     in-out property <bool> show_busy_dialog: false;
     callback busy_confirm();
     callback busy_cancel();
+
+    // --- Batch Operations ---
+    in-out property <bool> batch_mode: false;
+    in-out property <int> selected_count: 0;
+    in-out property <bool> batch_operating: false;
+    callback toggle_batch_mode();
+    callback distro_selection_toggled(string);
+    callback batch_start();
+    callback batch_stop();
+    callback batch_restart();
+    callback batch_export();
+    callback batch_clone();
+    callback batch_move();
+    callback batch_delete();
+    callback batch_select_all();
+    callback batch_invert_selection();
+    callback batch_select_running();
+    callback batch_select_stopped();
+    callback batch_cancel();
+    callback batch_confirm_export(string);
+    callback batch_confirm_clone(string, string);
+    callback batch_confirm_move(string);
 
     // Dynamic Font Selection to optimize memory usage
     // Helper function to map language to font (No recursion here)
@@ -449,6 +475,7 @@ export component AppWindow inherits Window {
                     height: 100%;
                     collapsed <=> root.sidebar_collapsed;
                     selected_tab: root.selected_tab;
+                    operating: root.batch_operating;
                     home_text: AppI18n.t("sidebar.home", [AppI18n.version]);
                     add_text: AppI18n.t("sidebar.add", [AppI18n.version]);
                     wsl_manage_text: AppI18n.t("sidebar.wsl_manage", [AppI18n.version]);
@@ -492,8 +519,10 @@ export component AppWindow inherits Window {
                                 opacity: selected_tab == 0 ? 1 : 0;
                                 x: selected_tab == 0 ? 0px : 10000px;
                                 distros: root.distros; // Always bind to prevent Repeater churn
+                                distro_count: root.distros.length;
                                 distro_to_delete <=> root.distro_to_delete;
                                 show_delete_confirmation <=> root.show_delete_confirmation;
+                                expanded_distro <=> root.expanded_distro;
                                 // ... callbacks omitted for brevity ...
                                 start_distro(n) => {
                                     root.start_distro(n);
@@ -548,6 +577,54 @@ export component AppWindow inherits Window {
                                 }
                                 copy_distro_name(n) => {
                                     root.copy_distro_name(n);
+                                }
+                                batch_mode: root.batch_mode;
+                                selected_count: root.selected_count;
+                                batch_operating: root.batch_operating;
+                                distro_selection_toggled(name) => {
+                                    root.distro_selection_toggled(name);
+                                }
+                                cancel_batch => {
+                                    root.toggle_batch_mode();
+                                }
+                                batch_start => {
+                                    root.batch_start();
+                                }
+                                batch_stop => {
+                                    root.batch_stop();
+                                }
+                                batch_restart => {
+                                    root.batch_restart();
+                                }
+                                batch_export => {
+                                    root.batch_export();
+                                }
+                                batch_clone => {
+                                    root.batch_clone();
+                                }
+                                batch_move => {
+                                    root.batch_move();
+                                }
+                                batch_delete => {
+                                    root.batch_delete();
+                                }
+                                batch_select_all => {
+                                    root.batch_select_all();
+                                }
+                                batch_invert_selection => {
+                                    root.batch_invert_selection();
+                                }
+                                batch_select_running => {
+                                    root.batch_select_running();
+                                }
+                                batch_select_stopped => {
+                                    root.batch_select_stopped();
+                                }
+                                batch_cancel => {
+                                    root.batch_cancel();
+                                }
+                                toggle_batch_mode => {
+                                    root.toggle_batch_mode();
                                 }
                             }
 
@@ -618,6 +695,9 @@ export component AppWindow inherits Window {
                                 }
                                 check_new_username(pw) => {
                                     root.check_new_username(pw);
+                                }
+                                url_distro_selected(name) => {
+                                    root.url_distro_selected(name);
                                 }
                             }
 
@@ -831,6 +911,7 @@ export component AppWindow inherits Window {
         }
         show_export: root.show_export_dialog;
         export_target_name: root.export_distro_name;
+        batch_export: root.export_distro_name == "";
         export_path <=> root.export_target_path;
         export_compress <=> root.export_compress;
         export_error: root.export_error;
@@ -841,9 +922,14 @@ export component AppWindow inherits Window {
             root.select_export_folder();
         }
         confirm_export(p) => {
-            root.confirm_export(root.export_distro_name, p);
+            if (root.export_distro_name == "") {
+                root.batch_confirm_export(p);
+            } else {
+                root.confirm_export(root.export_distro_name, p);
+            }
         }
         show_clone: root.show_clone_dialog;
+        batch_clone: root.clone_source_name == "";
         clone_source_name: root.clone_source_name;
         clone_target_name <=> root.clone_target_name;
         clone_target_path <=> root.clone_target_path;
@@ -858,9 +944,14 @@ export component AppWindow inherits Window {
             root.clone_name_changed(text);
         }
         confirm_clone(n, p) => {
-            root.confirm_clone(root.clone_source_name, n, p);
+            if (root.clone_source_name == "") {
+                root.batch_confirm_clone(n, p);
+            } else {
+                root.confirm_clone(root.clone_source_name, n, p);
+            }
         }
         show_move: root.show_move_dialog;
+        batch_move: root.move_source_name == "";
         move_source_name: root.move_source_name;
         move_target_name <=> root.move_target_name;
         move_target_path <=> root.move_target_path;
@@ -872,7 +963,11 @@ export component AppWindow inherits Window {
             root.select_move_folder();
         }
         confirm_move(p) => {
-            root.confirm_move(root.move_source_name, root.move_target_name, p);
+            if (root.move_source_name == "") {
+                root.batch_confirm_move(p);
+            } else {
+                root.confirm_move(root.move_source_name, root.move_target_name, p);
+            }
         }
         show_move_confirm: root.show_move_confirm;
         move_confirm_message: root.move_confirm_message;
@@ -1051,16 +1146,24 @@ export component AppWindow inherits Window {
     }
 
     // Task Status Toast - Topmost layer
-    TaskStatusToast {
-        z: 100;
+    task_toast := TaskStatusToast {
+        z: 1001;
         opacity: root.task_status_visible ? 1 : 0;
         visible: root.task_status_visible;
         text: root.task_status_text;
         is_shown: root.task_status_visible;
+        show_close: root.batch_mode && !root.batch_abort_triggered;
+        is_batch_mode: root.batch_mode;
+        progress_suffix: root.batch_progress_suffix;
         x: (parent.width - self.width) / 2;
         y: parent.height - self.height - 14px;
         close => {
-            root.close_task_status();
+            if (root.batch_mode) {
+                root.batch_cancel();
+                root.batch_abort_triggered = true;
+            } else {
+                root.close_task_status();
+            }
         }
     }
 
@@ -1099,7 +1202,7 @@ export component AppWindow inherits Window {
     // Busy Dialog - blocks close/exit when manual operation is in progress
     if root.show_busy_dialog : ConfirmationDialog {
         title_text: AppI18n.t("dialog.info", [AppI18n.version]);
-        message: AppI18n.t("dialog.busy_close", []);
+        message: AppI18n.t("dialog.busy_close", [AppI18n.version]);
         z: 100;
         confirm => {
             root.busy_confirm();

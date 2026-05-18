@@ -1,10 +1,369 @@
 import { CustomScrollbar } from "../components/scrollbar.slint";
-import { Theme, Distro, AppI18n } from "../theme.slint";
+import { Theme, Distro, AppI18n, LayoutConstants } from "../theme.slint";
 import { DistroCard } from "../components/distro_card.slint";
+import { CustomButton } from "../components/form_widgets.slint";
+import { ActionIcon } from "../components/common.slint";
+
+// Batch operations bar
+component BatchBar inherits Rectangle {
+    in property <int> selected_count;
+    in property <bool> operating;
+    callback start;
+    callback stop;
+    callback restart;
+    callback export;
+    callback clone;
+    callback move_distro;
+    callback delete;
+    callback select_all;
+    callback invert_selection;
+    callback select_running;
+    callback select_stopped;
+    callback cancel;
+    height: 48px;
+    background: Theme.card_bg;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: Theme.border_color;
+    drop-shadow-blur: 8px;
+    drop-shadow-color: #00000040;
+
+    if (!AppI18n.is-rtl): HorizontalLayout {
+        padding-top: 10px;
+        padding-bottom: 10px;
+        padding-left: 16px;
+        padding-right: 16px;
+        spacing: 8px;
+        Text {
+            text: AppI18n.t("batch.selected_count", [selected_count, AppI18n.version]);
+            font-size: 13px * LayoutConstants.font-scale;
+            font-family: Theme.default_font;
+            color: Theme.text_primary;
+            vertical-alignment: center;
+            horizontal-alignment: left;
+            min-width: 60px;
+        }
+        ActionIcon {
+            icon: "\u{E8B3}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("batch.select_all", [AppI18n.version]);
+            enabled: !root.operating;
+            clicked => { root.select_all(); }
+        }
+        ActionIcon {
+            icon: "\u{EF1F}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("batch.invert_selection", [AppI18n.version]);
+            enabled: !root.operating;
+            clicked => { root.invert_selection(); }
+        }
+        ActionIcon {
+            icon: "\u{e930}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("batch.select_running", [AppI18n.version]);
+            enabled: !root.operating;
+            icon_color: #22c55e;
+            clicked => { root.select_running(); }
+        }
+        ActionIcon {
+            icon: "\u{f2d9}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("batch.select_stopped", [AppI18n.version]);
+            enabled: !root.operating;
+            icon_color: Theme.text_secondary;
+            clicked => { root.select_stopped(); }
+        }
+        Rectangle { horizontal-stretch: 1; }
+        ActionIcon {
+            icon: "\u{E768}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.start", [AppI18n.version]);
+            enabled: selected_count > 0 && !root.operating;
+            icon_color: Theme.text_primary;
+            clicked => { root.start(); }
+        }
+        ActionIcon {
+            icon: "\u{E71A}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.stop", [AppI18n.version]);
+            enabled: selected_count > 0 && !root.operating;
+            icon_color: Theme.text_primary;
+            clicked => { root.stop(); }
+        }
+        ActionIcon {
+            icon: "\u{E777}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.restart", [AppI18n.version]);
+            enabled: selected_count > 0 && !root.operating;
+            icon_color: Theme.text_primary;
+            clicked => { root.restart(); }
+        }
+        ActionIcon {
+            icon: "\u{E78C}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.export", [AppI18n.version]);
+            enabled: selected_count > 0 && !root.operating;
+            icon_color: Theme.text_primary;
+            clicked => { root.export(); }
+        }
+        ActionIcon {
+            icon: "\u{E8C8}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.clone", [AppI18n.version]);
+            enabled: selected_count > 0 && !root.operating;
+            icon_color: Theme.text_primary;
+            clicked => { root.clone(); }
+        }
+        ActionIcon {
+            icon: "\u{E8DE}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.move", [AppI18n.version]);
+            enabled: selected_count > 0 && !root.operating;
+            icon_color: Theme.text_primary;
+            clicked => { root.move_distro(); }
+        }
+        ActionIcon {
+            icon: "\u{E74D}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.delete", [AppI18n.version]);
+            enabled: selected_count > 0 && !root.operating;
+            icon_color: Theme.text_primary;
+            clicked => { root.delete(); }
+        }
+        if (!root.operating) : ActionIcon {
+            icon: "\u{E711}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("batch.exit", [AppI18n.version]);
+            icon_color: Theme.text_primary;
+            clicked => { root.cancel(); }
+        }
+    }
+
+    if (AppI18n.is-rtl): HorizontalLayout {
+        padding-top: 10px;
+        padding-bottom: 10px;
+        padding-left: 16px;
+        padding-right: 16px;
+        spacing: 8px;
+        if (!root.operating) : ActionIcon {
+            icon: "\u{E711}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("batch.exit", [AppI18n.version]);
+            icon_color: Theme.text_primary;
+            clicked => { root.cancel(); }
+        }
+        ActionIcon {
+            icon: "\u{E74D}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.delete", [AppI18n.version]);
+            enabled: selected_count > 0 && !root.operating;
+            icon_color: Theme.text_primary;
+            clicked => { root.delete(); }
+        }
+        ActionIcon {
+            icon: "\u{E8DE}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.move", [AppI18n.version]);
+            enabled: selected_count > 0 && !root.operating;
+            icon_color: Theme.text_primary;
+            clicked => { root.move_distro(); }
+        }
+        ActionIcon {
+            icon: "\u{E8C8}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.clone", [AppI18n.version]);
+            enabled: selected_count > 0 && !root.operating;
+            icon_color: Theme.text_primary;
+            clicked => { root.clone(); }
+        }
+        ActionIcon {
+            icon: "\u{E78C}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.export", [AppI18n.version]);
+            enabled: selected_count > 0 && !root.operating;
+            icon_color: Theme.text_primary;
+            clicked => { root.export(); }
+        }
+        ActionIcon {
+            icon: "\u{E777}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.restart", [AppI18n.version]);
+            enabled: selected_count > 0 && !root.operating;
+            icon_color: Theme.text_primary;
+            clicked => { root.restart(); }
+        }
+        ActionIcon {
+            icon: "\u{E71A}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.stop", [AppI18n.version]);
+            enabled: selected_count > 0 && !root.operating;
+            icon_color: Theme.text_primary;
+            clicked => { root.stop(); }
+        }
+        ActionIcon {
+            icon: "\u{E768}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.start", [AppI18n.version]);
+            enabled: selected_count > 0 && !root.operating;
+            icon_color: Theme.text_primary;
+            clicked => { root.start(); }
+        }
+        Rectangle { horizontal-stretch: 1; }
+        ActionIcon {
+            icon: "\u{f2d9}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("batch.select_stopped", [AppI18n.version]);
+            enabled: !root.operating;
+            icon_color: Theme.text_secondary;
+            clicked => { root.select_stopped(); }
+        }
+        ActionIcon {
+            icon: "\u{e930}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("batch.select_running", [AppI18n.version]);
+            enabled: !root.operating;
+            icon_color: #22c55e;
+            clicked => { root.select_running(); }
+        }
+        ActionIcon {
+            icon: "\u{EF1F}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("batch.invert_selection", [AppI18n.version]);
+            enabled: !root.operating;
+            clicked => { root.invert_selection(); }
+        }
+        ActionIcon {
+            icon: "\u{E8B3}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("batch.select_all", [AppI18n.version]);
+            enabled: !root.operating;
+            clicked => { root.select_all(); }
+        }
+        Text {
+            text: AppI18n.t("batch.selected_count", [selected_count, AppI18n.version]);
+            font-size: 13px * LayoutConstants.font-scale;
+            font-family: Theme.default_font;
+            color: Theme.text_primary;
+            vertical-alignment: center;
+            horizontal-alignment: right;
+            min-width: 60px;
+        }
+    }
+}
+
+// Info bar when not in batch mode (shows distro count + batch entry)
+component DistroInfoBar inherits Rectangle {
+    in property <int> total_count;
+    callback toggle_batch_mode;
+    height: 48px;
+    background: transparent;
+    border-width: 1px;
+    border-color: Theme.dark_mode ? #FFFFFF0D : #0000000A;
+    border-radius: 8px;
+    HorizontalLayout {
+        padding-left: 16px;
+        padding-right: 16px;
+        spacing: 8px;
+        // RTL: batch icon first, text after
+        if (AppI18n.is-rtl): batch_touch_rtl := TouchArea {
+            width: 28px;
+            height: 28px;
+            y: (parent.height - self.height) / 2;
+            clicked => {
+                root.toggle_batch_mode();
+            }
+            Rectangle {
+                width: 100%;
+                height: 100%;
+                border-radius: 4px;
+                background: batch_touch_rtl.has-hover ? Theme.hover_bg : transparent;
+            }
+            Text {
+                text: "\u{E762}";
+                font-family: Theme.icon_font;
+                font-size: 16px;
+                color: batch_touch_rtl.has-hover ? Theme.accent : Theme.text_secondary;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+            if batch_touch_rtl.has-hover : Rectangle {
+                x: parent.width + 8px;
+                y: (parent.height - self.height) / 2;
+                width: tt_rtl.width + 16px;
+                height: 28px;
+                background: Theme.dark_mode ? #2D2D30 : #FFFFFF;
+                border-color: Theme.border_color;
+                border-width: 1px;
+                border-radius: 4px;
+                z: 100;
+                tt_rtl := Text {
+                    text: AppI18n.t("batch.enter", [AppI18n.version]);
+                    color: Theme.text_primary;
+                    font-size: 12px * LayoutConstants.font-scale;
+                    font-family: Theme.default_font;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+        }
+        Text {
+            text: AppI18n.t("distro.total_count", [total_count, AppI18n.version]);
+            font-size: 13px * LayoutConstants.font-scale;
+            font-family: Theme.default_font;
+            color: Theme.text_secondary;
+            vertical-alignment: center;
+            horizontal-alignment: AppI18n.is-rtl ? right : left;
+            horizontal-stretch: 1;
+        }
+        // LTR: text first, batch icon after
+        if (!AppI18n.is-rtl): batch_touch_ltr := TouchArea {
+            width: 28px;
+            height: 28px;
+            y: (parent.height - self.height) / 2;
+            clicked => {
+                root.toggle_batch_mode();
+            }
+            Rectangle {
+                width: 100%;
+                height: 100%;
+                border-radius: 4px;
+                background: batch_touch_ltr.has-hover ? Theme.hover_bg : transparent;
+            }
+            Text {
+                text: "\u{E762}";
+                font-family: Theme.icon_font;
+                font-size: 16px;
+                color: batch_touch_ltr.has-hover ? Theme.accent : Theme.text_secondary;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+            if batch_touch_ltr.has-hover : Rectangle {
+                x: -self.width - 8px;
+                y: (parent.height - self.height) / 2;
+                width: tt_ltr.width + 16px;
+                height: 28px;
+                background: Theme.dark_mode ? #2D2D30 : #FFFFFF;
+                border-color: Theme.border_color;
+                border-width: 1px;
+                border-radius: 4px;
+                z: 100;
+                tt_ltr := Text {
+                    text: AppI18n.t("batch.enter", [AppI18n.version]);
+                    color: Theme.text_primary;
+                    font-size: 12px * LayoutConstants.font-scale;
+                    font-family: Theme.default_font;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+}
 
 // Isolated component to hold the Repeater and prevent unnecessary rebuilds
 component DistroList inherits VerticalLayout {
     in property <[Distro]> distros;
+    in property <bool> batch_mode;
     in-out property <string> expanded_distro: "";
     
     // Callbacks - all must be passed through
@@ -26,6 +385,7 @@ component DistroList inherits VerticalLayout {
     callback set_default_distro(string);
     callback copy_distro_ip(string);
     callback copy_distro_name(string);
+    callback distro_selection_toggled(string);
     padding-top: 0px;
     padding-bottom: 0px;
     padding-left: AppI18n.is-rtl ? 16px : 4px;
@@ -36,6 +396,11 @@ component DistroList inherits VerticalLayout {
         distro: d;
         sole_distro: distros.length == 1;
         expanded: root.expanded_distro == d.name;
+        batch_mode: root.batch_mode;
+        selected: d.selected;
+        selection_toggled => {
+            root.distro_selection_toggled(d.name);
+        }
         expand_clicked => {
             if (root.expanded_distro == d.name) {
                 root.expanded_distro = "";
@@ -102,6 +467,9 @@ component DistroList inherits VerticalLayout {
 
 export component MainView inherits VerticalLayout {
     in property <[Distro]> distros;
+    in property <bool> batch_mode;
+    in property <int> selected_count;
+    in property <bool> batch_operating;
     // Callbacks to bubble up to AppWindow
     callback start_distro(string);
     callback stop_distro(string);
@@ -121,22 +489,50 @@ export component MainView inherits VerticalLayout {
     callback set_default_distro(string);
     callback copy_distro_ip(string);
     callback copy_distro_name(string);
+    callback distro_selection_toggled(string);
+    callback batch_start();
+    callback batch_stop();
+    callback batch_restart();
+    callback batch_export();
+    callback batch_clone();
+    callback batch_move();
+    callback batch_delete();
+    callback batch_select_all();
+    callback batch_invert_selection();
+    callback batch_select_running();
+    callback batch_select_stopped();
+    callback batch_cancel();
+    callback cancel_batch();
+    callback toggle_batch_mode();
+    in property <int> distro_count;
     in-out property <string> distro_to_delete;
     in-out property <bool> show_delete_confirmation;
-    private property <string> expanded_distro: "";
+    in-out property <string> expanded_distro: "";
+    private property <bool> has_distros: root.distros.length > 0;
     vertical-stretch: 1;
-    padding-top: 8px;
     spacing: 12px;
     Rectangle {
         vertical-stretch: 1;
         clip: true;
+        // Blocking overlay during batch operation (above views, below BatchBar)
+        if root.batch_operating : Rectangle {
+            width: 100%;
+            height: 100%;
+            background: transparent;
+            z: 10;
+            TouchArea { }
+        }
         flick := Flickable {
             viewport-height: distro_list.preferred-height;
             width: parent.width;
             height: 100%;
             distro_list := DistroList {
                 distros: root.distros;
+                batch_mode: root.batch_mode;
                 expanded_distro <=> root.expanded_distro;
+                distro_selection_toggled(name) => {
+                    root.distro_selection_toggled(name);
+                }
                 start_distro(n) => {
                     root.start_distro(n);
                 }
@@ -209,6 +605,32 @@ export component MainView inherits VerticalLayout {
             scroll_to(v) => {
                 flick.viewport-y = -v;
             }
+        }
+    }
+
+    // Bottom bar: info bar (non-batch) or batch action bar
+    if root.batch_mode && !root.batch_operating : BatchBar {
+        selected_count: root.selected_count;
+        operating: root.batch_operating;
+        start => { root.batch_start(); }
+        stop => { root.batch_stop(); }
+        restart => { root.batch_restart(); }
+        select_all => { root.batch_select_all(); }
+        invert_selection => { root.batch_invert_selection(); }
+        select_running => { root.batch_select_running(); }
+        select_stopped => { root.batch_select_stopped(); }
+        export => { root.batch_export(); }
+        clone => { root.batch_clone(); }
+        move_distro => { root.batch_move(); }
+        delete => { root.batch_delete(); }
+        cancel => {
+            root.cancel_batch();
+        }
+    }
+    if !root.batch_mode && root.distro_count > 1 : DistroInfoBar {
+        total_count: root.distro_count;
+        toggle_batch_mode => {
+            root.toggle_batch_mode();
         }
     }
 }

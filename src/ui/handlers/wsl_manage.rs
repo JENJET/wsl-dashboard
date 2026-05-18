@@ -415,7 +415,7 @@ pub async fn refresh_wsl_info(
                         {
                             if let Ok(v) = val.parse::<i32>() {
                                 app.set_wsl_default_version(v);
-                            } else if val.contains("2") {
+                            } else if val.contains(crate::wsl::models::WslVersion::V2.as_string()) {
                                 app.set_wsl_default_version(2);
                             } else {
                                 app.set_wsl_default_version(1);

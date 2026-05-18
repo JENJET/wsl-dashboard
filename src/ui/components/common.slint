@@ -16,8 +16,8 @@ export component SidebarItem inherits Rectangle {
     Rectangle {
         opacity: (collapsed && touch.has-hover) ? 1 : 0;
         animate opacity { duration: 100ms; easing: ease-out-quad; }
-        x: AppI18n.is-rtl ? -self.width - 8px : parent.width + 8px;
-        y: (parent.height - self.height) / 2;
+        x: (parent.width - self.width) / 2 + 10px;
+        y: -self.height + 4px;
         width: label.width + 16px;
         height: 28px;
         background: Theme.dark_mode ? #2D2D30 : #FFFFFF;
@@ -126,17 +126,19 @@ export component ActionIcon inherits Rectangle {
     in property <bool> is_font_icon: false;
     in property <bool> show_shield: false;
     in property <string> tooltip: "";
+    in property <length> tooltip_x_offset: 0px;
     in property <brush> icon_color: Theme.text_primary;
+    in property <bool> enabled: true;
     callback clicked;
     width: 28px;
     height: 28px;
     border-radius: 4px;
-    background: touch.pressed ? Theme.selected_bg : (touch.has-hover ? Theme.hover_bg : transparent);
+    background: root.enabled ? (touch.pressed ? Theme.selected_bg : (touch.has-hover ? Theme.hover_bg : transparent)) : transparent;
     
     // Tooltip - Use properties instead of conditional creation
     Rectangle {
-        visible: touch.has-hover && tooltip != "";
-        opacity: (touch.has-hover && tooltip != "") ? 1 : 0;
+        visible: root.enabled && touch.has-hover && tooltip != "";
+        opacity: (root.enabled && touch.has-hover && tooltip != "") ? 1 : 0;
         background: Theme.dark_mode ? #2D2D30 : #FFFFFF;
         border-color: Theme.border_color;
         border-width: 1px;
@@ -144,7 +146,7 @@ export component ActionIcon inherits Rectangle {
         z: 100;
         
         // Dynamic Positioning - Reverted to static history behavior
-        x: (parent.width - self.width) / 2;
+        x: (parent.width - self.width) / 2 + root.tooltip_x_offset;
         y: -10px;
         width: tt_text.width + 12px;
         height: tt_text.height + 6px;
@@ -163,7 +165,7 @@ export component ActionIcon inherits Rectangle {
         text: icon;
         font-size: 14px * LayoutConstants.font-scale;
         font-family: Theme.icon_font;
-        color: root.icon_color;
+        color: root.enabled ? root.icon_color : (Theme.dark_mode ? #666666 : #CCCCCC);
         horizontal-alignment: center;
         vertical-alignment: center;
     }
@@ -174,6 +176,7 @@ export component ActionIcon inherits Rectangle {
         width: 16px;
         height: 16px;
         image-fit: contain;
+        opacity: root.enabled ? 1 : 0.4;
     }
 
     // Admin Shield Overlay
@@ -186,7 +189,7 @@ export component ActionIcon inherits Rectangle {
         z: 10;
         Image {
             source: @image-url("../../../assets/feat/microsoft-shield.png");
-            x: (parent.width - self.width) / 2;
+        x: (parent.width - self.width) / 2 + 10px;
             y: (parent.height - self.height) / 2;
             width: 10px;
             height: 10px;
@@ -195,7 +198,7 @@ export component ActionIcon inherits Rectangle {
     }
     touch := TouchArea {
         clicked => {
-            root.clicked();
+            if (root.enabled) { root.clicked(); }
         }
     }
 }

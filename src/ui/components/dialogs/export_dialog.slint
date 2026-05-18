@@ -6,6 +6,8 @@ export component ExportDialog inherits Rectangle {
     in-out property <string> export_path;
     in property <string> error_msg;
     in-out property <bool> compress: true;
+    in property <bool> batch_export: false;
+
     callback confirm(string);
     callback cancel();
     callback browse();
@@ -26,7 +28,7 @@ export component ExportDialog inherits Rectangle {
             padding: 24px;
             spacing: 16px;
             Text {
-                text: AppI18n.t("dialog.export_title", [root.distro_name, AppI18n.version]);
+                text: root.batch_export ? AppI18n.t("batch.export_title", [AppI18n.version]) : AppI18n.t("dialog.export_title", [root.distro_name, AppI18n.version]);
                 font-size: 18px * LayoutConstants.font-scale;
                 font-family: Theme.default_font;
                 font-weight: 500;
@@ -46,11 +48,55 @@ export component ExportDialog inherits Rectangle {
 
                 HorizontalLayout {
                     spacing: 8px;
-                    if (!AppI18n.is-rtl): CustomLineEdit {
-                        text <=> export_path;
-                        enabled: false;
+                    if (!AppI18n.is-rtl): Rectangle {
                         height: 32px;
                         horizontal-stretch: 1;
+                        Rectangle {
+                            visible: browse_touch.has-hover && path_text.preferred-width > path_text.width;
+                            opacity: browse_touch.has-hover && path_text.preferred-width > path_text.width ? 1 : 0;
+                            background: Theme.dark_mode ? #2D2D30 : #FFFFFF;
+                            border-color: Theme.border_color;
+                            border-width: 1px;
+                            border-radius: 4px;
+                            z: 999;
+                            x: (parent.width - self.width) / 2;
+                            y: -28px;
+                            width: tt_text.width + 12px;
+                            height: tt_text.height + 6px;
+                            tt_text := Text {
+                                text: export_path;
+                                color: Theme.text_primary;
+                                font-size: 11px * LayoutConstants.font-scale;
+                                font-family: Theme.default_font;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+                        Rectangle {
+                            width: 100%;
+                            height: 100%;
+                            border-radius: 4px;
+                            border-width: 1px;
+                            border-color: Theme.input_border;
+                            background: Theme.input_bg;
+                            path_text := Text {
+                                x: 15px;
+                                width: parent.width - 30px;
+                                text <=> export_path;
+                                color: Theme.text_primary;
+                                font-family: Theme.default_font;
+                                font-size: 13px * LayoutConstants.font-scale;
+                                vertical-alignment: center;
+                                horizontal-alignment: AppI18n.is-rtl ? right : left;
+                                overflow: elide;
+                            }
+                        }
+                        browse_touch := TouchArea {
+                            width: 100%;
+                            height: 100%;
+                            mouse-cursor: pointer;
+                            clicked => { root.browse(); }
+                        }
                     }
                     CustomButton {
                         text: AppI18n.t("settings.select_folder", [AppI18n.version]);
@@ -61,11 +107,55 @@ export component ExportDialog inherits Rectangle {
                         }
                     }
 
-                    if (AppI18n.is-rtl): CustomLineEdit {
-                        text <=> export_path;
-                        enabled: false;
+                    if (AppI18n.is-rtl): Rectangle {
                         height: 32px;
                         horizontal-stretch: 1;
+                        Rectangle {
+                            visible: browse_touch2.has-hover && path_text2.preferred-width > path_text2.width;
+                            opacity: browse_touch2.has-hover && path_text2.preferred-width > path_text2.width ? 1 : 0;
+                            background: Theme.dark_mode ? #2D2D30 : #FFFFFF;
+                            border-color: Theme.border_color;
+                            border-width: 1px;
+                            border-radius: 4px;
+                            z: 999;
+                            x: (parent.width - self.width) / 2;
+                            y: -28px;
+                            width: tt_text2.width + 12px;
+                            height: tt_text2.height + 6px;
+                            tt_text2 := Text {
+                                text: export_path;
+                                color: Theme.text_primary;
+                                font-size: 11px * LayoutConstants.font-scale;
+                                font-family: Theme.default_font;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
+                        Rectangle {
+                            width: 100%;
+                            height: 100%;
+                            border-radius: 4px;
+                            border-width: 1px;
+                            border-color: Theme.input_border;
+                            background: Theme.input_bg;
+                            path_text2 := Text {
+                                x: 15px;
+                                width: parent.width - 30px;
+                                text <=> export_path;
+                                color: Theme.text_primary;
+                                font-family: Theme.default_font;
+                                font-size: 13px * LayoutConstants.font-scale;
+                                vertical-alignment: center;
+                                horizontal-alignment: AppI18n.is-rtl ? right : left;
+                                overflow: elide;
+                            }
+                        }
+                        browse_touch2 := TouchArea {
+                            width: 100%;
+                            height: 100%;
+                            mouse-cursor: pointer;
+                            clicked => { root.browse(); }
+                        }
                     }
                 }
             }
@@ -84,9 +174,7 @@ export component ExportDialog inherits Rectangle {
                 wrap: word-wrap;
                 horizontal-alignment: AppI18n.is-rtl ? right : left;
             }
-            Rectangle {
-                vertical-stretch: 1;
-            } // Spacer
+            Rectangle { vertical-stretch: 1; }
 
             HorizontalLayout {
                 alignment: AppI18n.is-rtl ? start : end;

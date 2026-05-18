@@ -49,6 +49,9 @@ export component ModalManager inherits Rectangle {
     in-out property <string> export_path;
     in-out property <bool> export_compress: true;
     in property <string> export_error: "";
+    in property <bool> batch_export: false;
+    in property <bool> batch_clone: false;
+    in property <bool> batch_move: false;
     in property <string> clone_source_name: "";
     in-out property <string> clone_target_name;
     in-out property <string> clone_target_path;
@@ -176,6 +179,7 @@ export component ModalManager inherits Rectangle {
         width: 100%;
         height: 100%;
         distro_name: export_target_name;
+        batch_export: root.batch_export;
         export_path <=> root.export_path;
         error_msg: export_error;
         enabled: !root.is_installing;
@@ -193,6 +197,7 @@ export component ModalManager inherits Rectangle {
     if (show_clone): CloneDialog {
         width: 100%;
         height: 100%;
+        batch_clone: root.batch_clone;
         distro_name: clone_source_name;
         clone_name <=> root.clone_target_name;
         clone_path <=> root.clone_target_path;
@@ -214,6 +219,7 @@ export component ModalManager inherits Rectangle {
     if (show_move): MoveDialog {
         width: 100%;
         height: 100%;
+        batch_move: root.batch_move;
         distro_name: move_source_name;
         move_path <=> root.move_target_path;
         error_msg: move_error;

@@ -1,11 +1,22 @@
 use crate::utils::system::CREATE_NO_WINDOW;
 use std::os::windows::process::CommandExt;
 use std::process::Command;
+use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::info;
+
+/// Global flag to skip resource/IP fetching during batch operations.
+/// Set by batch handlers alongside app.set_batch_operating().
+pub static BATCH_OPERATING: AtomicBool = AtomicBool::new(false);
 
 /// Get the IP address of the specified distribution
 /// `max_retries`: 1 for quick mode (no retry), 30 for full mode (with retry)
 pub fn get_distro_ip(distro_name: &str, max_retries: Option<u32>) -> Result<String, String> {
+    if BATCH_OPERATING.load(Ordering::Relaxed) {
+        return Err("Batch operation in progress".to_string());
+    }
+    if !is_distro_running(distro_name) {
+        return Err(format!("Distro '{}' is not running", distro_name));
+    }
     let max_retries = max_retries.unwrap_or(30);
     info!(
         "Fetching IP for distro: {} (max_retries: {})",
@@ -164,6 +175,9 @@ pub fn is_distro_running(distro_name: &str) -> bool {
 /// Get CPU and memory usage for a running WSL distro
 /// Returns (cpu_percentage, used_memory_gb, total_memory_gb)
 pub fn get_distro_resource_usage(distro_name: &str) -> Result<(f64, f64, f64), String> {
+    if BATCH_OPERATING.load(Ordering::Relaxed) {
+        return Err("Batch operation in progress".to_string());
+    }
     // Check if distro is actually running before attempting to fetch resources
     // This prevents waking up stopped distros
     if !is_distro_running(distro_name) {

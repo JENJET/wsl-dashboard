@@ -1,3 +1,4 @@
+use crate::wsl::models::WslVersion;
 use serde::{Deserialize, Serialize};
 use std::process::Command;
 use tracing::{debug, info};
@@ -185,7 +186,8 @@ impl UsbManager {
                             let lower = line.to_lowercase();
                             let parts: Vec<&str> = line.split_whitespace().collect();
                             // Must be Running AND Version 2
-                            lower.contains("running") && parts.iter().any(|&p| p == "2")
+                            lower.contains("running")
+                                && parts.iter().any(|&p| p == WslVersion::V2.to_string())
                         })
                 }
                 Err(_) => false,

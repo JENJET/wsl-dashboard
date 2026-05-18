@@ -2,16 +2,20 @@ import { Theme, AppI18n, LayoutConstants } from "../theme.slint";
 
 export component TaskStatusToast inherits Rectangle {
     in property <string> text;
+    in property <string> progress_suffix: "";
     in property <bool> is_shown: false;
+    in property <bool> show_close: true;
+    in property <bool> is_batch_mode: false;
+    property <string> display_text: text + (progress_suffix != "" ? " " + progress_suffix : "");
     callback close;
-    height: 52px;
-    width: max(460px, layout.preferred-width + 40px);
+    height: 48px;
+    width: max(420px, layout.preferred-width + 32px);
     background: Theme.card_bg;
-    border-radius: 8px;
+    border-radius: 12px;
     border-width: 1px;
-    border-color: Theme.border_color;
-    drop-shadow-blur: 12px;
-    drop-shadow-color: #00000030;
+    border-color: Theme.dark_mode ? #FFFFFF18 : #0000000D;
+    drop-shadow-blur: 32px;
+    drop-shadow-color: Theme.dark_mode ? #00000050 : #00000026;
     clip: true;
     animate y {
         duration: 250ms;
@@ -19,83 +23,148 @@ export component TaskStatusToast inherits Rectangle {
     }
     animate opacity { duration: 250ms; }
     opacity: is_shown ? 1 : 0;
+
     layout := HorizontalLayout {
-        padding-left: AppI18n.is-rtl ? 12px : 20px;
-        padding-right: AppI18n.is-rtl ? 20px : 12px;
-        spacing: 16px;
-        
-        // RTL: Close Button first
-        if (AppI18n.is-rtl): VerticalLayout {
+        spacing: 0;
+        padding: 0;
+
+        // Left accent bar
+        Rectangle {
+            width: 4px;
+            height: 100%;
+            background: Theme.accent;
+        }
+
+        // RTL: Close Button first (before content)
+        if (AppI18n.is-rtl && root.show_close): VerticalLayout {
             alignment: center;
-            TouchArea {
+            close_rtl := TouchArea {
                 width: 32px;
-                height: 32px;
+                height: 100%;
                 clicked => {
                     root.close();
+                }
+                Rectangle {
+                    height: 100%;
+                    width: 100%;
+                    border-radius: 4px;
+                    background: close_rtl.has-hover ? Theme.hover_bg : transparent;
                 }
                 Text {
                     text: "\u{E10A}"; // Close icon
                     font-family: Theme.icon_font;
                     font-size: 14px;
-                    color: parent.has-hover ? Theme.accent : Theme.text_secondary;
+                    color: close_rtl.has-hover ? Theme.accent : Theme.text_secondary;
                     horizontal-alignment: center;
                     vertical-alignment: center;
                 }
+                if (root.is_batch_mode): Rectangle {
+                    visible: close_rtl.has-hover;
+                    opacity: close_rtl.has-hover ? 1 : 0;
+                    x: 40px;
+                    y: (parent.height - self.height) / 2;
+                    width: tt_rtl.width + 16px;
+                    height: 28px;
+                    background: Theme.dark_mode ? #2D2D30 : #FFFFFF;
+                    border-color: Theme.border_color;
+                    border-width: 1px;
+                    border-radius: 4px;
+                    z: 100;
+                    tt_rtl := Text {
+                        text: AppI18n.t("batch.abort_operation", [AppI18n.version]);
+                        color: Theme.text_primary;
+                        font-size: 12px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
             }
         }
-        if (AppI18n.is-rtl): Rectangle { } // Spacer for RTL
 
-        // Icon (Progress Spinner / Speaker)
-        if (!AppI18n.is-rtl): VerticalLayout {
+        // Centered content group: Icon + Text
+        HorizontalLayout {
             alignment: center;
-            Text {
-                text: "\u{E995}"; // Volume/Speaker icon
-                font-family: Theme.icon_font;
-                font-size: 20px;
-                color: Theme.accent;
-            }
-        }
-        Text {
-            text: text;
-            font-size: 14px * LayoutConstants.font-scale;
-            font-family: Theme.default_font;
-            color: Theme.text_primary;
-            vertical-alignment: center;
-            horizontal-alignment: AppI18n.is-rtl ? right : left;
             horizontal-stretch: 1;
-            overflow: elide;
-        }
+            spacing: 10px;
+            padding-left: 16px;
+            padding-right: AppI18n.is-rtl || root.show_close ? 16px : 20px;
 
-        // Icon for RTL (at the end)
-        if (AppI18n.is-rtl): VerticalLayout {
-            alignment: center;
+            // Icon (LTR)
+            if (!AppI18n.is-rtl): VerticalLayout {
+                alignment: center;
+                Text {
+                    text: "\u{E995}"; // Volume/Speaker icon
+                    font-family: Theme.icon_font;
+                    font-size: 18px;
+                    color: Theme.accent;
+                }
+            }
             Text {
-                text: "\u{E995}"; // Volume/Speaker icon
-                font-family: Theme.icon_font;
-                font-size: 20px;
-                color: Theme.accent;
+                text: root.display_text;
+                font-size: 14px * LayoutConstants.font-scale;
+                font-family: Theme.default_font;
+                font-weight: 600;
+                color: Theme.text_primary;
+                vertical-alignment: center;
+                horizontal-alignment: center;
+                overflow: elide;
+            }
+            // Icon (RTL)
+            if (AppI18n.is-rtl): VerticalLayout {
+                alignment: center;
+                Text {
+                    text: "\u{E995}"; // Volume/Speaker icon
+                    font-family: Theme.icon_font;
+                    font-size: 18px;
+                    color: Theme.accent;
+                }
             }
         }
-
-        // Spacer for LTR
-        if (!AppI18n.is-rtl): Rectangle { }
 
         // LTR: Close Button at the end
-        if (!AppI18n.is-rtl): VerticalLayout {
+        if (!AppI18n.is-rtl && root.show_close): VerticalLayout {
             alignment: center;
-            TouchArea {
+            close_ltr := TouchArea {
                 width: 32px;
-                height: 32px;
+                height: 100%;
                 clicked => {
                     root.close();
+                }
+                Rectangle {
+                    height: 100%;
+                    width: 100%;
+                    border-radius: 4px;
+                    background: close_ltr.has-hover ? Theme.hover_bg : transparent;
                 }
                 Text {
                     text: "\u{E10A}"; // Close icon
                     font-family: Theme.icon_font;
                     font-size: 14px;
-                    color: parent.has-hover ? Theme.accent : Theme.text_secondary;
+                    color: close_ltr.has-hover ? Theme.accent : Theme.text_secondary;
                     horizontal-alignment: center;
                     vertical-alignment: center;
+                }
+                if (root.is_batch_mode): Rectangle {
+                    visible: close_ltr.has-hover;
+                    opacity: close_ltr.has-hover ? 1 : 0;
+                    x: -self.width - 8px;
+                    y: (parent.height - self.height) / 2;
+                    width: tt_ltr.width + 16px;
+                    height: 28px;
+                    background: Theme.dark_mode ? #2D2D30 : #FFFFFF;
+                    border-color: Theme.border_color;
+                    border-width: 1px;
+                    border-radius: 4px;
+                    z: 100;
+                    tt_ltr := Text {
+                        text: AppI18n.t("batch.abort_operation", [AppI18n.version]);
+                        color: Theme.text_primary;
+                        font-size: 12px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
                 }
             }
         }
