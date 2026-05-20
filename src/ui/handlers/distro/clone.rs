@@ -49,7 +49,11 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
 
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(app) = ah.upgrade() {
-                        if app.get_is_cloning() || app.get_is_exporting() || app.get_is_moving() {
+                        if app.get_is_cloning()
+                            || app.get_is_exporting()
+                            || app.get_is_moving()
+                            || app.get_is_installing()
+                        {
                             app.set_current_message(i18n::t("dialog.operation_in_progress").into());
                             app.set_show_message_dialog(true);
                             return;
@@ -126,7 +130,13 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
 
                 if let Some(app) = ah_weak.upgrade() {
                     let app: AppWindow = app;
-                    if app.get_is_cloning() || app.get_is_exporting() || app.get_is_moving() {
+                    if app.get_is_cloning()
+                        || app.get_is_exporting()
+                        || app.get_is_moving()
+                        || app.get_is_installing()
+                    {
+                        app.set_current_message(i18n::t("dialog.operation_in_progress").into());
+                        app.set_show_message_dialog(true);
                         return;
                     }
 

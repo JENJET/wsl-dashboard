@@ -1,4 +1,4 @@
-[common]
+﻿[common]
 app_name = "WSL Dashboard"
 
 [sidebar]
@@ -88,6 +88,9 @@ terminal_custom_path = "נתיב קובץ הפעלה מותאם אישית"
 terminal_custom_args = "תבנית שורת פקודה"
 terminal_placeholders_hint = "מצייני מקום זמינים: {distro} {dir} {proxy}"
 select_terminal_exe = "בחר קובץ הפעלה של מסוף"
+tab_general = "כללי"
+tab_advanced = "מתקדם"
+tab_interface = "ממשק"
 
 [settings.languages]
 auto = "עקוב אחר המערכת"
@@ -168,6 +171,7 @@ move_failed = "ההעברה נכשלה: {0}"
 move_failed_backup = "ההעברה נכשלה (גיבוי נשמר):\nהרישום של ההפצה בוטל, אך לוגיקת ההעברה נכשלה.\nקובץ הגיבוי נמצא בנתיב: {0}\nניתן לייבא קובץ זה באופן ידני כדי לשחזר."
 move_shutdown_warning = "העברת הפצה דורשת כיבוי של מופעי ה-WSL הפועלים הבאים כדי לשחרר מאחזי קבצים：\n\n{0}\n\nאנא לחץ על אישור כדי להמשיך。"
 clone_shutdown_warning = "שיבוט הפצה דורשת כיבוי של מופעי ה-WSL הפועלים הבאים כדי לשחרר מאחזי קבצים：\n\n{0}\n\nאנא לחץ על אישור כדי להמשיך。"
+export_shutdown_warning = "ייצוא הפצה דורש כיבוי של מופעי WSL הפועלים הבאים לשחרור ידיות קבצים:\n\n{0}\n\nאנא לחץ על אישור כדי להמשיך."
 processing = "מעבד..."
 target_path = "נתיב יעד"
 new_name = "שם מופע חדש"
@@ -567,5 +571,3 @@ uninstall_failed = "הפעלת הסרת WSL נכשלה: {0}"
 settings_btn = "הגדרות"
 version_label_1 = "WSL 1"
 version_label_2 = "WSL 2"
-
-

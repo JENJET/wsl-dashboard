@@ -313,6 +313,8 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     || app.get_is_cloning()
                     || app.get_is_moving()
                 {
+                    app.set_current_message(i18n::t("dialog.operation_in_progress").into());
+                    app.set_show_message_dialog(true);
                     return;
                 }
 

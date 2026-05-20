@@ -109,6 +109,9 @@ pub fn refresh_localized_strings(app: &AppWindow) {
         save: i18n::tr("settings.save", &[]).into(),
         wsl_settings: i18n::tr("settings.wsl_settings", &[]).into(),
         sidebar_features: i18n::tr("settings.sidebar_features", &[]).into(),
+        tab_general: i18n::tr("settings.tab_general", &[]).into(),
+        tab_advanced: i18n::tr("settings.tab_advanced", &[]).into(),
+        tab_interface: i18n::tr("settings.tab_interface", &[]).into(),
     });
 
     app.set_about_strings(crate::AboutStrings {

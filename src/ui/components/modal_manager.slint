@@ -85,6 +85,9 @@ export component ModalManager inherits Rectangle {
     in property <bool> show_clone_shutdown_confirm: false;
     in property <string> clone_shutdown_confirm_message: "";
     in property <string> clone_shutdown_confirm_title: "";
+    in property <bool> show_export_shutdown_confirm: false;
+    in property <string> export_shutdown_confirm_message: "";
+    in property <string> export_shutdown_confirm_title: "";
     in property <string> message_text;
     in property <string> message_link_text: "";
     in property <string> message_action_text: "";
@@ -157,6 +160,8 @@ export component ModalManager inherits Rectangle {
     callback cancel_move_confirm();
     callback confirm_clone_shutdown_action();
     callback cancel_clone_shutdown_confirm();
+    callback confirm_export_shutdown_action();
+    callback cancel_export_shutdown_confirm();
     callback close_message();
     callback message_link_clicked();
     callback message_action_clicked();
@@ -293,6 +298,20 @@ export component ModalManager inherits Rectangle {
         }
         cancel => {
             root.cancel_clone_shutdown_confirm();
+        }
+    }
+    if (show_export_shutdown_confirm): ConfirmationDialog {
+        width: 100%;
+        height: 100%;
+        dialog_height: 250px;
+        title_text: root.export_shutdown_confirm_title;
+        message: root.export_shutdown_confirm_message;
+        is_warning: true;
+        confirm => {
+            root.confirm_export_shutdown_action();
+        }
+        cancel => {
+            root.cancel_export_shutdown_confirm();
         }
     }
     if (show_message): Rectangle {

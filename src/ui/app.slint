@@ -87,6 +87,9 @@ export component AppWindow inherits Window {
     in-out property <bool> show_clone_shutdown_confirm: false;
     in property <string> clone_shutdown_confirm_message: "";
     in property <string> clone_shutdown_confirm_title: "";
+    in-out property <bool> show_export_shutdown_confirm: false;
+    in property <string> export_shutdown_confirm_message: "";
+    in property <string> export_shutdown_confirm_title: "";
     in-out property <string> clone_batch_suffix: "";
     in-out property <string> clone_batch_path: "";
     in-out property <bool> show_move_dialog: false;
@@ -336,6 +339,8 @@ export component AppWindow inherits Window {
     callback cancel_move_confirm();
     callback confirm_clone_shutdown_action();
     callback cancel_clone_shutdown_confirm();
+    callback confirm_export_shutdown_action();
+    callback cancel_export_shutdown_confirm();
     callback close_message_dialog();
     callback message_link_clicked();
     callback message_action_clicked(string);
@@ -1090,6 +1095,16 @@ export component AppWindow inherits Window {
         cancel_clone_shutdown_confirm => {
             root.show_clone_shutdown_confirm = false;
             root.cancel_clone_shutdown_confirm();
+        }
+        show_export_shutdown_confirm: root.show_export_shutdown_confirm;
+        export_shutdown_confirm_message: root.export_shutdown_confirm_message;
+        export_shutdown_confirm_title: root.export_shutdown_confirm_title;
+        confirm_export_shutdown_action => {
+            root.confirm_export_shutdown_action();
+        }
+        cancel_export_shutdown_confirm => {
+            root.show_export_shutdown_confirm = false;
+            root.cancel_export_shutdown_confirm();
         }
         show_message: root.show_message_dialog;
         message_text: root.current_message;

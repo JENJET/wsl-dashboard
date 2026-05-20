@@ -25,6 +25,13 @@ pub(super) struct BatchMoveState {
 pub(super) static BATCH_MOVE_STATE: std::sync::Mutex<Option<BatchMoveState>> =
     std::sync::Mutex::new(None);
 
+struct BatchExportState {
+    target_path: String,
+    use_compress: bool,
+}
+
+static BATCH_EXPORT_STATE: std::sync::Mutex<Option<BatchExportState>> = std::sync::Mutex::new(None);
+
 pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc<Mutex<AppState>>) {
     // Toggle batch mode on/off
     {
@@ -35,6 +42,16 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
             let as_ptr = as_ptr.clone();
             if let Some(app) = ah.upgrade() {
                 let new_mode = !app.get_batch_mode();
+                if new_mode
+                    && (app.get_is_exporting()
+                        || app.get_is_cloning()
+                        || app.get_is_moving()
+                        || app.get_is_installing())
+                {
+                    app.set_current_message(i18n::t("dialog.operation_in_progress").into());
+                    app.set_show_message_dialog(true);
+                    return;
+                }
                 app.set_batch_mode(new_mode);
                 if new_mode {
                     app.set_batch_abort_triggered(false);
@@ -256,6 +273,17 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
         app.on_batch_start(move || {
             let ah = ah.clone();
             let as_ptr = as_ptr.clone();
+            if let Some(app) = ah.upgrade() {
+                if app.get_is_exporting()
+                    || app.get_is_cloning()
+                    || app.get_is_moving()
+                    || app.get_is_installing()
+                {
+                    app.set_current_message(i18n::t("dialog.operation_in_progress").into());
+                    app.set_show_message_dialog(true);
+                    return;
+                }
+            }
             tokio::spawn(async move {
                 let names = get_selected_names(&as_ptr).await;
                 if names.is_empty() {
@@ -277,6 +305,17 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
         app.on_batch_stop(move || {
             let ah = ah.clone();
             let as_ptr = as_ptr.clone();
+            if let Some(app) = ah.upgrade() {
+                if app.get_is_exporting()
+                    || app.get_is_cloning()
+                    || app.get_is_moving()
+                    || app.get_is_installing()
+                {
+                    app.set_current_message(i18n::t("dialog.operation_in_progress").into());
+                    app.set_show_message_dialog(true);
+                    return;
+                }
+            }
             tokio::spawn(async move {
                 let names = get_selected_names(&as_ptr).await;
                 if names.is_empty() {
@@ -298,6 +337,17 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
         app.on_batch_restart(move || {
             let ah = ah.clone();
             let as_ptr = as_ptr.clone();
+            if let Some(app) = ah.upgrade() {
+                if app.get_is_exporting()
+                    || app.get_is_cloning()
+                    || app.get_is_moving()
+                    || app.get_is_installing()
+                {
+                    app.set_current_message(i18n::t("dialog.operation_in_progress").into());
+                    app.set_show_message_dialog(true);
+                    return;
+                }
+            }
             tokio::spawn(async move {
                 let names = get_selected_names(&as_ptr).await;
                 if names.is_empty() {
@@ -318,6 +368,15 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
         app.on_batch_export(move || {
             let ah = ah.clone();
             if let Some(app) = ah.upgrade() {
+                if app.get_is_exporting()
+                    || app.get_is_cloning()
+                    || app.get_is_moving()
+                    || app.get_is_installing()
+                {
+                    app.set_current_message(i18n::t("dialog.operation_in_progress").into());
+                    app.set_show_message_dialog(true);
+                    return;
+                }
                 app.set_export_distro_name("".into());
                 app.set_export_compress(true);
                 let default_path = app.get_distro_location();
@@ -328,7 +387,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
         });
     }
 
-    // Batch confirm export - actually run the export
+    // Batch confirm export - check running, then execute
     {
         let ah = app_handle.clone();
         let as_ptr = app_state.clone();
@@ -336,95 +395,336 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
             let ah = ah.clone();
             let as_ptr = as_ptr.clone();
             let target_path = target_path.to_string();
-            tokio::spawn(async move {
-                let names = get_selected_names(&as_ptr).await;
-                if names.is_empty() {
+
+            if let Some(app) = ah.upgrade() {
+                // Close dialog and set operating immediately
+                app.set_show_export_dialog(false);
+
+                let use_compress = app.get_export_compress();
+
+                // Check if any selected distro is Running
+                let distros = app.get_distros();
+                let mut running_names = Vec::new();
+                for j in 0..distros.row_count() {
+                    if let Some(d) = distros.row_data(j) {
+                        if d.selected && d.status.as_str() == "Running" {
+                            running_names.push(d.name.to_string());
+                        }
+                    }
+                }
+
+                if !running_names.is_empty() {
+                    let warning_msg = i18n::tr(
+                        "dialog.export_shutdown_warning",
+                        &[running_names.join(", ")],
+                    );
+                    if let Ok(mut state) = BATCH_EXPORT_STATE.lock() {
+                        *state = Some(BatchExportState {
+                            target_path: target_path.clone(),
+                            use_compress,
+                        });
+                    }
+                    app.set_export_shutdown_confirm_message(warning_msg.into());
+                    app.set_export_shutdown_confirm_title(i18n::t("batch.export_title").into());
+                    app.set_show_export_shutdown_confirm(true);
                     return;
                 }
 
-                // Close dialog and set operating immediately
-                let _ = slint::invoke_from_event_loop({
-                    let ah = ah.clone();
-                    move || {
-                        if let Some(app) = ah.upgrade() {
-                            app.set_show_export_dialog(false);
-                            app.set_batch_operating(true);
-                            tracker::BATCH_OPERATING.store(true, Ordering::SeqCst);
-                            app.set_is_exporting(true);
-                        }
-                    }
-                });
+                app.set_batch_operating(true);
+                tracker::BATCH_OPERATING.store(true, Ordering::SeqCst);
+                app.set_is_exporting(true);
 
-                let use_compress = {
-                    let ah = ah.clone();
-                    let (tx, rx) = tokio::sync::oneshot::channel();
-                    let _ = slint::invoke_from_event_loop(move || {
-                        if let Some(app) = ah.upgrade() {
-                            let _ = tx.send(app.get_export_compress());
-                        }
-                    });
-                    rx.await.unwrap_or(true)
-                };
-
-                BATCH_CANCEL.store(false, Ordering::SeqCst);
-                info!("Batch export: {:?} -> {}", names, target_path);
-
-                let total = names.len();
-                let mut cancelled = false;
-                let mut failed_count = 0;
-                let mut success_count = 0;
-                for (i, name) in names.iter().enumerate() {
-                    if BATCH_CANCEL.load(Ordering::SeqCst) {
-                        info!("Batch export cancelled by user");
-                        cancelled = true;
-                        break;
+                let ah_clone = ah.clone();
+                let as_ptr_clone = as_ptr.clone();
+                let tp = target_path.clone();
+                let _ = slint::spawn_local(async move {
+                    let names = get_selected_names(&as_ptr_clone).await;
+                    if names.is_empty() {
+                        return;
                     }
 
-                    // Set progress suffix — do_export will handle the text
+                    let manager = {
+                        let state = as_ptr_clone.lock().await;
+                        state.wsl_dashboard.clone()
+                    };
+
+                    BATCH_CANCEL.store(false, Ordering::SeqCst);
+                    info!("Batch export: {:?} -> {}", names, tp);
+
+                    let total = names.len();
+                    let mut cancelled = false;
+                    let mut failed_count = 0;
+                    let mut success_count = 0;
+                    for (i, name) in names.iter().enumerate() {
+                        if BATCH_CANCEL.load(Ordering::SeqCst) {
+                            info!("Batch export cancelled by user");
+                            cancelled = true;
+                            break;
+                        }
+
+                        if manager.get_active_op(name).is_some() {
+                            let msg = i18n::tr(
+                                "toast.distro_busy",
+                                &[name.clone(), i18n::t("operation.exporting")],
+                            );
+                            let _ = slint::invoke_from_event_loop({
+                                let ah = ah_clone.clone();
+                                move || {
+                                    if let Some(app) = ah.upgrade() {
+                                        app.set_current_message(msg.into());
+                                        app.set_show_message_dialog(true);
+                                    }
+                                }
+                            });
+                            continue;
+                        }
+
+                        let _ = slint::invoke_from_event_loop({
+                            let ah = ah_clone.clone();
+                            let suffix = format!(" [{}/{}]", i + 1, total);
+                            move || {
+                                if let Some(app) = ah.upgrade() {
+                                    app.set_batch_progress_suffix(suffix.into());
+                                    app.set_task_status_visible(true);
+                                }
+                            }
+                        });
+
+                        let (success, _error, _file) = super::export::do_export(
+                            ah_clone.clone(),
+                            as_ptr_clone.clone(),
+                            name,
+                            &tp,
+                            use_compress,
+                        )
+                        .await;
+
+                        if success {
+                            success_count += 1;
+                            deselect_distro(&as_ptr_clone, &ah_clone, name).await;
+                        } else {
+                            failed_count += 1;
+                        }
+
+                        if BATCH_CANCEL.load(Ordering::SeqCst) {
+                            cancelled = true;
+                            break;
+                        }
+                    }
+
+                    let skipped = total as i32 - success_count - failed_count;
+                    finish_batch(&ah_clone, success_count, failed_count, skipped, cancelled);
                     let _ = slint::invoke_from_event_loop({
-                        let ah = ah.clone();
-                        let suffix = format!(" [{}/{}]", i + 1, total);
+                        let ah = ah_clone.clone();
                         move || {
                             if let Some(app) = ah.upgrade() {
-                                app.set_batch_progress_suffix(suffix.into());
-                                app.set_task_status_visible(true);
+                                app.set_is_exporting(false);
+                            }
+                        }
+                    });
+                });
+            }
+        });
+    }
+
+    // Export shutdown confirmed
+    {
+        let ah = app_handle.clone();
+        let as_ptr = app_state.clone();
+        app.on_confirm_export_shutdown_action(move || {
+            let ah = ah.clone();
+            let as_ptr = as_ptr.clone();
+            if let Some(app) = ah.upgrade() {
+                app.set_show_export_shutdown_confirm(false);
+                let distro_name = app.get_export_distro_name().to_string();
+                if !distro_name.is_empty() {
+                    // Single export - read from app properties
+                    let target_path = app.get_export_target_path().to_string();
+                    let use_compress = app.get_export_compress();
+                    app.set_is_exporting(true);
+                    app.set_show_export_dialog(false);
+                    let ah_weak = app.as_weak();
+                    let as_ptr = as_ptr.clone();
+                    let distro_source_inner = distro_name.to_string();
+                    let target_path_inner = target_path.to_string();
+                    let _ = slint::spawn_local(async move {
+                        let manager = {
+                            let state = as_ptr.lock().await;
+                            state.wsl_dashboard.clone()
+                        };
+                        if let Some(op) = manager.get_active_op(&distro_source_inner) {
+                            let msg = i18n::tr(
+                                "toast.distro_busy",
+                                &[distro_source_inner.clone(), op.to_string()],
+                            );
+                            let _ = slint::invoke_from_event_loop(move || {
+                                if let Some(app) = ah_weak.upgrade() {
+                                    app.set_current_message(msg.into());
+                                    app.set_show_message_dialog(true);
+                                    app.set_is_exporting(false);
+                                }
+                            });
+                            return;
+                        }
+                        let (success, error_msg, file_path) = super::export::do_export(
+                            ah_weak.clone(),
+                            as_ptr,
+                            &distro_source_inner,
+                            &target_path_inner,
+                            use_compress,
+                        )
+                        .await;
+
+                        if let Some(app) = ah_weak.upgrade() {
+                            app.set_task_status_visible(false);
+                            app.set_is_exporting(false);
+
+                            if success {
+                                app.set_current_message(
+                                    i18n::tr(
+                                        "dialog.export_success",
+                                        &[distro_source_inner.clone(), file_path.clone()],
+                                    )
+                                    .into(),
+                                );
+                            } else {
+                                let err = error_msg.unwrap_or_else(|| i18n::t("dialog.error"));
+                                app.set_current_message(
+                                    i18n::tr("dialog.export_failed", &[err]).into(),
+                                );
+                            }
+                            app.set_show_message_dialog(true);
+                        }
+                    });
+                    return;
+                }
+            }
+            let state = BATCH_EXPORT_STATE.lock().ok().and_then(|mut s| s.take());
+            if let Some(BatchExportState {
+                target_path,
+                use_compress,
+            }) = state
+            {
+                let ah = ah.clone();
+                let as_ptr = as_ptr.clone();
+                let _ = slint::spawn_local(async move {
+                    let names = get_selected_names(&as_ptr).await;
+                    if names.is_empty() {
+                        return;
+                    }
+
+                    let manager = {
+                        let state = as_ptr.lock().await;
+                        state.wsl_dashboard.clone()
+                    };
+
+                    // Close dialog and set operating
+                    let _ = slint::invoke_from_event_loop({
+                        let ah = ah.clone();
+                        move || {
+                            if let Some(app) = ah.upgrade() {
+                                app.set_show_export_dialog(false);
+                                app.set_batch_operating(true);
+                                tracker::BATCH_OPERATING.store(true, Ordering::SeqCst);
+                                app.set_is_exporting(true);
                             }
                         }
                     });
 
-                    let (success, _error, _file) = super::export::do_export(
-                        ah.clone(),
-                        as_ptr.clone(),
-                        name,
-                        &target_path,
-                        use_compress,
-                    )
-                    .await;
+                    BATCH_CANCEL.store(false, Ordering::SeqCst);
+                    info!(
+                        "Batch export (after shutdown): {:?} -> {}",
+                        names, target_path
+                    );
 
-                    if success {
-                        success_count += 1;
-                        deselect_distro(&as_ptr, &ah, name).await;
-                    } else {
-                        failed_count += 1;
-                    }
+                    let total = names.len();
+                    let mut cancelled = false;
+                    let mut failed_count = 0;
+                    let mut success_count = 0;
+                    for (i, name) in names.iter().enumerate() {
+                        if BATCH_CANCEL.load(Ordering::SeqCst) {
+                            info!("Batch export cancelled by user");
+                            cancelled = true;
+                            break;
+                        }
 
-                    if BATCH_CANCEL.load(Ordering::SeqCst) {
-                        cancelled = true;
-                        break;
-                    }
-                }
+                        if manager.get_active_op(name).is_some() {
+                            let msg = i18n::tr(
+                                "toast.distro_busy",
+                                &[name.clone(), i18n::t("operation.exporting")],
+                            );
+                            let _ = slint::invoke_from_event_loop({
+                                let ah = ah.clone();
+                                move || {
+                                    if let Some(app) = ah.upgrade() {
+                                        app.set_current_message(msg.into());
+                                        app.set_show_message_dialog(true);
+                                    }
+                                }
+                            });
+                            continue;
+                        }
 
-                let skipped = total as i32 - success_count - failed_count;
-                finish_batch(&ah, success_count, failed_count, skipped, cancelled);
-                let _ = slint::invoke_from_event_loop({
-                    let ah = ah.clone();
-                    move || {
-                        if let Some(app) = ah.upgrade() {
-                            app.set_is_exporting(false);
+                        let _ = slint::invoke_from_event_loop({
+                            let ah = ah.clone();
+                            let suffix = format!(" [{}/{}]", i + 1, total);
+                            move || {
+                                if let Some(app) = ah.upgrade() {
+                                    app.set_batch_progress_suffix(suffix.into());
+                                    app.set_task_status_visible(true);
+                                }
+                            }
+                        });
+
+                        let (success, _error, _file) = super::export::do_export(
+                            ah.clone(),
+                            as_ptr.clone(),
+                            name,
+                            &target_path,
+                            use_compress,
+                        )
+                        .await;
+
+                        if success {
+                            success_count += 1;
+                            deselect_distro(&as_ptr, &ah, name).await;
+                        } else {
+                            failed_count += 1;
+                        }
+
+                        if BATCH_CANCEL.load(Ordering::SeqCst) {
+                            cancelled = true;
+                            break;
                         }
                     }
+
+                    let skipped = total as i32 - success_count - failed_count;
+                    finish_batch(&ah, success_count, failed_count, skipped, cancelled);
+                    let _ = slint::invoke_from_event_loop({
+                        let ah = ah.clone();
+                        move || {
+                            if let Some(app) = ah.upgrade() {
+                                app.set_is_exporting(false);
+                            }
+                        }
+                    });
                 });
-            });
+            }
+        });
+    }
+
+    // Export shutdown cancelled
+    {
+        let ah = app_handle.clone();
+        app.on_cancel_export_shutdown_confirm(move || {
+            if let Some(app) = ah.upgrade() {
+                app.set_show_export_shutdown_confirm(false);
+                app.set_export_distro_name("".into());
+                app.set_export_target_path("".into());
+            }
+            if let Ok(mut state) = BATCH_EXPORT_STATE.lock() {
+                *state = None;
+            }
         });
     }
 
@@ -434,6 +734,15 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
         app.on_batch_clone(move || {
             let ah = ah.clone();
             if let Some(app) = ah.upgrade() {
+                if app.get_is_exporting()
+                    || app.get_is_cloning()
+                    || app.get_is_moving()
+                    || app.get_is_installing()
+                {
+                    app.set_current_message(i18n::t("dialog.operation_in_progress").into());
+                    app.set_show_message_dialog(true);
+                    return;
+                }
                 let default_path = app.get_distro_location();
                 app.set_clone_source_name("".into());
                 app.set_clone_target_name("".into());
@@ -651,6 +960,15 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
         app.on_batch_move(move || {
             let ah = ah.clone();
             if let Some(app) = ah.upgrade() {
+                if app.get_is_exporting()
+                    || app.get_is_cloning()
+                    || app.get_is_moving()
+                    || app.get_is_installing()
+                {
+                    app.set_current_message(i18n::t("dialog.operation_in_progress").into());
+                    app.set_show_message_dialog(true);
+                    return;
+                }
                 let default_path = app.get_distro_location();
                 app.set_move_source_name("".into());
                 app.set_move_target_name("".into());
@@ -913,6 +1231,17 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
         app.on_batch_delete(move || {
             let ah = ah.clone();
             let as_ptr = as_ptr.clone();
+            if let Some(app) = ah.upgrade() {
+                if app.get_is_exporting()
+                    || app.get_is_cloning()
+                    || app.get_is_moving()
+                    || app.get_is_installing()
+                {
+                    app.set_current_message(i18n::t("dialog.operation_in_progress").into());
+                    app.set_show_message_dialog(true);
+                    return;
+                }
+            }
             tokio::spawn(async move {
                 let names = get_selected_names(&as_ptr).await;
                 if names.is_empty() {

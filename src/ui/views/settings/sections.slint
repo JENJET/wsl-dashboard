@@ -15,12 +15,8 @@ export component GeneralSettingsSection inherits VerticalLayout {
     in property <SettingsStrings> strings;
     in-out property <int> selected_language_index;
     in-out property <int> selected_check_update_index;
-    in-out property <int> selected_log_level_index;
-    in-out property <int> selected_log_days_index;
     in property <[string]> language_options;
     in property <[string]> check_update_options;
-    in property <[string]> log_level_options;
-    in property <[string]> log_days_options;
     spacing: 16px;
 
     // 1. Software language and Update check
@@ -66,63 +62,6 @@ export component GeneralSettingsSection inherits VerticalLayout {
                     CustomComboBox {
                         model: root.check_update_options;
                         current-index <=> root.selected_check_update_index;
-                        height: 32px;
-                        dropdown-height: 100px;
-                    }
-                }
-            }
-        }
-    }
-
-    Rectangle {
-        height: 1px;
-        background: Theme.border_color;
-    }
-
-    // 2. Log level and Retention
-    Rectangle {
-        z: 40;
-        height: log-grid.preferred-height;
-        log-grid := GridLayout {
-            spacing: 12px;
-            Row {
-                VerticalLayout {
-                    horizontal-stretch: 1;
-                    preferred-width: 0;
-                    min-width: 0;
-                    spacing: 10px;
-                    Text {
-                        text: root.strings.log_level;
-                        font-size: 13px * LayoutConstants.font-scale;
-                        font-family: Theme.default_font;
-                        color: Theme.text_secondary;
-                        horizontal-alignment: AppI18n.is-rtl ? right : left;
-                    }
-
-                    CustomComboBox {
-                        model: root.log_level_options;
-                        current-index <=> root.selected_log_level_index;
-                        height: 32px;
-                        dropdown-height: 130px;
-                    }
-                }
-
-                VerticalLayout {
-                    horizontal-stretch: 1;
-                    preferred-width: 0;
-                    min-width: 0;
-                    spacing: 10px;
-                    Text {
-                        text: root.strings.log_retention;
-                        font-size: 13px * LayoutConstants.font-scale;
-                        font-family: Theme.default_font;
-                        color: Theme.text_secondary;
-                        horizontal-alignment: AppI18n.is-rtl ? right : left;
-                    }
-
-                    CustomComboBox {
-                        model: root.log_days_options;
-                        current-index <=> root.selected_log_days_index;
                         height: 32px;
                         dropdown-height: 100px;
                     }

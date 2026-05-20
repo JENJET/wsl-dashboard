@@ -341,107 +341,144 @@ component ExpandedActionIcons inherits VerticalLayout {
     callback configs();
     callback set_default();
     callback terminal_config();
-    alignment: center; // Vertically center (core)
+    alignment: center;
     
-    HorizontalLayout {
+    if (!AppI18n.is-rtl): HorizontalLayout {
         spacing: 16px;
         ActionIcon {
             icon: "\u{E890}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.information", [AppI18n.version]);
-            clicked => {
-                root.information();
-            }
+            clicked => { root.information(); }
         }
-
-        ActionIcon {
-            icon: "\u{E777}";
-            is_font_icon: true;
-            tooltip: AppI18n.t("distro.restart", [AppI18n.version]);
-            clicked => {
-                root.restart();
-            }
-        }
-
-        ActionIcon {
-            icon: "\u{E78C}";
-            is_font_icon: true;
-            tooltip: AppI18n.t("distro.export", [AppI18n.version]);
-            clicked => {
-                root.export_distro();
-            }
-        }
-
-        ActionIcon {
-            icon: "\u{E8DE}";
-            is_font_icon: true;
-            tooltip: AppI18n.t("distro.move", [AppI18n.version]);
-            clicked => {
-                root.move_distro();
-            }
-        }
-
         ActionIcon {
             icon: "\u{E8B7}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.open_install_folder", [AppI18n.version]);
-            clicked => {
-                root.open_install_folder();
-            }
+            clicked => { root.open_install_folder(); }
         }
-
+        ActionIcon {
+            icon: "\u{E777}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.restart", [AppI18n.version]);
+            clicked => { root.restart(); }
+        }
+        ActionIcon {
+            icon: "\u{E78C}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.export", [AppI18n.version]);
+            clicked => { root.export_distro(); }
+        }
+        ActionIcon {
+            icon: "\u{E8DE}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.move", [AppI18n.version]);
+            clicked => { root.move_distro(); }
+        }
         ActionIcon {
             icon: "\u{E8C8}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.clone", [AppI18n.version]);
-            clicked => {
-                root.clone();
-            }
+            clicked => { root.clone(); }
         }
-
         ActionIcon {
             icon: "\u{E74D}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.delete", [AppI18n.version]);
-            clicked => {
-                root.delete_distro();
-            }
+            clicked => { root.delete_distro(); }
         }
-
         ActionIcon {
             icon: "\u{E734}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.set_as_default", [AppI18n.version]);
-            clicked => {
-                root.set_default();
-            }
+            clicked => { root.set_default(); }
         }
-
         ActionIcon {
             icon: "\u{E713}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.settings", [AppI18n.version]);
-            clicked => {
-                root.settings();
-            }
+            clicked => { root.settings(); }
         }
-
         ActionIcon {
             icon: "\u{E835}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.configs", [AppI18n.version]);
-            clicked => {
-                root.configs();
-            }
+            clicked => { root.configs(); }
         }
-
         ActionIcon {
             icon: "\u{E756}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.terminal_config", [AppI18n.version]);
-            clicked => {
-                root.terminal_config();
-            }
+            clicked => { root.terminal_config(); }
+        }
+    }
+    if (AppI18n.is-rtl): HorizontalLayout {
+        spacing: 16px;
+        ActionIcon {
+            icon: "\u{E756}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.terminal_config", [AppI18n.version]);
+            clicked => { root.terminal_config(); }
+        }
+        ActionIcon {
+            icon: "\u{E835}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.configs", [AppI18n.version]);
+            clicked => { root.configs(); }
+        }
+        ActionIcon {
+            icon: "\u{E713}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.settings", [AppI18n.version]);
+            clicked => { root.settings(); }
+        }
+        ActionIcon {
+            icon: "\u{E734}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.set_as_default", [AppI18n.version]);
+            clicked => { root.set_default(); }
+        }
+        ActionIcon {
+            icon: "\u{E74D}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.delete", [AppI18n.version]);
+            clicked => { root.delete_distro(); }
+        }
+        ActionIcon {
+            icon: "\u{E8C8}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.clone", [AppI18n.version]);
+            clicked => { root.clone(); }
+        }
+        ActionIcon {
+            icon: "\u{E8DE}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.move", [AppI18n.version]);
+            clicked => { root.move_distro(); }
+        }
+        ActionIcon {
+            icon: "\u{E78C}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.export", [AppI18n.version]);
+            clicked => { root.export_distro(); }
+        }
+        ActionIcon {
+            icon: "\u{E777}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.restart", [AppI18n.version]);
+            clicked => { root.restart(); }
+        }
+        ActionIcon {
+            icon: "\u{E8B7}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.open_install_folder", [AppI18n.version]);
+            clicked => { root.open_install_folder(); }
+        }
+        ActionIcon {
+            icon: "\u{E890}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.information", [AppI18n.version]);
+            clicked => { root.information(); }
         }
     }
 }

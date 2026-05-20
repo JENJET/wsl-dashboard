@@ -114,6 +114,7 @@ pub fn run_move_process(
 ) {
     let _ = slint::spawn_local(async move {
         if let Some(app) = ah_move.upgrade() {
+            app.set_is_moving(true);
             app.set_task_status_text(i18n::t("operation.moving").into());
             app.set_task_status_visible(true);
         }

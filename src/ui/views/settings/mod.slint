@@ -2,7 +2,8 @@ import { Theme, AppI18n, SettingsStrings, LayoutConstants } from "../../theme.sl
 import { CustomScrollbar } from "../../components/scrollbar.slint";
 import { 
     CustomCheckBox, 
-    CustomButton 
+    CustomButton,
+    CustomComboBox
 } from "../../components/form_widgets.slint";
 import { 
     GeneralSettingsSection, 
@@ -10,6 +11,48 @@ import {
     TerminalSettingsSection, 
     SidebarSettingsSection 
 } from "sections.slint";
+
+// Settings Tab component matching NetworkTab style
+component SettingsTab inherits Rectangle {
+    in property <string> text;
+    in property <bool> active: false;
+    callback clicked;
+
+    width: tab-label.preferred-width + 24px;
+    height: 32px;
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px;
+    border-bottom-left-radius: 0px;
+    border-bottom-right-radius: 0px;
+    background: active ? Theme.accent.with-alpha(0.12) : (touch.has-hover ? Theme.hover_bg : Theme.background);
+    animate background { duration: 150ms; }
+
+    tab-label := Text {
+        text: root.text;
+        color: active ? Theme.accent : Theme.text_secondary;
+        font-size: 13px * LayoutConstants.font-scale;
+        font-weight: 400;
+        font-family: Theme.default_font;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+        animate color { duration: 150ms; }
+    }
+
+    if active: Rectangle {
+        y: parent.height - 2px;
+        height: 2px;
+        width: parent.width * 0.6;
+        x: (parent.width - self.width) / 2;
+        background: Theme.accent;
+        border-radius: 1px;
+    }
+
+    touch := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
 
 export component SettingsView inherits Rectangle {
     in-out property <string> ui_language: "auto";
@@ -51,6 +94,9 @@ export component SettingsView inherits Rectangle {
     in-out property <bool> sidebar_network: true;
     in-out property <bool> sidebar_about: true;
     in property <SettingsStrings> strings;
+
+    // Tab selection
+    in-out property <int> selected_tab: 0;
 
     // Options Models
     private property <[string]> language-options: [
@@ -203,112 +249,313 @@ export component SettingsView inherits Rectangle {
         padding: 0px;
         spacing: 0px;
 
+        // Tab Bar
+        HorizontalLayout {
+            height: 40px;
+            padding-left: 4px;
+            padding-right: 8px;
+            spacing: 4px;
+            alignment: AppI18n.is-rtl ? end : start;
+
+            if (AppI18n.is-rtl): SettingsTab {
+                text: root.strings.tab_interface;
+                active: root.selected_tab == 2;
+                clicked => { root.selected_tab = 2; }
+            }
+            if (AppI18n.is-rtl): SettingsTab {
+                text: root.strings.tab_advanced;
+                active: root.selected_tab == 1;
+                clicked => { root.selected_tab = 1; }
+            }
+            if (AppI18n.is-rtl): SettingsTab {
+                text: root.strings.tab_general;
+                active: root.selected_tab == 0;
+                clicked => { root.selected_tab = 0; }
+            }
+
+            if (!AppI18n.is-rtl): SettingsTab {
+                text: root.strings.tab_general;
+                active: root.selected_tab == 0;
+                clicked => { root.selected_tab = 0; }
+            }
+            if (!AppI18n.is-rtl): SettingsTab {
+                text: root.strings.tab_advanced;
+                active: root.selected_tab == 1;
+                clicked => { root.selected_tab = 1; }
+            }
+            if (!AppI18n.is-rtl): SettingsTab {
+                text: root.strings.tab_interface;
+                active: root.selected_tab == 2;
+                clicked => { root.selected_tab = 2; }
+            }
+        }
+
+        Rectangle {
+            height: 1px;
+            background: Theme.border_color;
+        }
+
+        // Tab Content
         Rectangle {
             vertical-stretch: 1;
-            clip: true;
-            flickable := Flickable {
-                viewport-height: content-layout.preferred-height;
-                width: parent.width;
+
+            // General Tab
+            if (root.selected_tab == 0): Rectangle {
+                width: 100%;
                 height: 100%;
-                content-layout := VerticalLayout {
-                    padding-left: AppI18n.is-rtl ? 16px : 4px;
-                    padding-right: AppI18n.is-rtl ? 4px : 16px;
-                    padding-top: 4px;
-                    padding-bottom: 4px;
-                    spacing: 12px;
-                    alignment: start;
+                clip: true;
+                general-flickable := Flickable {
+                    viewport-height: general-content.preferred-height;
+                    width: parent.width;
+                    height: 100%;
+                    general-content := VerticalLayout {
+                        padding-left: AppI18n.is-rtl ? 16px : 4px;
+                        padding-right: AppI18n.is-rtl ? 4px : 16px;
+                        padding-top: 12px;
+                        padding-bottom: 4px;
+                        spacing: 12px;
+                        alignment: start;
 
-                    GeneralSettingsSection {
-                        strings: root.strings;
-                        selected_language_index <=> root.selected-language-index;
-                        selected_check_update_index <=> root.selected-check-update-index;
-                        selected_log_level_index <=> root.selected-log-level-index;
-                        selected_log_days_index <=> root.selected-log-days-index;
-                        language_options: root.language-options;
-                        check_update_options: root.check-update-options;
-                        log_level_options: root.log-level-options;
-                        log_days_options: root.log-days-options;
-                    }
+                        GeneralSettingsSection {
+                            strings: root.strings;
+                            selected_language_index <=> root.selected-language-index;
+                            selected_check_update_index <=> root.selected-check-update-index;
+                            language_options: root.language-options;
+                            check_update_options: root.check-update-options;
+                        }
 
-                    PathSettingsSection {
-                        strings: root.strings;
-                        distro_location <=> root.distro_location;
-                        logs_location <=> root.logs_location;
-                        select_distro_folder => { root.select-distro-folder(); }
-                        select_logs_folder => { root.select-logs-folder(); }
-                    }
-                    
-                    // Behavior Section
-                    Rectangle {
-                        background: Theme.card_bg;
-                        border-radius: 8px;
-                        border-width: 1px;
-                        border-color: Theme.border_color;
+                        Rectangle {
+                            height: 1px;
+                            background: Theme.border_color;
+                        }
 
-                        VerticalLayout {
-                            padding: 12px;
-                            spacing: 12px;
-                            CustomCheckBox { checked <=> root.system_color; text: root.strings.system_color; }
-                            CustomCheckBox { checked <=> root.auto_shutdown; text: root.strings.auto_close; }
-                            CustomCheckBox { checked <=> root.tray_autostart; text: root.strings.auto_start; }
-                            CustomCheckBox { checked <=> root.tray_start_minimized; text: root.strings.minimize_tray; }
-                            CustomCheckBox { checked <=> root.tray_close_to_tray; text: root.strings.close_to_tray; }
+                        Rectangle {
+                            background: Theme.card_bg;
+                            border-radius: 8px;
+                            border-width: 1px;
+                            border-color: Theme.border_color;
+
+                            VerticalLayout {
+                                padding: 12px;
+                                spacing: 12px;
+                                CustomCheckBox { checked <=> root.tray_autostart; text: root.strings.auto_start; }
+                                CustomCheckBox { checked <=> root.tray_start_minimized; text: root.strings.minimize_tray; }
+                                CustomCheckBox { checked <=> root.tray_close_to_tray; text: root.strings.close_to_tray; }
+                            }
                         }
                     }
-
-                    TerminalSettingsSection {
-                        strings: root.strings;
-                        emulator_options: root.terminal_emulator_options;
-                        selected_emulator_index <=> root.terminal_emulator_index;
-                        show_custom <=> root.terminal_show_custom;
-                        custom_path <=> root.terminal_custom_path;
-                        custom_args <=> root.terminal_custom_args;
-                        validation_result: root.terminal_validation_result;
-                        validation_ok: root.terminal_validation_ok;
-                        path_browse => { root.terminal-path-browse(); }
-                        user_preset_names: root.terminal_user_preset_names;
-                        user_preset_form_title: root.terminal_user_preset_form_title;
-                        show_user_preset_form <=> root.terminal_show_user_preset_form;
-                        user_preset_form_name <=> root.terminal_user_preset_form_name;
-                        user_preset_form_path <=> root.terminal_user_preset_form_path;
-                        user_preset_form_args <=> root.terminal_user_preset_form_args;
-                        user_preset_form_error: root.terminal_user_preset_form_error;
-                        user_preset_original_name <=> root.terminal_user_preset_original_name;
-                        edit_user_preset(name) => { root.edit_user_preset(name); }
-                        delete_user_preset(name) => { root.delete_user_preset(name); }
-                        save_user_preset(old, name, path, args) => { root.save_user_preset(old, name, path, args); }
-                        cancel_user_preset_form => { root.cancel_user_preset_form(); }
-                        add_user_preset => { root.add_user_preset(); }
-                        user_preset_path_browse => { root.user_preset_path_browse(); }
-                    }
-
-                    SidebarSettingsSection {
-                        strings: root.strings;
-                        sidebar_toggle <=> root.sidebar_toggle;
-                        sidebar_add <=> root.sidebar_add;
-                        sidebar_wsl_manage <=> root.sidebar_wsl_manage;
-                        sidebar_usb <=> root.sidebar_usb;
-                        sidebar_network <=> root.sidebar_network;
-                        sidebar_about <=> root.sidebar_about;
-                    }
+                }
+                if (general-flickable.viewport-height > general-flickable.height): CustomScrollbar {
+                    x: AppI18n.is-rtl ? 4px : parent.width - 10px;
+                    y: 0; width: 8px; height: 100%;
+                    maximum: general-flickable.viewport-height - general-flickable.height;
+                    page_size: general-flickable.height;
+                    value: -general-flickable.viewport-y;
+                    scroll_to(v) => { general-flickable.viewport-y = -v; }
                 }
             }
 
-            if (flickable.viewport-height > flickable.height): CustomScrollbar {
-                x: AppI18n.is-rtl ? 4px : parent.width - 10px;
-                y: 0; width: 8px; height: 100%;
-                maximum: flickable.viewport-height - flickable.height;
-                page_size: flickable.height;
-                value: -flickable.viewport-y;
-                scroll_to(v) => { flickable.viewport-y = -v; }
+            // Advanced Tab
+            if (root.selected_tab == 1): Rectangle {
+                width: 100%;
+                height: 100%;
+                clip: true;
+                advanced-flickable := Flickable {
+                    viewport-height: advanced-content.preferred-height;
+                    width: parent.width;
+                    height: 100%;
+                    advanced-content := VerticalLayout {
+                        padding-left: AppI18n.is-rtl ? 16px : 4px;
+                        padding-right: AppI18n.is-rtl ? 4px : 16px;
+                        padding-top: 12px;
+                        padding-bottom: 4px;
+                        spacing: 12px;
+                        alignment: start;
+
+                        PathSettingsSection {
+                            strings: root.strings;
+                            distro_location <=> root.distro_location;
+                            logs_location <=> root.logs_location;
+                            select_distro_folder => { root.select-distro-folder(); }
+                            select_logs_folder => { root.select-logs-folder(); }
+                        }
+
+                        Rectangle {
+                            height: 1px;
+                            background: Theme.border_color;
+                        }
+
+                        Rectangle {
+                            z: 40;
+                            height: log-grid.preferred-height;
+                            log-grid := GridLayout {
+                                spacing: 12px;
+                                Row {
+                                    VerticalLayout {
+                                        horizontal-stretch: 1;
+                                        preferred-width: 0;
+                                        min-width: 0;
+                                        spacing: 10px;
+                                        Text {
+                                            text: root.strings.log_level;
+                                            font-size: 13px * LayoutConstants.font-scale;
+                                            font-family: Theme.default_font;
+                                            color: Theme.text_secondary;
+                                            horizontal-alignment: AppI18n.is-rtl ? right : left;
+                                        }
+                                        CustomComboBox {
+                                            model: root.log-level-options;
+                                            current-index <=> root.selected-log-level-index;
+                                            height: 32px;
+                                            dropdown-height: 130px;
+                                        }
+                                    }
+                                    VerticalLayout {
+                                        horizontal-stretch: 1;
+                                        preferred-width: 0;
+                                        min-width: 0;
+                                        spacing: 10px;
+                                        Text {
+                                            text: root.strings.log_retention;
+                                            font-size: 13px * LayoutConstants.font-scale;
+                                            font-family: Theme.default_font;
+                                            color: Theme.text_secondary;
+                                            horizontal-alignment: AppI18n.is-rtl ? right : left;
+                                        }
+                                        CustomComboBox {
+                                            model: root.log-days-options;
+                                            current-index <=> root.selected-log-days-index;
+                                            height: 32px;
+                                            dropdown-height: 100px;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            height: 1px;
+                            background: Theme.border_color;
+                        }
+
+                        TerminalSettingsSection {
+                            strings: root.strings;
+                            emulator_options: root.terminal_emulator_options;
+                            selected_emulator_index <=> root.terminal_emulator_index;
+                            show_custom <=> root.terminal_show_custom;
+                            custom_path <=> root.terminal_custom_path;
+                            custom_args <=> root.terminal_custom_args;
+                            validation_result: root.terminal_validation_result;
+                            validation_ok: root.terminal_validation_ok;
+                            path_browse => { root.terminal-path-browse(); }
+                            user_preset_names: root.terminal_user_preset_names;
+                            user_preset_form_title: root.terminal_user_preset_form_title;
+                            show_user_preset_form <=> root.terminal_show_user_preset_form;
+                            user_preset_form_name <=> root.terminal_user_preset_form_name;
+                            user_preset_form_path <=> root.terminal_user_preset_form_path;
+                            user_preset_form_args <=> root.terminal_user_preset_form_args;
+                            user_preset_form_error: root.terminal_user_preset_form_error;
+                            user_preset_original_name <=> root.terminal_user_preset_original_name;
+                            edit_user_preset(name) => { root.edit_user_preset(name); }
+                            delete_user_preset(name) => { root.delete_user_preset(name); }
+                            save_user_preset(old, name, path, args) => { root.save_user_preset(old, name, path, args); }
+                            cancel_user_preset_form => { root.cancel_user_preset_form(); }
+                            add_user_preset => { root.add_user_preset(); }
+                            user_preset_path_browse => { root.user_preset_path_browse(); }
+                        }
+
+                        Rectangle {
+                            height: 1px;
+                            background: Theme.border_color;
+                        }
+
+                        Rectangle {
+                            background: Theme.card_bg;
+                            border-radius: 8px;
+                            border-width: 1px;
+                            border-color: Theme.border_color;
+                            VerticalLayout {
+                                padding: 12px;
+                                spacing: 12px;
+                                CustomCheckBox { checked <=> root.auto_shutdown; text: root.strings.auto_close; }
+                            }
+                        }
+                    }
+                }
+                if (advanced-flickable.viewport-height > advanced-flickable.height): CustomScrollbar {
+                    x: AppI18n.is-rtl ? 4px : parent.width - 10px;
+                    y: 0; width: 8px; height: 100%;
+                    maximum: advanced-flickable.viewport-height - advanced-flickable.height;
+                    page_size: advanced-flickable.height;
+                    value: -advanced-flickable.viewport-y;
+                    scroll_to(v) => { advanced-flickable.viewport-y = -v; }
+                }
+            }
+
+            // Interface Tab
+            if (root.selected_tab == 2): Rectangle {
+                width: 100%;
+                height: 100%;
+                clip: true;
+                interface-flickable := Flickable {
+                    viewport-height: interface-content.preferred-height;
+                    width: parent.width;
+                    height: 100%;
+                    interface-content := VerticalLayout {
+                        padding-left: AppI18n.is-rtl ? 16px : 4px;
+                        padding-right: AppI18n.is-rtl ? 4px : 16px;
+                        padding-top: 12px;
+                        padding-bottom: 4px;
+                        spacing: 12px;
+                        alignment: start;
+
+                        SidebarSettingsSection {
+                            strings: root.strings;
+                            sidebar_toggle <=> root.sidebar_toggle;
+                            sidebar_add <=> root.sidebar_add;
+                            sidebar_wsl_manage <=> root.sidebar_wsl_manage;
+                            sidebar_usb <=> root.sidebar_usb;
+                            sidebar_network <=> root.sidebar_network;
+                            sidebar_about <=> root.sidebar_about;
+                        }
+
+                        Rectangle {
+                            height: 1px;
+                            background: Theme.border_color;
+                        }
+
+                        Rectangle {
+                            background: Theme.card_bg;
+                            border-radius: 8px;
+                            border-width: 1px;
+                            border-color: Theme.border_color;
+                            VerticalLayout {
+                                padding: 12px;
+                                spacing: 12px;
+                                CustomCheckBox { checked <=> root.system_color; text: root.strings.system_color; }
+                            }
+                        }
+                    }
+                }
+                if (interface-flickable.viewport-height > interface-flickable.height): CustomScrollbar {
+                    x: AppI18n.is-rtl ? 4px : parent.width - 10px;
+                    y: 0; width: 8px; height: 100%;
+                    maximum: interface-flickable.viewport-height - interface-flickable.height;
+                    page_size: interface-flickable.height;
+                    value: -interface-flickable.viewport-y;
+                    scroll_to(v) => { interface-flickable.viewport-y = -v; }
+                }
             }
         }
 
         // Bottom Buttons
         HorizontalLayout {
-            padding-top: 4px; padding-bottom: 4px;
-            padding-right: AppI18n.is-rtl ? 4px : 16px;
             padding-left: AppI18n.is-rtl ? 16px : 4px;
+            padding-right: AppI18n.is-rtl ? 4px : 16px;
+            padding-top: 4px;
+            padding-bottom: 4px;
+            spacing: 8px;
+            // RTL: Save first (appears on right), then spacer, then WSL settings (appears on left)
             if (AppI18n.is-rtl): CustomButton {
                 text: root.strings.save; primary: true; height: 32px;
                 clicked => { root.save_settings(); }
