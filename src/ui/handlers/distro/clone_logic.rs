@@ -57,6 +57,13 @@ async fn do_clone_inner(
             "WSL2 Clone: Terminating '{}' to release VHDX lock...",
             source_name
         );
+
+        if let Err(e) = std::fs::create_dir_all(target_path) {
+            return CloneResult::FailedImport(
+                i18n::tr("dialog.mkdir_failed", &[e.to_string()]).into(),
+            );
+        }
+
         let _ = executor
             .execute_command(&["--terminate", source_name])
             .await;
@@ -74,7 +81,6 @@ async fn do_clone_inner(
                 None,
             );
         }
-        let _ = std::fs::create_dir_all(target_path_buf);
 
         let mut import_result = WslCommandResult::error("".to_string(), "".to_string());
         for _ in 0..=5 {
@@ -113,8 +119,11 @@ async fn do_clone_inner(
         //wsl1 or fallback clone: export to tar and import back
         let (temp_dir, temp_file_str) =
             super::resolve_temp_path(as_ptr.clone(), source_name, "wsl_clone", "tar").await;
-        let _ = std::fs::create_dir_all(&temp_dir);
-
+        if let Err(e) = std::fs::create_dir_all(&temp_dir) {
+            return CloneResult::FailedExport(
+                i18n::tr("dialog.mkdir_failed", &[e.to_string()]).into(),
+            );
+        }
         let stop_signal = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let _ = super::spawn_file_size_monitor(
             ah.clone(),

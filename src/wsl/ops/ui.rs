@@ -1,7 +1,10 @@
+use crate::config::TerminalPreset;
 use crate::utils::system::CREATE_NO_WINDOW;
 use crate::wsl::executor::WslCommandExecutor;
 use crate::wsl::models::WslCommandResult;
+use crate::wsl::terminal;
 use tokio::task;
+use tracing::info;
 
 pub async fn open_distro_folder(
     _executor: &WslCommandExecutor,
@@ -92,47 +95,26 @@ pub async fn open_distro_terminal(
     distro_name: &str,
     working_dir: &str,
     proxy_exports: Option<Vec<(String, String)>>,
+    terminal_preset: &TerminalPreset,
 ) -> WslCommandResult<String> {
     let name = distro_name.to_string();
     let cd_path = working_dir.to_string();
-    let proxy_exports = proxy_exports.clone();
+    let proxy_prefix = terminal::build_proxy_prefix(proxy_exports.as_deref());
+    let preset = terminal_preset.clone();
 
     task::spawn_blocking(move || {
-        let mut command = std::process::Command::new("cmd");
-        let mut cmd_str = String::new();
-
-        if let Some(exports) = proxy_exports {
-            let mut wslenv = String::new();
-
-            for (k, v) in exports {
-                cmd_str.push_str(&format!("echo export {}={}& ", k, v));
-                cmd_str.push_str(&format!("set \"{}={}\"& ", k, v));
-                wslenv.push_str(&format!("{}/u:", k));
-            }
-            if !wslenv.is_empty() {
-                wslenv.pop(); // remove trailing colon
-                cmd_str.push_str(&format!("set \"WSLENV={}\"& ", wslenv));
-            }
-        }
-
-        cmd_str.push_str(&format!("wsl -d {} --cd {}", name, cd_path));
-        command.args(&[
-            "/c",
-            "start",
-            &format!("WSL: {}", name),
-            "cmd",
-            "/c",
-            &cmd_str,
-        ]);
-
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-
-            command.creation_flags(CREATE_NO_WINDOW);
-        }
-        let output = command.status();
-        match output {
+        let mut command = terminal::build_command(&preset, &name, &cd_path, &proxy_prefix);
+        info!(
+            "Opening terminal for '{}': {} {}",
+            name,
+            preset.path,
+            preset
+                .args
+                .replace("{distro}", &name)
+                .replace("{dir}", &cd_path)
+                .replace("{proxy}", &proxy_prefix)
+        );
+        match command.spawn() {
             Ok(_) => WslCommandResult::success(String::new(), None),
             Err(e) => WslCommandResult::error(String::new(), e.to_string()),
         }

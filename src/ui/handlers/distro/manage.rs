@@ -1,12 +1,13 @@
 use crate::handlers::network::show_toast;
 use crate::ui::data::refresh_distros_ui;
 use crate::ui::handlers::instance;
+use crate::wsl::terminal;
 use crate::{AppState, AppWindow, i18n};
 use slint::Model;
 use std::os::windows::process::CommandExt;
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::info;
+use tracing::{error, info};
 
 pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc<Mutex<AppState>>) {
     // Handle message link click
@@ -49,8 +50,9 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
 
                 if let Some(op) = manager.get_active_op(&name) {
                     let msg = i18n::tr("toast.distro_busy", &[name.to_string(), op.to_string()]);
+                    let ah1 = ah.clone();
                     let _ = slint::invoke_from_event_loop(move || {
-                        if let Some(app) = ah.upgrade() {
+                        if let Some(app) = ah1.upgrade() {
                             app.set_current_message(msg.into());
                             app.set_show_message_dialog(true);
                         }
@@ -59,50 +61,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 }
 
                 {
-                    let lock_timeout = std::time::Duration::from_millis(500);
-                    if let Ok(app_state) = tokio::time::timeout(lock_timeout, as_ptr.lock()).await {
-                        let executor = app_state.wsl_dashboard.executor().clone();
-                        let instance_config = app_state.config_manager.get_instance_config(&name);
-                        let working_dir = instance_config.terminal_dir.clone();
-                        let terminal_proxy_enabled = instance_config.terminal_proxy;
-                        let proxy_config =
-                            app_state.config_manager.get_network_config().proxy.clone();
-                        drop(app_state);
-
-                        let mut proxy_exports: Option<Vec<(String, String)>> = None;
-                        if terminal_proxy_enabled
-                            && proxy_config.is_enabled
-                            && !proxy_config.host.is_empty()
-                            && !proxy_config.port.is_empty()
-                        {
-                            let auth = if proxy_config.auth_enabled
-                                && !proxy_config.username.is_empty()
-                                && !proxy_config.password.is_empty()
-                            {
-                                format!("{}:{}@", proxy_config.username, proxy_config.password)
-                            } else {
-                                "".to_string()
-                            };
-                            let proxy_url = format!(
-                                "http://{}{}:{}",
-                                auth, proxy_config.host, proxy_config.port
-                            );
-
-                            let mut exports = Vec::new();
-                            exports.push(("HTTP_PROXY".to_string(), proxy_url.clone()));
-                            exports.push(("HTTPS_PROXY".to_string(), proxy_url.clone()));
-
-                            if !proxy_config.no_proxy.is_empty() {
-                                exports
-                                    .push(("NO_PROXY".to_string(), proxy_config.no_proxy.clone()));
-                            }
-                            proxy_exports = Some(exports);
-                        }
-
-                        let _ = executor
-                            .open_distro_terminal(&name, &working_dir, proxy_exports)
-                            .await;
-                    }
+                    crate::ui::handlers::resolve_and_open_terminal(&as_ptr, &name, &ah).await;
                 }
                 refresh_distros_ui(ah, as_ptr).await;
             });
@@ -835,7 +794,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
     {
         let ah = app_handle.clone();
         app.on_show_copy_success(move || {
-            show_toast(ah.clone(), "toast.copy_success".into());
+            show_toast(ah.clone(), i18n::t("toast.copy_success").into());
         });
     }
 
@@ -1262,6 +1221,416 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     }
                 });
             });
+        });
+    }
+
+    // Terminal Config - open per-distro dialog
+    {
+        let ah = app_handle.clone();
+        let as_ptr = app_state.clone();
+        app.on_terminal_config_clicked(move |name| {
+            let ah = ah.clone();
+            let as_ptr = as_ptr.clone();
+            let name = name.to_string();
+            let _ = slint::spawn_local(async move {
+                if let Some(_app) = ah.upgrade() {
+                    let state = as_ptr.lock().await;
+                    let global_settings = state.config_manager.get_settings().clone();
+                    let instance_config = state.config_manager.get_instance_config(&name);
+                    let proxy_config = state.config_manager.get_network_config().proxy.clone();
+                    drop(state);
+
+                    let all_presets = terminal::resolve_presets(
+                        terminal::get_builtin_presets_map(),
+                        &global_settings.terminal_presets,
+                        &global_settings.terminal_user_presets,
+                    );
+                    let mut preset_names: Vec<String> = all_presets
+                        .keys()
+                        .filter(|name| {
+                            terminal::BuiltinTerminal::is_always_visible(name)
+                                || terminal::validate_preset(&all_presets[name.as_str()]).is_ok()
+                        })
+                        .cloned()
+                        .collect();
+                    preset_names.sort_by(|a, b| {
+                        let prio_a = terminal::BuiltinTerminal::from_str(a)
+                            .map(|t| t.priority())
+                            .unwrap_or(4);
+                        let prio_b = terminal::BuiltinTerminal::from_str(b)
+                            .map(|t| t.priority())
+                            .unwrap_or(4);
+                        prio_a.cmp(&prio_b).then(a.cmp(b))
+                    });
+
+                    let mut options: Vec<String> = Vec::new();
+                    options.push(i18n::tr(
+                        "dialog.terminal.use_global",
+                        &[global_settings.terminal_emulator.clone()],
+                    ));
+                    for name in &preset_names {
+                        options.push(name.clone());
+                    }
+
+                    let current_terminal = instance_config.terminal_emulator.clone();
+                    let is_default = current_terminal.is_empty();
+                    let selected_index = if is_default {
+                        0
+                    } else {
+                        let mut idx = 0;
+                        for (i, pn) in preset_names.iter().enumerate() {
+                            if pn == &current_terminal {
+                                idx = i + 1;
+                                break;
+                            }
+                        }
+                        idx
+                    };
+
+                    let default_label = i18n::tr(
+                        "dialog.terminal.global_default",
+                        &[global_settings.terminal_emulator.clone()],
+                    );
+
+                    // Compute current (saved) preset info
+                    let effective_preset_name = if current_terminal.is_empty() {
+                        &global_settings.terminal_emulator
+                    } else {
+                        &current_terminal
+                    };
+
+                    let effective_preset = all_presets.get(effective_preset_name);
+                    let current_preset_exe =
+                        effective_preset.map(|p| p.path.clone()).unwrap_or_default();
+                    let current_preset_name = if is_default {
+                        i18n::tr(
+                            "dialog.terminal.use_global",
+                            &[effective_preset_name.clone()],
+                        )
+                    } else {
+                        effective_preset_name.clone()
+                    };
+
+                    let terminal_dir = if instance_config.terminal_dir.is_empty() {
+                        "~".to_string()
+                    } else {
+                        instance_config.terminal_dir.clone()
+                    };
+                    let resolved_template = effective_preset.map(|p| {
+                        crate::wsl::terminal::format_terminal_command(
+                            p,
+                            &name,
+                            &terminal_dir,
+                            instance_config.terminal_proxy,
+                            &proxy_config,
+                        )
+                    });
+                    let command_display = resolved_template
+                        .clone()
+                        .unwrap_or_else(|| effective_preset_name.clone());
+                    let current_preset_template = resolved_template.unwrap_or_default();
+
+                    let proxy_hint = if instance_config.terminal_proxy
+                        && proxy_config.is_enabled
+                        && !proxy_config.host.is_empty()
+                        && !proxy_config.port.is_empty()
+                    {
+                        format!("{}:{}", proxy_config.host, proxy_config.port)
+                    } else {
+                        "-".to_string()
+                    };
+
+                    let ah_inner = ah.clone();
+                    let options_strs: Vec<slint::SharedString> = options
+                        .iter()
+                        .map(|s| slint::SharedString::from(s.as_str()))
+                        .collect();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        let model: slint::ModelRc<slint::SharedString> =
+                            slint::ModelRc::new(slint::VecModel::from(options_strs.clone()));
+                        if let Some(win) = ah_inner.upgrade() {
+                            win.set_terminal_config_distro_name(name.into());
+                            win.set_terminal_config_options(model);
+                            win.set_terminal_config_index(selected_index as i32);
+                            win.set_terminal_config_show_custom(false);
+                            win.set_terminal_config_custom_path("".into());
+                            win.set_terminal_config_custom_args("".into());
+                            win.set_terminal_config_validation_text("".into());
+                            win.set_terminal_config_validation_ok(true);
+                            win.set_terminal_config_is_default(is_default);
+                            win.set_terminal_config_default_label(default_label.into());
+                            win.set_terminal_config_command_display(command_display.into());
+                            win.set_terminal_config_current_preset_name(current_preset_name.into());
+                            win.set_terminal_config_current_preset_template(
+                                current_preset_template.into(),
+                            );
+                            win.set_terminal_config_current_preset_exe(current_preset_exe.into());
+                            win.set_terminal_config_proxy_hint(proxy_hint.into());
+                            win.set_terminal_config_terminal_dir(
+                                instance_config.terminal_dir.into(),
+                            );
+                            win.set_show_terminal_config(true);
+                        }
+                    });
+                }
+            });
+        });
+    }
+
+    // Terminal Config - index changed (update command preview)
+    {
+        let ah = app_handle.clone();
+        let as_ptr = app_state.clone();
+        app.on_terminal_config_index_changed(move |index| {
+            let ah = ah.clone();
+            let as_ptr = as_ptr.clone();
+            let idx = index as usize;
+            let _ = slint::spawn_local(async move {
+                if let Some(app) = ah.upgrade() {
+                    let distro_name = app.get_terminal_config_distro_name().to_string();
+                    let terminal_dir = app.get_terminal_config_terminal_dir().to_string();
+                    let state = as_ptr.lock().await;
+                    let global_settings = state.config_manager.get_settings().clone();
+                    let instance_config = state.config_manager.get_instance_config(&distro_name);
+                    let proxy_config = state.config_manager.get_network_config().proxy.clone();
+                    drop(state);
+
+                    let index = idx;
+                    let options = app.get_terminal_config_options();
+                    let is_default = index == 0;
+                    let default_label = i18n::tr(
+                        "dialog.terminal.global_default",
+                        &[global_settings.terminal_emulator.clone()],
+                    );
+
+                    let preset_name = if is_default {
+                        global_settings.terminal_emulator.clone()
+                    } else if index > 0 && index <= options.row_count() as usize {
+                        options
+                            .row_data(index)
+                            .map(|s| s.to_string())
+                            .unwrap_or_default()
+                    } else {
+                        String::new()
+                    };
+
+                    let all_presets = crate::wsl::terminal::resolve_presets(
+                        crate::wsl::terminal::get_builtin_presets_map(),
+                        &global_settings.terminal_presets,
+                        &global_settings.terminal_user_presets,
+                    );
+                    let preset = all_presets.get(&preset_name);
+                    let current_preset_exe = preset.map(|p| p.path.clone()).unwrap_or_default();
+
+                    let dir = if terminal_dir.is_empty() {
+                        "~".to_string()
+                    } else {
+                        terminal_dir
+                    };
+                    let command_display = preset
+                        .map(|p| {
+                            crate::wsl::terminal::format_terminal_command(
+                                p,
+                                &distro_name,
+                                &dir,
+                                instance_config.terminal_proxy,
+                                &proxy_config,
+                            )
+                        })
+                        .unwrap_or_else(|| preset_name.clone());
+
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(win) = ah.upgrade() {
+                            win.set_terminal_config_is_default(is_default);
+                            win.set_terminal_config_default_label(default_label.into());
+                            win.set_terminal_config_command_display(command_display.into());
+                            win.set_terminal_config_current_preset_exe(current_preset_exe.into());
+                        }
+                    });
+                }
+            });
+        });
+    }
+
+    // Terminal Config - dir edited (update command preview)
+    {
+        let ah = app_handle.clone();
+        let as_ptr = app_state.clone();
+        app.on_terminal_config_dir_edited(move |_dir| {
+            let ah = ah.clone();
+            let as_ptr = as_ptr.clone();
+            let _ = slint::spawn_local(async move {
+                if let Some(app) = ah.upgrade() {
+                    let distro_name = app.get_terminal_config_distro_name().to_string();
+                    let terminal_dir = app.get_terminal_config_terminal_dir().to_string();
+                    let state = as_ptr.lock().await;
+                    let global_settings = state.config_manager.get_settings().clone();
+                    let instance_config = state.config_manager.get_instance_config(&distro_name);
+                    let proxy_config = state.config_manager.get_network_config().proxy.clone();
+                    drop(state);
+
+                    let index = app.get_terminal_config_index() as usize;
+                    let options = app.get_terminal_config_options();
+                    let is_default = index == 0;
+
+                    let preset_name = if is_default {
+                        global_settings.terminal_emulator.clone()
+                    } else if index > 0 && index <= options.row_count() as usize {
+                        options
+                            .row_data(index)
+                            .map(|s| s.to_string())
+                            .unwrap_or_default()
+                    } else {
+                        String::new()
+                    };
+
+                    let all_presets = crate::wsl::terminal::resolve_presets(
+                        crate::wsl::terminal::get_builtin_presets_map(),
+                        &global_settings.terminal_presets,
+                        &global_settings.terminal_user_presets,
+                    );
+                    let preset = all_presets.get(&preset_name);
+
+                    let dir = if terminal_dir.is_empty() {
+                        "~".to_string()
+                    } else {
+                        terminal_dir
+                    };
+                    let command_display = preset
+                        .map(|p| {
+                            crate::wsl::terminal::format_terminal_command(
+                                p,
+                                &distro_name,
+                                &dir,
+                                instance_config.terminal_proxy,
+                                &proxy_config,
+                            )
+                        })
+                        .unwrap_or_else(|| preset_name.clone());
+
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(win) = ah.upgrade() {
+                            win.set_terminal_config_command_display(command_display.into());
+                        }
+                    });
+                }
+            });
+        });
+    }
+
+    // Terminal Config - save per-distro
+    {
+        let ah = app_handle.clone();
+        let as_ptr = app_state.clone();
+        app.on_confirm_terminal_config(move |name, index, _path, _args| {
+            let ah = ah.clone();
+            let as_ptr = as_ptr.clone();
+            let name = name.to_string();
+            let _ = slint::spawn_local(async move {
+                let state = as_ptr.lock().await;
+                let mut config = state.config_manager.get_instance_config(&name);
+
+                // Index 0 = Use global default (empty string)
+                if index == 0 {
+                    config.terminal_emulator = String::new();
+                } else {
+                    let options = {
+                        if let Some(app) = ah.upgrade() {
+                            let opts = app.get_terminal_config_options();
+                            let idx = index as usize;
+                            if idx < opts.row_count() as usize {
+                                opts.row_data(idx).map(|s| s.to_string())
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    };
+                    if let Some(opt) = options {
+                        config.terminal_emulator = opt;
+                    }
+                }
+
+                // Validate terminal executable exists before saving
+                let terminal_emulator = &config.terminal_emulator;
+                if !terminal_emulator.is_empty() {
+                    let builtin = crate::wsl::terminal::get_builtin_presets_map();
+                    let all_presets = crate::wsl::terminal::resolve_presets(
+                        builtin,
+                        &state.config_manager.get_settings().terminal_presets,
+                        &state.config_manager.get_settings().terminal_user_presets,
+                    );
+                    if let Some(preset) = all_presets.get(terminal_emulator) {
+                        if let Err(_) = crate::wsl::terminal::validate_preset(preset) {
+                            let error_msg = i18n::tr(
+                                "dialog.terminal.validation_file_not_found",
+                                &[preset.path.clone()],
+                            );
+                            let _ = slint::invoke_from_event_loop(move || {
+                                if let Some(app) = ah.upgrade() {
+                                    app.set_current_message(error_msg.into());
+                                    app.set_show_message_dialog(true);
+                                }
+                            });
+                            return;
+                        }
+                    }
+                }
+
+                config.terminal_dir = if let Some(app) = ah.upgrade() {
+                    let td = app.get_terminal_config_terminal_dir().to_string();
+                    if td.is_empty() || td == "~" {
+                        "~".to_string()
+                    } else if !td.starts_with('/') {
+                        let error_msg = i18n::t("dialog.terminal.dir_error");
+                        let ah2 = ah.clone();
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(app) = ah2.upgrade() {
+                                app.set_current_message(error_msg.into());
+                                app.set_show_message_dialog(true);
+                            }
+                        });
+                        return;
+                    } else {
+                        td
+                    }
+                } else {
+                    "~".to_string()
+                };
+
+                if let Err(e) = state.config_manager.update_instance_config(&name, config) {
+                    error!("Failed to save terminal config for '{}': {}", name, e);
+                }
+                drop(state);
+
+                if let Some(app) = ah.upgrade() {
+                    app.set_show_terminal_config(false);
+                }
+                refresh_distros_ui(ah, as_ptr).await;
+            });
+        });
+    }
+
+    // Terminal Config - close
+    {
+        let _ah = app_handle.clone();
+        app.on_close_terminal_config(move || {});
+    }
+
+    // Terminal Config - path browse
+    {
+        let ah = app_handle.clone();
+        app.on_terminal_config_path_browse(move || {
+            if let Some(path) = rfd::FileDialog::new()
+                .set_title(i18n::t("settings.select_terminal_exe"))
+                .add_filter("Executable", &["exe"])
+                .pick_file()
+            {
+                if let Some(app) = ah.upgrade() {
+                    app.set_terminal_config_custom_path(path.display().to_string().into());
+                }
+            }
         });
     }
 }

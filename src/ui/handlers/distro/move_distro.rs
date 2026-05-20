@@ -1,8 +1,12 @@
+use crate::network::tracker;
 use crate::{AppState, AppWindow, i18n};
 use slint::{ComponentHandle, Model};
 use std::sync::Arc;
+use std::sync::atomic::Ordering;
 use tokio::sync::Mutex;
 use tracing::info;
+
+use super::batch::{BATCH_MOVE_STATE, BatchMoveState};
 
 pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc<Mutex<AppState>>) {
     // Open Move Dialog
@@ -75,7 +79,14 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
     app.on_cancel_move_confirm(move || {
         if let Some(app) = ah_cancel.upgrade() {
             app.set_show_move_confirm(false);
-            info!("Operation: Move confirm cancelled");
+            if app.get_move_source_name().is_empty() {
+                if let Ok(mut state) = BATCH_MOVE_STATE.lock() {
+                    *state = None;
+                }
+                info!("Operation: Batch move confirm cancelled");
+            } else {
+                info!("Operation: Move confirm cancelled");
+            }
         }
     });
 
@@ -106,6 +117,120 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 app.set_show_move_confirm(false);
 
                 let source_name = app.get_move_source_name().to_string();
+
+                if source_name.is_empty() {
+                    // Batch move - read from BATCH_MOVE_STATE
+                    info!("Operation: Batch move confirmed");
+                    let state = BATCH_MOVE_STATE.lock().ok().and_then(|mut s| s.take());
+                    if let Some(BatchMoveState { root_path }) = state {
+                        app.set_batch_operating(true);
+                        tracker::BATCH_OPERATING.store(true, Ordering::SeqCst);
+                        app.set_is_moving(true);
+                        app.set_task_status_text(i18n::t("operation.moving").into());
+                        app.set_task_status_visible(true);
+
+                        let ah_weak = app.as_weak();
+                        let as_ptr = as_ptr.clone();
+                        let path = root_path.to_string_lossy().to_string();
+                        tokio::spawn(async move {
+                            let root_path = std::path::PathBuf::from(&path);
+                            let names = super::batch::get_selected_names(&as_ptr).await;
+                            if names.is_empty() {
+                                return;
+                            }
+                            let names_len = names.len();
+                            let _ = slint::invoke_from_event_loop({
+                                let ah = ah_weak.clone();
+                                let suffix = format!(" [0/{}]", names_len);
+                                move || {
+                                    if let Some(app) = ah.upgrade() {
+                                        app.set_task_status_text(
+                                            i18n::t("operation.moving").into(),
+                                        );
+                                        app.set_batch_progress_suffix(suffix.into());
+                                        app.set_task_status_visible(true);
+                                    }
+                                }
+                            });
+                            let names_len = names.len();
+                            let total = names_len;
+                            let mut failed_count = 0;
+                            let mut success_count = 0;
+                            for (i, name) in names.iter().enumerate() {
+                                let _ = slint::invoke_from_event_loop({
+                                    let ah = ah_weak.clone();
+                                    let name = name.clone();
+                                    let suffix = format!(" [{}/{}]", i + 1, total);
+                                    move || {
+                                        if let Some(app) = ah.upgrade() {
+                                            app.set_task_status_text(
+                                                format!("{} {}", name, i18n::t("operation.moving"))
+                                                    .into(),
+                                            );
+                                            app.set_batch_progress_suffix(suffix.into());
+                                            app.set_task_status_visible(true);
+                                        }
+                                    }
+                                });
+                                let name_clone = name.to_string();
+                                let version = {
+                                    let app_ui = ah_weak.upgrade();
+                                    let mut ver = crate::wsl::models::WslVersion::V2.to_string();
+                                    if let Some(app) = app_ui {
+                                        let distros = app.get_distros();
+                                        for j in 0..distros.row_count() {
+                                            if let Some(d) = distros.row_data(j) {
+                                                if d.name == name_clone {
+                                                    ver = d.version.to_string();
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+                                    ver
+                                };
+                                let target_name = name.to_string();
+                                let target_path =
+                                    root_path.join(&target_name).to_string_lossy().to_string();
+                                let success = super::move_logic::perform_batch_move(
+                                    ah_weak.clone(),
+                                    as_ptr.clone(),
+                                    name.to_string(),
+                                    target_name,
+                                    target_path,
+                                    version,
+                                    true,
+                                )
+                                .await;
+                                if success {
+                                    success_count += 1;
+                                    super::batch::deselect_distro(&as_ptr, &ah_weak, name).await;
+                                } else {
+                                    failed_count += 1;
+                                }
+                            }
+                            let skipped = total as i32 - success_count - failed_count;
+                            let cancelled = skipped > 0;
+                            super::batch::finish_batch(
+                                &ah_weak,
+                                success_count,
+                                failed_count,
+                                skipped,
+                                cancelled,
+                            );
+                            let _ = slint::invoke_from_event_loop({
+                                let ah = ah_weak.clone();
+                                move || {
+                                    if let Some(app) = ah.upgrade() {
+                                        app.set_is_moving(false);
+                                    }
+                                }
+                            });
+                        });
+                    }
+                    return;
+                }
+
                 let target_name = app.get_move_target_name().to_string();
                 let target_path = app.get_move_target_path().to_string();
 
@@ -205,13 +330,6 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                         app.set_move_error(i18n::t("dialog.path_is_not_dir").into());
                         return;
                     }
-                } else {
-                    if let Err(e) = std::fs::create_dir_all(p) {
-                        app.set_move_error(
-                            i18n::tr("dialog.mkdir_failed", &[e.to_string()]).into(),
-                        );
-                        return;
-                    }
                 }
 
                 // Validation: Target not overlapping with existing install location
@@ -241,23 +359,21 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
 
                 app.set_move_error("".into());
 
-                if version == crate::wsl::models::WslVersion::V2.to_string() {
-                    // Check if there are other running distros
-                    let mut running_names = Vec::new();
-                    for i in 0..distros.row_count() {
-                        if let Some(d) = distros.row_data(i) {
-                            if d.status.as_str() == "Running" && d.name != source_name {
-                                running_names.push(d.name.to_string());
-                            }
+                let is_wsl2 = version == crate::wsl::models::WslVersion::V2.to_string();
+
+                // Collect running distros for warning
+                let mut running_names = Vec::new();
+                for i in 0..distros.row_count() {
+                    if let Some(d) = distros.row_data(i) {
+                        if d.status.as_str() == "Running" && (is_wsl2 || d.name == source_name) {
+                            running_names.push(d.name.to_string());
                         }
                     }
+                }
 
-                    let warning_msg = if running_names.is_empty() {
-                        i18n::t("dialog.move_wsl2_shutdown_warning_no_running")
-                    } else {
-                        let other_distros = running_names.join(", ");
-                        i18n::tr("dialog.move_wsl2_shutdown_warning", &[other_distros])
-                    };
+                if !running_names.is_empty() {
+                    let warning_msg =
+                        i18n::tr("dialog.move_shutdown_warning", &[running_names.join(", ")]);
 
                     app.set_move_confirm_message(warning_msg.into());
                     app.set_show_move_confirm(true);

@@ -302,12 +302,18 @@ export component AddInstanceView inherits VerticalLayout {
                 HorizontalLayout {
                     spacing: 4px;
                     alignment: AppI18n.is-rtl ? end : start;
-                    if (!AppI18n.is-rtl): Text {
-                        text: root.selected_source_idx == 0 ? AppI18n.t("add.select_rootfs", [AppI18n.version]) : AppI18n.t("add.select_vhdx", [AppI18n.version]);
-                        font-size: 13px * LayoutConstants.font-scale;
-                        font-family: Theme.default_font;
-                        color: Theme.text_secondary;
-                        height: 18px;
+                    if (!AppI18n.is-rtl): Rectangle {
+                        horizontal-stretch: 1;
+                        min-width: 0;
+                        Text {
+                            text: root.selected_source_idx == 0 ? AppI18n.t("add.select_rootfs", [AppI18n.version]) : AppI18n.t("add.select_vhdx", [AppI18n.version]);
+                            font-size: 13px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            color: Theme.text_secondary;
+                            height: 18px;
+                            overflow: elide;
+                            min-width: 0;
+                        }
                     }
                     if (AppI18n.is-rtl): Rectangle {
                         width: 16px;
@@ -325,12 +331,18 @@ export component AddInstanceView inherits VerticalLayout {
                             clicked => { root.show_rootfs_help_clicked(); }
                         }
                     }
-                    if (AppI18n.is-rtl): Text {
-                        text: root.selected_source_idx == 0 ? AppI18n.t("add.select_rootfs", [AppI18n.version]) : AppI18n.t("add.select_vhdx", [AppI18n.version]);
-                        font-size: 13px * LayoutConstants.font-scale;
-                        font-family: Theme.default_font;
-                        color: Theme.text_secondary;
-                        height: 18px;
+                    if (AppI18n.is-rtl): Rectangle {
+                        horizontal-stretch: 1;
+                        min-width: 0;
+                        Text {
+                            text: root.selected_source_idx == 0 ? AppI18n.t("add.select_rootfs", [AppI18n.version]) : AppI18n.t("add.select_vhdx", [AppI18n.version]);
+                            font-size: 13px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            color: Theme.text_secondary;
+                            height: 18px;
+                            overflow: elide;
+                            min-width: 0;
+                        }
                     }
                     if (root.selected_source_idx == 0 && !AppI18n.is-rtl): Rectangle {
                         width: 16px;

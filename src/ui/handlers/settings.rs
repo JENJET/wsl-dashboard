@@ -1,6 +1,6 @@
 use crate::utils::system::CREATE_NO_WINDOW;
 use crate::{AppI18n, AppState, AppWindow, Theme, config, i18n};
-use slint::ComponentHandle;
+use slint::{ComponentHandle, Model};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::{error, info};
@@ -25,6 +25,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 let check_update = app.get_check_update_interval() as u8;
                 let system_color = app.get_system_color();
 
+                let sidebar_toggle = app.get_sidebar_toggle();
                 let sidebar_add = app.get_sidebar_add();
                 let sidebar_wsl_manage = app.get_sidebar_wsl_manage();
                 let sidebar_usb = app.get_sidebar_usb();
@@ -33,8 +34,8 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
 
                 let mut state = as_ptr.lock().await;
 
-                // Update sidebar settings
                 let sidebar_config = config::SidebarConfig {
+                    toggle: sidebar_toggle,
                     add: sidebar_add,
                     wsl_manage: sidebar_wsl_manage,
                     usb: sidebar_usb,
@@ -105,6 +106,56 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 }
 
 
+                let terminal_presets = state.config_manager.get_settings().terminal_presets.clone();
+                let terminal_user_presets = state.config_manager.get_settings().terminal_user_presets.clone();
+                let terminal_emulator = {
+                    let idx = app.get_terminal_emulator_index() as usize;
+                    let options = app.get_terminal_emulator_options();
+                    if idx < options.row_count() as usize {
+                        options.row_data(idx).map(|s| s.to_string()).unwrap_or_default()
+                    } else {
+                        state.config_manager.get_settings().terminal_emulator.clone()
+                    }
+                };
+
+                if !terminal_emulator.is_empty() {
+                    let builtin = crate::wsl::terminal::get_builtin_presets_map();
+                    let all_presets = crate::wsl::terminal::resolve_presets(
+                        builtin,
+                        &terminal_presets,
+                        &terminal_user_presets,
+                    );
+                    if let Some(preset) = all_presets.get(&terminal_emulator) {
+                        if let Err(_) = crate::wsl::terminal::validate_preset(preset) {
+                            let error_msg = i18n::tr(
+                                "dialog.terminal.validation_file_not_found",
+                                &[preset.path.clone()],
+                            );
+                            drop(state);
+                            let _ = slint::invoke_from_event_loop(move || {
+                                if let Some(app) = ah.upgrade() {
+                                    app.set_current_message(error_msg.into());
+                                    app.set_show_message_dialog(true);
+                                }
+                            });
+                            return;
+                        }
+                    } else {
+                        let error_msg = i18n::tr(
+                            "dialog.terminal.preset_error",
+                            &[terminal_emulator.clone()],
+                        );
+                        drop(state);
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(app) = ah.upgrade() {
+                                app.set_current_message(error_msg.into());
+                                app.set_show_message_dialog(true);
+                            }
+                        });
+                        return;
+                    }
+                }
+
                 let user_settings = config::UserSettings {
                     modify_time: chrono::Utc::now().timestamp_millis().to_string(),
                     distro_location,
@@ -119,6 +170,9 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     check_time: state.config_manager.get_settings().check_time.clone(),
                     sidebar_collapsed: app.get_sidebar_collapsed(),
                     system_color,
+                    terminal_emulator,
+                    terminal_presets,
+                    terminal_user_presets,
                 };
 
                 // Dynamic ThemeWatcher switching
@@ -147,6 +201,8 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                         drop(state);
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(app) = ah.upgrade() {
+                                // Sync saved terminal index so next settings visit uses saved value
+                                app.set_saved_terminal_emulator_index(app.get_terminal_emulator_index());
                                 // Translate message if possible, or just keep english for now as it's dynamic
                                 // But better to use a key if we had one "settings.saved_success"
                                 app.set_current_message(i18n::t("settings.saved_success").into());
@@ -294,5 +350,259 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 show_upgrade_prompt(ah);
             }
         });
+    });
+
+    let ah = app_handle.clone();
+    app.on_terminal_path_browse(move || {
+        if let Some(path) = rfd::FileDialog::new()
+            .set_title(i18n::t("settings.select_terminal_exe"))
+            .add_filter("Executable", &["exe"])
+            .pick_file()
+        {
+            if let Some(app) = ah.upgrade() {
+                app.set_terminal_custom_path(path.display().to_string().into());
+            }
+        }
+    });
+
+    // User-defined terminal preset management
+    let ah = app_handle.clone();
+    app.on_add_user_preset(move || {
+        if let Some(app) = ah.upgrade() {
+            app.set_terminal_user_preset_form_title(i18n::t("dialog.terminal.add_preset").into());
+            app.set_terminal_user_preset_form_name("".into());
+            app.set_terminal_user_preset_form_path("".into());
+            app.set_terminal_user_preset_form_args("wsl -d {distro} --cd {dir}".into());
+            app.set_terminal_user_preset_original_name("".into());
+            app.set_terminal_user_preset_form_error("".into());
+            app.set_terminal_show_user_preset_form(true);
+        }
+    });
+
+    let ah = app_handle.clone();
+    let as_ptr = app_state.clone();
+    app.on_edit_user_preset(move |name: slint::SharedString| {
+        let ah = ah.clone();
+        let as_ptr = as_ptr.clone();
+        let name = name.to_string();
+        let _ = slint::spawn_local(async move {
+            let state = as_ptr.lock().await;
+            let settings = state.config_manager.get_settings().clone();
+            drop(state);
+            let preset_opt = settings.terminal_user_presets.get(&name).cloned();
+            if let Some(preset) = preset_opt {
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(app) = ah.upgrade() {
+                        app.set_terminal_user_preset_form_title(
+                            i18n::t("dialog.terminal.edit_preset").into(),
+                        );
+                        app.set_terminal_user_preset_form_name(name.clone().into());
+                        app.set_terminal_user_preset_form_path(preset.path.clone().into());
+                        app.set_terminal_user_preset_form_args(preset.args.clone().into());
+                        app.set_terminal_user_preset_original_name(name.into());
+                        app.set_terminal_user_preset_form_error("".into());
+                        app.set_terminal_show_user_preset_form(true);
+                    }
+                });
+            }
+        });
+    });
+
+    let ah = app_handle.clone();
+    let as_ptr = app_state.clone();
+    app.on_delete_user_preset(move |name: slint::SharedString| {
+        let ah = ah.clone();
+        let as_ptr = as_ptr.clone();
+        let name = name.to_string();
+        let _ = slint::spawn_local(async move {
+            let mut state = as_ptr.lock().await;
+            let mut settings = state.config_manager.get_settings().clone();
+            settings.terminal_user_presets.remove(&name);
+            let was_global_reset = settings.terminal_emulator == name;
+            if was_global_reset {
+                settings.terminal_emulator = crate::wsl::terminal::BuiltinTerminal::Cmd
+                    .as_str()
+                    .to_string();
+            }
+            let user_names: Vec<String> = settings.terminal_user_presets.keys().cloned().collect();
+            let updated_settings = settings.clone();
+            if let Err(e) = state.config_manager.update_settings(settings) {
+                error!("Failed to delete user preset: {}", e);
+            }
+
+            // Reset per-instance terminal emulator if it was set to the deleted preset
+            let instances_path = crate::config::ConfigManager::get_instances_path();
+            let mut container = crate::config::instances::load_instances(&instances_path);
+            let mut instances_modified = false;
+            for (_, cfg) in container.instances.iter_mut() {
+                if cfg.terminal_emulator == name {
+                    cfg.terminal_emulator.clear();
+                    instances_modified = true;
+                }
+            }
+            if instances_modified {
+                container.common.modify_time = chrono::Utc::now().timestamp_millis().to_string();
+                let _ =
+                    crate::config::instances::save_instances_to_disk(&instances_path, &container);
+            }
+
+            drop(state);
+            let ah_for_refresh = ah.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(app) = ah.upgrade() {
+                    crate::ui::data::refresh_terminal_emulator_options(&app, &updated_settings);
+                    let mut sorted = user_names;
+                    sorted.sort();
+                    let model: slint::ModelRc<slint::SharedString> =
+                        slint::ModelRc::new(slint::VecModel::from(
+                            sorted
+                                .iter()
+                                .map(|s| slint::SharedString::from(s.as_str()))
+                                .collect::<Vec<_>>(),
+                        ));
+                    app.set_terminal_user_preset_names(model);
+                    app.set_terminal_show_user_preset_form(false);
+                }
+            });
+            if was_global_reset || instances_modified {
+                crate::ui::data::refresh_distros_ui(ah_for_refresh, as_ptr.clone()).await;
+            }
+        });
+    });
+
+    let ah = app_handle.clone();
+    let as_ptr = app_state.clone();
+    app.on_save_user_preset(
+        move |old_name: slint::SharedString,
+              name: slint::SharedString,
+              path: slint::SharedString,
+              args: slint::SharedString| {
+            let ah = ah.clone();
+            let as_ptr = as_ptr.clone();
+            let old_name = old_name.to_string();
+            let name = name.to_string();
+            let path = path.to_string();
+            let args = args.to_string();
+
+            if name.is_empty() {
+                if let Some(app) = ah.upgrade() {
+                    app.set_terminal_user_preset_form_error(
+                        i18n::t("dialog.terminal.preset_name_empty").into(),
+                    );
+                }
+                return;
+            }
+            if path.is_empty() {
+                if let Some(app) = ah.upgrade() {
+                    app.set_terminal_user_preset_form_error(
+                        i18n::t("dialog.terminal.preset_path_empty").into(),
+                    );
+                }
+                return;
+            }
+            if args.is_empty() {
+                if let Some(app) = ah.upgrade() {
+                    app.set_terminal_user_preset_form_error(
+                        i18n::t("dialog.terminal.preset_args_empty").into(),
+                    );
+                }
+                return;
+            }
+
+            // Validate executable path exists and is an .exe file
+            if !path.to_lowercase().ends_with(".exe") {
+                if let Some(app) = ah.upgrade() {
+                    app.set_terminal_user_preset_form_error(
+                        i18n::t("dialog.terminal.validation_not_exe").into(),
+                    );
+                }
+                return;
+            }
+            if !std::path::Path::new(&path).exists() {
+                if let Some(app) = ah.upgrade() {
+                    app.set_terminal_user_preset_form_error(
+                        i18n::tr("dialog.terminal.validation_file_not_found", &[path]).into(),
+                    );
+                }
+                return;
+            }
+
+            let _ = slint::spawn_local(async move {
+                let mut state = as_ptr.lock().await;
+                let mut settings = state.config_manager.get_settings().clone();
+
+                if !old_name.is_empty() && old_name != name {
+                    settings.terminal_user_presets.remove(&old_name);
+                }
+
+                if settings.terminal_user_presets.keys().any(|k| {
+                    k.eq_ignore_ascii_case(&name) && (old_name.is_empty() || *k != old_name)
+                }) {
+                    drop(state);
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah.upgrade() {
+                            app.set_terminal_user_preset_form_error(
+                                i18n::t("dialog.terminal.preset_name_taken").into(),
+                            );
+                        }
+                    });
+                    return;
+                }
+
+                settings.terminal_user_presets.insert(
+                    name.clone(),
+                    config::TerminalPreset {
+                        path: path.clone(),
+                        args: args.clone(),
+                    },
+                );
+
+                let user_names: Vec<String> =
+                    settings.terminal_user_presets.keys().cloned().collect();
+                let updated_settings = settings.clone();
+
+                if let Err(e) = state.config_manager.update_settings(settings) {
+                    error!("Failed to save user preset: {}", e);
+                }
+                drop(state);
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(app) = ah.upgrade() {
+                        crate::ui::data::refresh_terminal_emulator_options(&app, &updated_settings);
+                        let mut sorted = user_names;
+                        sorted.sort();
+                        let model: slint::ModelRc<slint::SharedString> =
+                            slint::ModelRc::new(slint::VecModel::from(
+                                sorted
+                                    .iter()
+                                    .map(|s| slint::SharedString::from(s.as_str()))
+                                    .collect::<Vec<_>>(),
+                            ));
+                        app.set_terminal_user_preset_names(model);
+                        app.set_terminal_show_user_preset_form(false);
+                    }
+                });
+            });
+        },
+    );
+
+    let ah = app_handle.clone();
+    app.on_cancel_user_preset_form(move || {
+        if let Some(app) = ah.upgrade() {
+            app.set_terminal_show_user_preset_form(false);
+            app.set_terminal_user_preset_form_error("".into());
+        }
+    });
+
+    let ah = app_handle.clone();
+    app.on_user_preset_path_browse(move || {
+        if let Some(path) = rfd::FileDialog::new()
+            .set_title(i18n::t("settings.select_terminal_exe"))
+            .add_filter("Executable", &["exe"])
+            .pick_file()
+        {
+            if let Some(app) = ah.upgrade() {
+                app.set_terminal_user_preset_form_path(path.display().to_string().into());
+            }
+        }
     });
 }

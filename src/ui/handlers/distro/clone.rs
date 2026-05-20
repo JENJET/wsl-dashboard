@@ -164,13 +164,6 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                             app.set_clone_error(i18n::t("dialog.path_is_not_dir").into());
                             return;
                         }
-                    } else {
-                        if let Err(e) = std::fs::create_dir_all(p) {
-                            app.set_clone_error(
-                                i18n::tr("dialog.mkdir_failed", &[e.to_string()]).into(),
-                            );
-                            return;
-                        }
                     }
 
                     // 4. Validation: Target not overlapping with existing install location
@@ -189,6 +182,30 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     }
 
                     app.set_clone_error("".into());
+
+                    // Check if source distro is Running
+                    let mut cur_runnings = Vec::new();
+                    let distros = app.get_distros();
+                    for j in 0..distros.row_count() {
+                        if let Some(d) = distros.row_data(j) {
+                            if d.name == source_name && d.status.as_str() == "Running" {
+                                cur_runnings.push(d.name.to_string());
+                            }
+                        }
+                    }
+
+                    if !cur_runnings.is_empty() {
+                        let warning_msg =
+                            i18n::tr("dialog.clone_shutdown_warning", &[cur_runnings.join(", ")]);
+                        app.set_clone_shutdown_confirm_message(warning_msg.into());
+                        app.set_clone_shutdown_confirm_title(
+                            i18n::tr("dialog.clone_title", &[source_name.to_string()]).into(),
+                        );
+                        app.set_show_clone_shutdown_confirm(true);
+                        app.set_show_clone_dialog(false);
+                        return;
+                    }
+
                     app.set_show_clone_dialog(false);
 
                     app.set_is_cloning(true);
@@ -238,6 +255,10 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
         let ah_name = app_handle.clone();
         app.on_clone_name_changed(move |new_name| {
             if let Some(app) = ah_name.upgrade() {
+                // Batch clone: clone_source_name is empty, don't auto-update path
+                if app.get_clone_source_name().is_empty() {
+                    return;
+                }
                 let base_path = app.get_clone_base_path().to_string();
                 if base_path.is_empty() {
                     return;

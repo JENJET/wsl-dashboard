@@ -1,6 +1,6 @@
 use crate::config::models::CachedDistro;
 use crate::ui::data::refresh_distros_ui;
-use crate::wsl::models::WslStatus;
+use crate::wsl::models::{WslStatus, WslVersion};
 use crate::{AppState, AppWindow};
 use slint::{ComponentHandle, Model};
 use std::sync::Arc;
@@ -64,21 +64,22 @@ pub fn spawn_state_monitor(app_handle: slint::Weak<AppWindow>, app_state: Arc<Mu
                             return;
                         }
                         let running = dashboard.get_distros().await;
-                        let running_names: Vec<String> = running
+                        type DistroInfo = (String, WslVersion);
+                        let running_info: Vec<DistroInfo> = running
                             .into_iter()
                             .filter(|d| matches!(d.status, WslStatus::Running))
-                            .map(|d| d.name)
+                            .map(|d| (d.name, d.version))
                             .collect();
-                        if running_names.is_empty() {
+                        if running_info.is_empty() {
                             return;
                         }
 
                         tokio::task::spawn_blocking(move || {
                             let show_ip = crate::utils::wsl_config::show_distro_ip();
                             let mut ip_results: Vec<(String, String)> = Vec::new();
-                            let mut resource_results: Vec<(String, f64, f64, f64)> = Vec::new();
+                            let mut resource_results: Vec<(String, f64, f64)> = Vec::new();
 
-                            for name in &running_names {
+                            for (name, _) in &running_info {
                                 if show_ip {
                                     if let Ok(ip) =
                                         crate::network::tracker::get_distro_ip(name, Some(1))
@@ -86,11 +87,9 @@ pub fn spawn_state_monitor(app_handle: slint::Weak<AppWindow>, app_state: Arc<Mu
                                         ip_results.push((name.clone(), ip));
                                     }
                                 }
-                                if let Ok((cpu, mem_used, mem_total)) =
-                                    crate::network::tracker::get_distro_resource_usage(name)
-                                {
-                                    resource_results.push((name.clone(), cpu, mem_used, mem_total));
-                                }
+                                let (cpu, mem) =
+                                    crate::network::tracker::get_distro_resource_usage(name);
+                                resource_results.push((name.clone(), cpu, mem));
                             }
 
                             if ip_results.is_empty() && resource_results.is_empty() {
@@ -113,19 +112,21 @@ pub fn spawn_state_monitor(app_handle: slint::Weak<AppWindow>, app_state: Arc<Mu
                                                 }
                                             }
 
-                                            if let Some((_, cpu, mem_used, mem_total)) =
-                                                resource_results
-                                                    .iter()
-                                                    .find(|(n, _, _, _)| distro.name == *n)
+                                            if let Some((_, cpu, mem)) = resource_results
+                                                .iter()
+                                                .find(|(n, _, _)| distro.name == *n)
                                             {
                                                 let cpu_str = format!("{:.1}%", cpu);
-                                                let mem_str =
-                                                    format!("{:.1}/{:.1} GB", mem_used, mem_total);
-
                                                 if distro.cpu_usage != cpu_str.as_str() {
                                                     distro.cpu_usage = cpu_str.into();
                                                     updated = true;
                                                 }
+                                                let mem_kib = *mem;
+                                                let mem_str = if mem_kib >= 1024.0 * 1024.0 {
+                                                    format!("{:.1} GB", mem_kib / (1024.0 * 1024.0))
+                                                } else {
+                                                    format!("{:.1} MB", mem_kib / 1024.0)
+                                                };
                                                 if distro.memory_usage != mem_str.as_str() {
                                                     distro.memory_usage = mem_str.into();
                                                     updated = true;

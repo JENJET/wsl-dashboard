@@ -1,6 +1,5 @@
 use crate::i18n;
 use crate::ui::data;
-use crate::utils::system::CREATE_NO_WINDOW;
 use crate::{AppState, AppWindow, WslManageStrings};
 use slint::{ModelRc, VecModel};
 use std::sync::Arc;
@@ -45,28 +44,32 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
         });
     });
 
-    // Start WSL (open default distro terminal)
+    // Start WSL (open default distro terminal with configured terminal emulator)
     let ah = app_handle.clone();
     let as_ptr = app_state.clone();
     app.on_wsl_manage_start(move || {
         let ah = ah.clone();
         let as_ptr = as_ptr.clone();
         let _ = slint::spawn_local(async move {
-            let executor = {
+            let default_distro_name = {
                 let state = as_ptr.lock().await;
-                state.wsl_dashboard.executor().clone()
+                state
+                    .wsl_dashboard
+                    .get_distros()
+                    .await
+                    .iter()
+                    .find(|d| d.is_default)
+                    .map(|d| d.name.clone())
+                    .unwrap_or_default()
             };
-            match executor.spawn_console(&["--cd", "~"]).await {
-                Ok(()) => {
-                    debug!("WSL terminal launched");
-                    // Wait for instance to start, then refresh status
-                    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
-                    refresh_wsl_info(&ah, &as_ptr).await;
-                }
-                Err(e) => {
-                    error!("Failed to launch WSL terminal: {}", e);
-                }
+            if default_distro_name.is_empty() {
+                error!("No default WSL distro found");
+                return;
             }
+            crate::ui::handlers::resolve_and_open_terminal(&as_ptr, &default_distro_name, &ah)
+                .await;
+            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+            refresh_wsl_info(&ah, &as_ptr).await;
         });
     });
 
@@ -188,12 +191,10 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
         let ah = ah.clone();
         let as_ptr = as_ptr.clone();
         let _ = slint::spawn_local(async move {
-            let executor = {
+            let result = {
                 let state = as_ptr.lock().await;
-                state.wsl_dashboard.executor().clone()
+                state.wsl_dashboard.shutdown_wsl().await
             };
-
-            let result = executor.execute_command(&["--shutdown"]).await;
 
             if result.success {
                 info!("WSL shutdown all completed");
@@ -277,79 +278,6 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
     });
 
     // Open WSL Settings (directly launch wslsettings.exe)
-    let ah = app_handle.clone();
-    let as_ptr = app_state.clone();
-    app.on_wsl_manage_open_settings(move || {
-        let ah = ah.clone();
-        let as_ptr = as_ptr.clone();
-        let _ = slint::spawn_local(async move {
-            let state = as_ptr.lock().await;
-            let executor = state.wsl_dashboard.executor().clone();
-            drop(state);
-
-            let show_upgrade_prompt = |app: slint::Weak<AppWindow>| {
-                if let Some(app) = app.upgrade() {
-                    app.set_current_message(i18n::t("settings.wsl2_required").into());
-                    app.set_current_message_link(i18n::t("settings.update_wsl").into());
-                    app.set_current_message_url(
-                        "https://github.com/microsoft/WSL/releases/latest".into(),
-                    );
-                    app.set_show_message_dialog(true);
-                }
-            };
-
-            // Check if it's the Store version (which supports WSL Settings)
-            let version_check = executor.execute_command(&["--version"]).await;
-            if !version_check.success {
-                show_upgrade_prompt(ah);
-                return;
-            }
-
-            // Discover wslsettings.exe path
-            let rel_path = "Program Files\\WSL\\wslsettings\\wslsettings.exe";
-            let mut exe_path = std::path::PathBuf::from(format!("C:\\{}", rel_path));
-            let mut found = exe_path.exists();
-
-            if !found {
-                if let Ok(system_drive) = std::env::var("SystemDrive") {
-                    if system_drive.to_uppercase() != "C:" {
-                        let alt_path =
-                            std::path::PathBuf::from(format!("{}\\{}", system_drive, rel_path));
-                        if alt_path.exists() {
-                            exe_path = alt_path;
-                            found = true;
-                        }
-                    }
-                }
-            }
-
-            if !found {
-                for drive in b'C'..=b'Z' {
-                    let drive_str = format!("{}:", drive as char);
-                    let alt_path = std::path::PathBuf::from(format!("{}\\{}", drive_str, rel_path));
-                    if alt_path.exists() {
-                        exe_path = alt_path;
-                        found = true;
-                        break;
-                    }
-                }
-            }
-
-            if found {
-                let mut cmd = std::process::Command::new(exe_path);
-                #[cfg(windows)]
-                {
-                    use std::os::windows::process::CommandExt;
-                    cmd.creation_flags(CREATE_NO_WINDOW);
-                }
-                let _ = cmd.spawn().map_err(|e| {
-                    error!("Failed to launch WSL settings: {}", e);
-                });
-            } else {
-                show_upgrade_prompt(ah);
-            }
-        });
-    });
 }
 
 /// Split command output into a Slint-compatible `[string]` model
@@ -372,13 +300,19 @@ pub async fn refresh_wsl_info(
     let version_result = executor.execute_command(&["--version"]).await;
     let status_result = executor.execute_command(&["--status"]).await;
 
-    // Check if any distros are running
-    let has_running = {
+    // Check if any distros are running and find default distro name
+    let (has_running, default_distro_name) = {
         let state = app_state.lock().await;
         let distros = state.wsl_dashboard.get_distros().await;
-        distros
+        let has_running = distros
             .iter()
-            .any(|d| matches!(d.status, crate::wsl::models::WslStatus::Running))
+            .any(|d| matches!(d.status, crate::wsl::models::WslStatus::Running));
+        let default_name = distros
+            .iter()
+            .find(|d| d.is_default)
+            .map(|d| d.name.clone())
+            .unwrap_or_default();
+        (has_running, default_name)
     };
 
     let ah = app_handle.clone();
@@ -430,6 +364,7 @@ pub async fn refresh_wsl_info(
             }
 
             app.set_wsl_has_running(has_running);
+            app.set_wsl_default_distro_name(default_distro_name.into());
         }
     });
 }
@@ -447,6 +382,10 @@ pub fn load_wsl_manage_strings(app: &AppWindow) {
         update_btn: i18n::t("wsl_manage.update_btn").into(),
         updating_btn: i18n::t("wsl_manage.updating_btn").into(),
         shutdown_btn: i18n::t("wsl_manage.shutdown_btn").into(),
+        shutdown_btn_tooltip: i18n::t("wsl_manage.shutdown_btn_tooltip").into(),
+        shutdown_confirm_title: i18n::t("wsl_manage.shutdown_confirm_title").into(),
+        shutdown_confirm_message: i18n::t("wsl_manage.shutdown_confirm_message").into(),
+        start_btn_tooltip: i18n::t("wsl_manage.start_btn_tooltip").into(),
         version_output_title: i18n::t("wsl_manage.version_output_title").into(),
         status_output_title: i18n::t("wsl_manage.status_output_title").into(),
         uninstall_btn: i18n::t("wsl_manage.uninstall_btn").into(),

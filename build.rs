@@ -158,6 +158,34 @@ fn verify_translations() {
         return;
     }
 
+    // --- Duplicate key check across all TOML files ---
+    let mut has_duplicates = false;
+    if let Ok(entries) = fs::read_dir(i18n_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|s| s.to_str()) == Some("toml") {
+                let filename = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
+                let content = fs::read_to_string(&path).unwrap_or_default();
+                let duplicates = find_duplicate_keys(&content);
+                if !duplicates.is_empty() {
+                    has_duplicates = true;
+                    for (section, key, line) in &duplicates {
+                        println!(
+                            "cargo:error=[{}] Duplicate key '{}' in [{}] at line {}",
+                            filename, key, section, line
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    if has_duplicates {
+        println!("cargo:error=--- i18n integrity check failed due to duplicate keys ---");
+        panic!("i18n files contain duplicate keys");
+    }
+
+    // --- Missing keys check (existing logic) ---
     let en_content = fs::read_to_string(&en_path).unwrap_or_default();
     let en_toml: Value = toml::from_str(&en_content).unwrap_or(Value::Table(Default::default()));
 
@@ -203,6 +231,56 @@ fn verify_translations() {
         }
     }
     println!("cargo:info=------------------------------------------");
+}
+
+fn find_duplicate_keys(content: &str) -> Vec<(String, String, usize)> {
+    use std::collections::HashMap;
+
+    let mut duplicates: Vec<(String, String, usize)> = Vec::new();
+    let mut section_keys: HashMap<String, HashMap<String, usize>> = HashMap::new();
+    let mut current_section = String::from("__root__");
+
+    for (line_num, line) in content.lines().enumerate() {
+        let raw = line.trim();
+        let lineno = line_num + 1;
+
+        if raw.is_empty() || raw.starts_with('#') {
+            continue;
+        }
+
+        // Section header: [section_name] or [section.nested]
+        if raw.starts_with('[') && raw.ends_with(']') && !raw.starts_with("[[") {
+            let inner = &raw[1..raw.len() - 1];
+            if !inner.contains('"') {
+                current_section = inner.to_string();
+                continue;
+            }
+        }
+
+        // Key-value pair
+        if let Some(eq_pos) = raw.find('=') {
+            let key_candidate = raw[..eq_pos].trim();
+            // Simple identifier check: starts with a letter/underscore
+            if !key_candidate.is_empty()
+                && key_candidate
+                    .chars()
+                    .next()
+                    .is_some_and(|c| c.is_ascii_alphabetic() || c == '_')
+            {
+                let key = key_candidate.to_string();
+                let seen = section_keys
+                    .entry(current_section.clone())
+                    .or_default()
+                    .entry(key.clone())
+                    .or_insert(lineno);
+                if *seen != lineno {
+                    duplicates.push((current_section.clone(), key, lineno));
+                }
+            }
+        }
+    }
+
+    duplicates
 }
 
 fn flatten_keys(prefix: &str, value: &Value, keys: &mut HashSet<String>) {

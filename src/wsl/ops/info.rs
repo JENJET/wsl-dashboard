@@ -127,6 +127,9 @@ pub async fn get_distro_information(
                     information.vhdx_is_sparse = vhdx_info.is_sparse;
                 }
             }
+            if information.vhdx_path.is_empty() {
+                information.wsl_version = "WSL1".to_string();
+            }
         }
     }
 

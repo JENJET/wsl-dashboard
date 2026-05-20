@@ -84,6 +84,11 @@ export component AppWindow inherits Window {
     in-out property <string> clone_target_path: "";
     in property <string> clone_error: "";
     in-out property <string> clone_base_path: "";
+    in-out property <bool> show_clone_shutdown_confirm: false;
+    in property <string> clone_shutdown_confirm_message: "";
+    in property <string> clone_shutdown_confirm_title: "";
+    in-out property <string> clone_batch_suffix: "";
+    in-out property <string> clone_batch_path: "";
     in-out property <bool> show_move_dialog: false;
     in-out property <string> move_source_name: "";
     in-out property <string> move_target_name: "";
@@ -102,6 +107,9 @@ export component AppWindow inherits Window {
     in-out property <bool> show_wsl_update_confirm: false;
     in-out property <string> wsl_update_confirm_message: "";
     in-out property <bool> wsl_preview_checked: false;
+    in-out property <string> wsl_default_distro_name: "";
+    in-out property <bool> show_wsl_shutdown_confirm: false;
+    in-out property <string> wsl_shutdown_confirm_message: "";
     in-out property <bool> show_install_warn_dialog: false;
     in-out property <bool> show_expire_dialog: false;
     in-out property <bool> show_rootfs_help: false;
@@ -135,6 +143,7 @@ export component AppWindow inherits Window {
     in-out property <int> log_level: 4;
     in-out property <int> log_days: 7;
     in-out property <int> check_update_interval: 7;
+    in-out property <bool> sidebar_toggle: true;
     in-out property <bool> sidebar_add: true;
     in-out property <bool> sidebar_usb: true;
     in-out property <bool> sidebar_network: true;
@@ -253,6 +262,33 @@ export component AppWindow inherits Window {
     in-out property <string> vhdx_resize_pending_size_gb: "";
     in-out property <bool> show_set_sparse_confirm: false;
 
+    // --- Terminal Emulator Properties ---
+    in property <[string]> terminal_emulator_options: [];
+    in-out property <int> terminal_emulator_index: 0;
+    in property <int> saved_terminal_emulator_index: 0;
+    in-out property <bool> terminal_show_custom: false;
+    in-out property <string> terminal_custom_path: "";
+    in-out property <string> terminal_custom_args: "";
+    in property <string> terminal_validation_result: "";
+    in property <bool> terminal_validation_ok: false;
+    in-out property <bool> show_terminal_config: false;
+    in property <string> terminal_config_distro_name: "";
+    in property <[string]> terminal_config_options: [];
+    in-out property <int> terminal_config_index: 0;
+    in-out property <bool> terminal_config_show_custom: false;
+    in-out property <string> terminal_config_custom_path;
+    in-out property <string> terminal_config_custom_args;
+    in property <string> terminal_config_validation_text: "";
+    in property <bool> terminal_config_validation_ok: false;
+    in property <bool> terminal_config_is_default: false;
+    in property <string> terminal_config_default_label: "";
+    in property <string> terminal_config_current_preset_name: "";
+    in property <string> terminal_config_current_preset_template: "";
+    in property <string> terminal_config_command_display: "";
+    in property <string> terminal_config_current_preset_exe: "";
+    in property <string> terminal_config_proxy_hint: "";
+    in-out property <string> terminal_config_terminal_dir: "~";
+
     // --- Callbacks ---
     callback select_tab(int);
     callback start_distro(string);
@@ -280,6 +316,13 @@ export component AppWindow inherits Window {
     callback window_minimize();
     callback window_maximize();
     callback window_drag_delta(float, float);
+
+    // Reset terminal combo index to saved value when entering settings tab
+    changed selected_tab => {
+        if (selected_tab == 5) {
+            terminal_emulator_index = saved_terminal_emulator_index;
+        }
+    }
     callback open_export_dialog(string);
     callback select_export_folder();
     callback confirm_export(string, string);
@@ -291,6 +334,8 @@ export component AppWindow inherits Window {
     callback confirm_move(string, string, string);
     callback confirm_move_action();
     callback cancel_move_confirm();
+    callback confirm_clone_shutdown_action();
+    callback cancel_clone_shutdown_confirm();
     callback close_message_dialog();
     callback message_link_clicked();
     callback message_action_clicked(string);
@@ -354,11 +399,38 @@ export component AppWindow inherits Window {
     callback wsl_manage_set_default_version(int);
     callback wsl_manage_refresh();
     callback wsl_manage_uninstall();
-    callback wsl_manage_open_settings();
     callback wsl_manage_update_confirmed(bool);
+    callback wsl_manage_shutdown_confirmed();
+    callback wsl_manage_shutdown_cancelled();
     
     // Set default distro callback
     callback set_default_distro(string);
+
+    // Terminal emulator callbacks
+    callback terminal_settings_changed(int, string, string);
+    callback terminal_path_browse();
+    callback terminal_config_clicked(string);
+    callback confirm_terminal_config(string, int, string, string);
+    callback close_terminal_config();
+    callback terminal_config_path_browse();
+    callback terminal_config_index_changed(int);
+    callback terminal_config_dir_edited(string);
+
+    // User-defined terminal preset management
+    in property <[string]> terminal_user_preset_names: [];
+    in property <string> terminal_user_preset_form_title: "";
+    in-out property <bool> terminal_show_user_preset_form: false;
+    in-out property <string> terminal_user_preset_form_name: "";
+    in-out property <string> terminal_user_preset_form_path: "";
+    in-out property <string> terminal_user_preset_form_args: "";
+    in property <string> terminal_user_preset_form_error: "";
+    in-out property <string> terminal_user_preset_original_name: "";
+    callback edit_user_preset(string);
+    callback delete_user_preset(string);
+    callback save_user_preset(string, string, string, string);
+    callback cancel_user_preset_form;
+    callback add_user_preset;
+    callback user_preset_path_browse;
 
     // VHDX resize callbacks
     callback vhdx_resize_show(string, string);
@@ -483,6 +555,7 @@ export component AppWindow inherits Window {
                     network_text: AppI18n.t("sidebar.network", [AppI18n.version]);
                     settings_text: AppI18n.t("sidebar.settings", [AppI18n.version]);
                     about_text: AppI18n.t("sidebar.about", [AppI18n.version]);
+                    show_toggle: root.sidebar_toggle;
                     show_add: root.sidebar_add;
                     show_wsl_manage: root.sidebar_wsl_manage;
                     show_usb: root.sidebar_usb;
@@ -565,6 +638,9 @@ export component AppWindow inherits Window {
                                 }
                                 configs_clicked(n) => {
                                     root.configs_clicked(n);
+                                }
+                                terminal_config_clicked(n) => {
+                                    root.terminal_config_clicked(n);
                                 }
                                 set_default_distro(n) => {
                                     root.set_default_distro(n);
@@ -713,6 +789,7 @@ export component AppWindow inherits Window {
                                 default_version: root.wsl_default_version;
                                 has_running_instances: root.wsl_has_running;
                                 is_updating: root.wsl_is_updating;
+                                default_distro_name: root.wsl_default_distro_name;
                                 install_wsl => {
                                     root.wsl_manage_install();
                                 }
@@ -723,7 +800,8 @@ export component AppWindow inherits Window {
                                     root.wsl_manage_update();
                                 }
                                 shutdown_all => {
-                                    root.wsl_manage_shutdown_all();
+                                    root.wsl_shutdown_confirm_message = root.wsl_manage_strings.shutdown_confirm_message;
+                                    root.show_wsl_shutdown_confirm = true;
                                 }
                                 set_default_version(v) => {
                                     root.wsl_manage_set_default_version(v);
@@ -732,7 +810,7 @@ export component AppWindow inherits Window {
                                     root.wsl_manage_uninstall();
                                 }
                                 open_wsl_settings => {
-                                    root.wsl_manage_open_settings();
+                                    root.open_wsl_settings();
                                 }
                             }
 
@@ -849,11 +927,36 @@ export component AppWindow inherits Window {
                                 tray_autostart <=> root.tray_autostart;
                                 tray_start_minimized <=> root.tray_start_minimized;
                                 tray_close_to_tray <=> root.tray_close_to_tray;
+                                sidebar_toggle <=> root.sidebar_toggle;
                                 sidebar_add <=> root.sidebar_add;
                                 sidebar_wsl_manage <=> root.sidebar_wsl_manage;
                                 sidebar_usb <=> root.sidebar_usb;
                                 sidebar_network <=> root.sidebar_network;
                                 sidebar_about <=> root.sidebar_about;
+                                terminal_emulator_options: root.terminal_emulator_options;
+                                terminal_emulator_index <=> root.terminal_emulator_index;
+                                terminal_show_custom <=> root.terminal_show_custom;
+                                terminal_custom_path <=> root.terminal_custom_path;
+                                terminal_custom_args <=> root.terminal_custom_args;
+                                terminal_validation_result: root.terminal_validation_result;
+                                terminal_validation_ok: root.terminal_validation_ok;
+                                terminal-path-browse => {
+                                    root.terminal_path_browse();
+                                }
+                                terminal_user_preset_names: root.terminal_user_preset_names;
+                                terminal_user_preset_form_title: root.terminal_user_preset_form_title;
+                                terminal_show_user_preset_form <=> root.terminal_show_user_preset_form;
+                                terminal_user_preset_form_name <=> root.terminal_user_preset_form_name;
+                                terminal_user_preset_form_path <=> root.terminal_user_preset_form_path;
+                                terminal_user_preset_form_args <=> root.terminal_user_preset_form_args;
+                                terminal_user_preset_form_error: root.terminal_user_preset_form_error;
+                                terminal_user_preset_original_name <=> root.terminal_user_preset_original_name;
+                                edit_user_preset(name) => { root.edit_user_preset(name); }
+                                delete_user_preset(name) => { root.delete_user_preset(name); }
+                                save_user_preset(old, name, path, args) => { root.save_user_preset(old, name, path, args); }
+                                cancel_user_preset_form => { root.cancel_user_preset_form(); }
+                                add_user_preset => { root.add_user_preset(); }
+                                user_preset_path_browse => { root.user_preset_path_browse(); }
                                 save-settings => {
                                     root.save_settings();
                                 }
@@ -978,6 +1081,16 @@ export component AppWindow inherits Window {
             root.show_move_confirm = false;
             root.cancel_move_confirm();
         }
+        show_clone_shutdown_confirm: root.show_clone_shutdown_confirm;
+        clone_shutdown_confirm_message: root.clone_shutdown_confirm_message;
+        clone_shutdown_confirm_title: root.clone_shutdown_confirm_title;
+        confirm_clone_shutdown_action => {
+            root.confirm_clone_shutdown_action();
+        }
+        cancel_clone_shutdown_confirm => {
+            root.show_clone_shutdown_confirm = false;
+            root.cancel_clone_shutdown_confirm();
+        }
         show_message: root.show_message_dialog;
         message_text: root.current_message;
         message_link_text: root.current_message_link;
@@ -1012,6 +1125,16 @@ export component AppWindow inherits Window {
         cancel_wsl_update => {
             root.show_wsl_update_confirm = false;
             root.wsl_preview_checked = false;
+        }
+        show_wsl_shutdown_confirm: root.show_wsl_shutdown_confirm;
+        wsl_shutdown_confirm_title: root.wsl_manage_strings.shutdown_confirm_title;
+        wsl_shutdown_confirm_message: root.wsl_shutdown_confirm_message;
+        confirm_wsl_shutdown => {
+            root.show_wsl_shutdown_confirm = false;
+            root.wsl_manage_shutdown_all();
+        }
+        cancel_wsl_shutdown => {
+            root.show_wsl_shutdown_confirm = false;
         }
         show_install_warn: root.show_install_warn_dialog;
         confirm_install_warn => {
@@ -1142,6 +1265,39 @@ export component AppWindow inherits Window {
         show_network_proxy_help <=> root.show_network_proxy_help;
         check_proxy_connection(url) => {
             root.check_proxy_connection(url);
+        }
+        show_terminal_config <=> root.show_terminal_config;
+        terminal_config_distro_name: root.terminal_config_distro_name;
+        terminal_config_options: root.terminal_config_options;
+        terminal_config_index <=> root.terminal_config_index;
+        terminal_config_show_custom <=> root.terminal_config_show_custom;
+        terminal_config_custom_path <=> root.terminal_config_custom_path;
+        terminal_config_custom_args <=> root.terminal_config_custom_args;
+        terminal_config_validation_text: root.terminal_config_validation_text;
+        terminal_config_validation_ok: root.terminal_config_validation_ok;
+        terminal_config_is_default: root.terminal_config_is_default;
+        terminal_config_default_label: root.terminal_config_default_label;
+        terminal_config_current_preset_name: root.terminal_config_current_preset_name;
+        terminal_config_current_preset_template: root.terminal_config_current_preset_template;
+        terminal_config_command_display: root.terminal_config_command_display;
+        terminal_config_current_preset_exe: root.terminal_config_current_preset_exe;
+        terminal_config_proxy_hint: root.terminal_config_proxy_hint;
+        terminal_config_terminal_dir <=> root.terminal_config_terminal_dir;
+        confirm_terminal_config(name, idx, path, args) => {
+            root.confirm_terminal_config(name, idx, path, args);
+        }
+        close_terminal_config => {
+            root.close_terminal_config();
+            root.show_terminal_config = false;
+        }
+        terminal_config_path_browse => {
+            root.terminal_config_path_browse();
+        }
+        terminal_config_index_changed(index) => {
+            root.terminal_config_index_changed(index);
+        }
+        terminal_config_dir_edited(dir) => {
+            root.terminal_config_dir_edited(dir);
         }
     }
 

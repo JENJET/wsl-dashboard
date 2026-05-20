@@ -239,8 +239,257 @@ export component PathSettingsSection inherits VerticalLayout {
     }
 }
 
+export component TerminalSettingsSection inherits Rectangle {
+    in property <SettingsStrings> strings;
+    in property <[string]> emulator_options;
+    in-out property <int> selected_emulator_index: 0;
+    in-out property <bool> show_custom: false;
+    in-out property <string> custom_path;
+    in-out property <string> custom_args;
+    in property <string> validation_result;
+    in property <bool> validation_ok: false;
+    callback path_browse();
+
+    // User-defined terminal preset management
+    in property <[string]> user_preset_names;
+    in property <string> user_preset_form_title;
+    in-out property <bool> show_user_preset_form: false;
+    in-out property <string> user_preset_form_name;
+    in-out property <string> user_preset_form_path;
+    in-out property <string> user_preset_form_args;
+    in property <string> user_preset_form_error;
+    in-out property <string> user_preset_original_name;
+    callback edit_user_preset(string);
+    callback delete_user_preset(string);
+    callback save_user_preset(string, string, string, string);
+    callback cancel_user_preset_form;
+    callback add_user_preset;
+    callback user_preset_path_browse;
+    background: Theme.card_bg;
+    border-radius: 8px;
+    border-width: 1px;
+    border-color: Theme.border_color;
+    VerticalLayout {
+        padding: 12px;
+        spacing: 12px;
+        Text {
+            text: AppI18n.t("settings.terminal_emulator", [AppI18n.version]);
+            font-size: 13px * LayoutConstants.font-scale;
+            font-family: Theme.default_font;
+            color: Theme.text_secondary;
+        }
+        VerticalLayout {
+            spacing: 8px;
+            CustomComboBox {
+                model: root.emulator_options;
+                current-index <=> root.selected_emulator_index;
+                height: 32px;
+                dropdown-height: 200px;
+            }
+            if root.validation_result != "" : Text {
+                text: root.validation_result;
+                font-size: 12px * LayoutConstants.font-scale;
+                font-family: Theme.default_font;
+                color: root.validation_ok ? #2ecc71 : #ff3333;
+            }
+            if root.show_custom : VerticalLayout {
+                spacing: 8px;
+                Text {
+                    text: AppI18n.t("settings.terminal_custom_path", [AppI18n.version]);
+                    font-size: 13px * LayoutConstants.font-scale;
+                    font-family: Theme.default_font;
+                    color: Theme.text_secondary;
+                }
+                HorizontalLayout {
+                    spacing: 6px;
+                    CustomLineEdit {
+                        text <=> root.custom_path;
+                        horizontal-stretch: 1;
+                        placeholder-text: "C:\\Windows\\system32\\cmd.exe";
+                    }
+                    CustomButton {
+                        text: "...";
+                        width: 40px; height: 32px;
+                        clicked => { root.path_browse(); }
+                    }
+                }
+                Text {
+                    text: AppI18n.t("settings.terminal_custom_args", [AppI18n.version]);
+                    font-size: 13px * LayoutConstants.font-scale;
+                    font-family: Theme.default_font;
+                    color: Theme.text_secondary;
+                }
+                CustomLineEdit {
+                    text <=> root.custom_args;
+                    placeholder-text: "wsl -d {distro} --cd {dir}";
+                }
+                Text {
+                    text: AppI18n.t("settings.terminal_placeholders_hint", [AppI18n.version]);
+                    font-size: 11px * LayoutConstants.font-scale;
+                    font-family: Theme.default_font;
+                    color: Theme.text_secondary;
+                }
+            }
+
+            // User-defined preset management
+            Rectangle { height: 1px; background: Theme.border_color; }
+
+            VerticalLayout {
+                spacing: 8px;
+                HorizontalLayout {
+                    Text {
+                        text: AppI18n.t("dialog.terminal.section_custom", [AppI18n.version]);
+                        font-size: 13px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        color: Theme.text_secondary;
+                        vertical-alignment: center;
+                    }
+                    Rectangle { horizontal-stretch: 1; }
+                    CustomButton {
+                        text: AppI18n.t("dialog.terminal.add_preset", [AppI18n.version]);
+                        height: 28px;
+                        clicked => { root.add_user_preset(); }
+                    }
+                }
+
+                if root.user_preset_names.length > 0 : VerticalLayout {
+                    spacing: 4px;
+                    for name[idx] in root.user_preset_names: Rectangle {
+                        border-radius: 4px;
+                        background: Theme.input_bg;
+                        HorizontalLayout {
+                            padding: 8px; spacing: 8px;
+                            Text {
+                                text: (idx + 1) + ". " + name;
+                                font-size: 13px * LayoutConstants.font-scale;
+                                font-family: Theme.default_font;
+                                color: Theme.text_primary;
+                                vertical-alignment: center;
+                                horizontal-stretch: 1;
+                            }
+                            CustomButton {
+                                text: AppI18n.t("dialog.terminal.edit_preset", [AppI18n.version]);
+                                height: 26px;
+                                clicked => { root.edit_user_preset(name); }
+                            }
+                        Rectangle {
+                            width: 32px; height: 26px;
+                            border-radius: 4px;
+                            background: touch.pressed ? #c62828 : (touch.has-hover ? #ff4444 : transparent);
+                            border-width: 0px;
+                            Text {
+                                text: "\u{D7}";
+                                color: touch.has-hover ? white : (Theme.dark_mode ? #ff6666 : #c62828);
+                                font-size: 16px * LayoutConstants.font-scale;
+                                font-family: Theme.default_font;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                                width: 100%; height: 100%;
+                            }
+                            touch := TouchArea {
+                                clicked => { root.delete_user_preset(name); }
+                            }
+                        }
+                        }
+                    }
+                }
+            }
+
+            // Add/Edit form
+            if root.show_user_preset_form : Rectangle {
+                border-radius: 6px;
+                background: Theme.input_bg;
+                VerticalLayout {
+                    padding: 12px; spacing: 8px;
+                    Text {
+                        text: root.user_preset_form_title;
+                        font-size: 14px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        font-weight: 600;
+                        color: Theme.text_primary;
+                    }
+                    Text {
+                        text: AppI18n.t("dialog.terminal.preset_name", [AppI18n.version]);
+                        font-size: 12px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        color: Theme.text_secondary;
+                    }
+                    CustomLineEdit {
+                        text <=> root.user_preset_form_name;
+                        enabled: root.user_preset_original_name == "";
+                        placeholder-text: "my-terminal";
+                    }
+                    Text {
+                        text: AppI18n.t("dialog.terminal.custom_path", [AppI18n.version]);
+                        font-size: 12px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        color: Theme.text_secondary;
+                    }
+                    HorizontalLayout {
+                        spacing: 6px;
+                        CustomLineEdit {
+                            text <=> root.user_preset_form_path;
+                            horizontal-stretch: 1;
+                            placeholder-text: "C:\\Windows\\system32\\cmd.exe";
+                        }
+                        CustomButton {
+                            text: "...";
+                            width: 40px; height: 32px;
+                            clicked => { root.user_preset_path_browse(); }
+                        }
+                    }
+                    Text {
+                        text: AppI18n.t("dialog.terminal.custom_args", [AppI18n.version]);
+                        font-size: 12px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        color: Theme.text_secondary;
+                    }
+                    CustomLineEdit {
+                        text <=> root.user_preset_form_args;
+                        placeholder-text: "wsl -d {distro} --cd {dir}";
+                    }
+                    Text {
+                        text: AppI18n.t("dialog.terminal.placeholders_hint", [AppI18n.version]);
+                        font-size: 11px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        color: Theme.text_secondary;
+                    }
+                    if root.user_preset_form_error != "" : Text {
+                        text: root.user_preset_form_error;
+                        font-size: 12px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        color: #ff3333;
+                    }
+                    HorizontalLayout {
+                        alignment: end;
+                        spacing: 8px;
+                        CustomButton {
+                            text: AppI18n.t("dialog.cancel", [AppI18n.version]);
+                            height: 32px;
+                            clicked => { root.cancel_user_preset_form(); }
+                        }
+                        CustomButton {
+                            text: AppI18n.t("dialog.save", [AppI18n.version]);
+                            primary: true; height: 32px;
+                            clicked => {
+                                root.save_user_preset(
+                                    root.user_preset_original_name,
+                                    root.user_preset_form_name,
+                                    root.user_preset_form_path,
+                                    root.user_preset_form_args,
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 export component SidebarSettingsSection inherits Rectangle {
     in property <SettingsStrings> strings;
+    in-out property <bool> sidebar_toggle: true;
     in-out property <bool> sidebar_add: true;
     in-out property <bool> sidebar_wsl_manage: true;
     in-out property <bool> sidebar_usb: true;
@@ -265,6 +514,12 @@ export component SidebarSettingsSection inherits Rectangle {
             spacing: 12px;
             Row {
                 CustomCheckBox {
+                    text: AppI18n.t("sidebar.toggle", [AppI18n.version]);
+                    checked <=> root.sidebar_toggle;
+                    horizontal-stretch: 1;
+                }
+
+                CustomCheckBox {
                     text: AppI18n.t("sidebar.home", [AppI18n.version]);
                     checked: true;
                     enabled: false;
@@ -276,15 +531,15 @@ export component SidebarSettingsSection inherits Rectangle {
                     checked <=> root.sidebar_add;
                     horizontal-stretch: 1;
                 }
+            }
 
+            Row {
                 CustomCheckBox {
                     text: AppI18n.t("sidebar.wsl_manage", [AppI18n.version]);
                     checked <=> root.sidebar_wsl_manage;
                     horizontal-stretch: 1;
                 }
-            }
 
-            Row {
                 CustomCheckBox {
                     text: AppI18n.t("sidebar.usb", [AppI18n.version]);
                     checked <=> root.sidebar_usb;
@@ -296,24 +551,23 @@ export component SidebarSettingsSection inherits Rectangle {
                     checked <=> root.sidebar_network;
                     horizontal-stretch: 1;
                 }
+            }
 
+            Row {
                 CustomCheckBox {
                     text: AppI18n.t("sidebar.settings", [AppI18n.version]);
                     checked: true;
                     enabled: false;
                     horizontal-stretch: 1;
                 }
-            }
 
-            Row {
                 CustomCheckBox {
                     text: AppI18n.t("sidebar.about", [AppI18n.version]);
                     checked <=> root.sidebar_about;
                     horizontal-stretch: 1;
                 }
 
-                // Empty cells to fill the grid
-                Rectangle { horizontal-stretch: 1; }
+                // Empty cell to fill the grid
                 Rectangle { horizontal-stretch: 1; }
             }
         }

@@ -9,6 +9,7 @@
 
 import re
 import sys
+from datetime import datetime
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -112,13 +113,17 @@ def extract_keys_from_file(filepath: Path, known_sections: set[str] | None = Non
 
         # 动态 key
         for m in re.finditer(r'i18n::t\(&([a-zA-Z_]\w*)\)', content):
-            dynamic_patterns.add(f"i18n::t(&<variable>) -> {m.group(1)}")
+            line_no = content[:m.start()].count('\n') + 1
+            dynamic_patterns.add(f"i18n::t(&<variable>) -> {m.group(1)} @ {rel}:{line_no}")
         for m in re.finditer(r'i18n::tr\(&([a-zA-Z_]\w*)', content):
-            dynamic_patterns.add(f"i18n::tr(&<variable>, ...) -> {m.group(1)}")
+            line_no = content[:m.start()].count('\n') + 1
+            dynamic_patterns.add(f"i18n::tr(&<variable>, ...) -> {m.group(1)} @ {rel}:{line_no}")
         for m in re.finditer(r'get_i18n_text\(&format!', content):
-            dynamic_patterns.add("get_i18n_text(&format!(...))")
+            line_no = content[:m.start()].count('\n') + 1
+            dynamic_patterns.add(f"get_i18n_text(&format!(...)) @ {rel}:{line_no}")
         for m in re.finditer(r'get_i18n_text\(\s*&([a-zA-Z_]\w*)\)', content):
-            dynamic_patterns.add(f"get_i18n_text(&<variable>) -> {m.group(1)}")
+            line_no = content[:m.start()].count('\n') + 1
+            dynamic_patterns.add(f"get_i18n_text(&<variable>) -> {m.group(1)} @ {rel}:{line_no}")
 
     elif filepath.suffix == ".slint":
         for m in re.finditer(r'AppI18n\.t\("([^"]+)"', content):
@@ -244,6 +249,7 @@ def main() -> int:
         lines.append("-" * 60)
         lines.append("动态 key 模式（无法静态分析）:")
         lines.append("-" * 60)
+        lines.append(f"共 {len(all_dynamic)} 处:\n")
         for p in sorted(all_dynamic):
             lines.append(f"  {p}")
         lines.append("")
@@ -279,10 +285,13 @@ def main() -> int:
                 lines.append(f"  {k} = \"{cn_keys[k]}\"")
             lines.append("")
 
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    lines.append(f"生成时间: {now_str}")
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_FILE.write_text("\n".join(lines), encoding="utf-8")
     print(f"\n报告: {OUTPUT_FILE}")
     print(f"缺失: {len(missing)}")
+    print(f"生成时间: {now_str}")
 
     return 0
 

@@ -1,8 +1,14 @@
 use crate::utils::system::CREATE_NO_WINDOW;
+use once_cell::sync::Lazy;
+use std::collections::HashMap;
 use std::os::windows::process::CommandExt;
 use std::process::Command;
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::info;
+
+static NUM_CORES_CACHE: Lazy<Mutex<HashMap<String, usize>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
 
 /// Global flag to skip resource/IP fetching during batch operations.
 /// Set by batch handlers alongside app.set_batch_operating().
@@ -172,201 +178,111 @@ pub fn is_distro_running(distro_name: &str) -> bool {
     false
 }
 
-/// Get CPU and memory usage for a running WSL distro
-/// Returns (cpu_percentage, used_memory_gb, total_memory_gb)
-pub fn get_distro_resource_usage(distro_name: &str) -> Result<(f64, f64, f64), String> {
+/// Get CPU & memory usage for a running WSL distro
+pub fn get_distro_resource_usage(distro_name: &str) -> (f64, f64) {
     if BATCH_OPERATING.load(Ordering::Relaxed) {
-        return Err("Batch operation in progress".to_string());
+        return (0.0, 0.0);
     }
-    // Check if distro is actually running before attempting to fetch resources
-    // This prevents waking up stopped distros
     if !is_distro_running(distro_name) {
-        return Err(format!("Distro '{}' is not running", distro_name));
+        return (0.0, 0.0);
+    }
+    get_cpu_and_mem(distro_name).unwrap_or_else(|e| {
+        tracing::warn!("Failed to get resource usage for {}: {}", distro_name, e);
+        (0.0, 0.0)
+    })
+}
+
+/// Get the number of CPU cores from inside the WSL distro
+fn get_distro_num_cores(distro_name: &str) -> usize {
+    if let Some(cached) = NUM_CORES_CACHE
+        .lock()
+        .ok()
+        .and_then(|m| m.get(distro_name).copied())
+    {
+        return cached;
     }
 
-    // Get memory info from /proc/meminfo
-    let mem_output = Command::new("wsl")
+    let count = Command::new("wsl")
         .env("WSL_UTF8", "1")
-        .args(&[
-            "-d",
-            distro_name,
-            "--",
-            "sh",
-            "-c",
-            "grep -E '^(MemTotal|MemAvailable):' /proc/meminfo | sed 's/[^0-9]//g'",
-        ])
+        .args(&["-d", distro_name, "--", "nproc"])
         .creation_flags(CREATE_NO_WINDOW)
-        .output();
-
-    let (mem_total_kb, mem_available_kb) = match mem_output {
-        Ok(out) if out.status.success() => {
-            let stdout = crate::wsl::decoder::decode_output(&out.stdout);
-            tracing::debug!(
-                "Memory info raw output for {}: {}",
-                distro_name,
-                stdout.trim()
-            );
-            let lines: Vec<&str> = stdout.lines().collect();
-            if lines.len() >= 2 {
-                let total = lines[0].trim().parse::<u64>().unwrap_or(0);
-                let available = lines[1].trim().parse::<u64>().unwrap_or(0);
-                tracing::debug!(
-                    "Memory for {}: total={} KB, available={} KB",
-                    distro_name,
-                    total,
-                    available
-                );
-                if total == 0 {
-                    return Err("Memory total is 0".to_string());
-                }
-                (total, available)
+        .output()
+        .ok()
+        .and_then(|o| {
+            if o.status.success() {
+                let s = crate::wsl::decoder::decode_output(&o.stdout);
+                s.trim().parse::<usize>().ok()
             } else {
-                return Err(format!(
-                    "Failed to parse memory info, got {} lines",
-                    lines.len()
-                ));
+                None
             }
-        }
-        Ok(out) => {
-            let stderr = crate::wsl::decoder::decode_output(&out.stderr);
-            return Err(format!("Memory command failed: {}", stderr.trim()));
-        }
-        Err(e) => return Err(format!("Failed to execute memory command: {}", e)),
-    };
+        })
+        .unwrap_or(1)
+        .max(1);
 
-    let mem_used_kb = mem_total_kb.saturating_sub(mem_available_kb);
-
-    // Convert to GB with one decimal place
-    let mem_total_gb = mem_total_kb as f64 / (1024.0 * 1024.0);
-    let mem_used_gb = mem_used_kb as f64 / (1024.0 * 1024.0);
-
-    tracing::debug!(
-        "Memory calculation for {}: total={} GB, used={} GB, available={} MB",
-        distro_name,
-        mem_total_gb,
-        mem_used_gb,
-        mem_available_kb / 1024
-    );
-
-    // Get CPU usage using /proc/stat
-    // Read two samples 100ms apart to calculate CPU usage
-    let cpu_percent = match get_cpu_usage(distro_name) {
-        Ok(cpu) => {
-            tracing::debug!("CPU usage for {}: {:.2}%", distro_name, cpu);
-            cpu
-        }
-        Err(e) => {
-            tracing::warn!("Failed to get CPU usage for {}: {}", distro_name, e);
-            0.0
-        }
-    };
-
-    tracing::info!(
-        "Resource usage for {}: CPU={:.1}%, Memory={:.1}/{:.1} GB",
-        distro_name,
-        cpu_percent,
-        mem_used_gb,
-        mem_total_gb
-    );
-
-    Ok((cpu_percent, mem_used_gb, mem_total_gb))
-}
-
-/// Calculate CPU usage by reading /proc/stat twice with a small delay
-fn get_cpu_usage(distro_name: &str) -> Result<f64, String> {
-    // First sample
-    let stat1 = read_proc_stat(distro_name)?;
-
-    // Wait 100ms
-    std::thread::sleep(std::time::Duration::from_millis(100));
-
-    // Second sample
-    let stat2 = read_proc_stat(distro_name)?;
-
-    // Calculate CPU usage percentage
-    let user_diff = stat2.user.saturating_sub(stat1.user);
-    let nice_diff = stat2.nice.saturating_sub(stat1.nice);
-    let system_diff = stat2.system.saturating_sub(stat1.system);
-    let idle_diff = stat2.idle.saturating_sub(stat1.idle);
-    let iowait_diff = stat2
-        .iowait
-        .unwrap_or(0)
-        .saturating_sub(stat1.iowait.unwrap_or(0));
-
-    let total_diff = user_diff + nice_diff + system_diff + idle_diff + iowait_diff;
-    let active_diff = user_diff + nice_diff + system_diff + iowait_diff;
-
-    if total_diff == 0 {
-        return Ok(0.0);
+    if let Ok(mut cache) = NUM_CORES_CACHE.lock() {
+        cache.insert(distro_name.to_string(), count);
     }
-
-    let cpu_percent = (active_diff as f64 / total_diff as f64) * 100.0;
-    Ok(cpu_percent)
+    count
 }
 
-#[derive(Debug)]
-struct CpuStat {
-    user: u64,
-    nice: u64,
-    system: u64,
-    idle: u64,
-    iowait: Option<u64>,
-}
-
-/// Read /proc/stat and parse CPU line
-fn read_proc_stat(distro_name: &str) -> Result<CpuStat, String> {
+/// Calculate CPU & memory usage using top -bn2
+fn get_cpu_and_mem(distro_name: &str) -> Result<(f64, f64), String> {
     let output = Command::new("wsl")
         .env("WSL_UTF8", "1")
-        .args(&["-d", distro_name, "--", "sh", "-c", "head -1 /proc/stat"])
+        .args(&["-d", distro_name, "--", "top", "-bn2", "-d", "0.2", "-b"])
         .creation_flags(CREATE_NO_WINDOW)
         .output();
 
     match output {
         Ok(out) if out.status.success() => {
             let stdout = crate::wsl::decoder::decode_output(&out.stdout);
-            tracing::debug!(
-                "/proc/stat raw output for {}: {}",
-                distro_name,
-                stdout.trim()
-            );
-            // Format: cpu  user nice system idle iowait irq softirq steal guest guest_nice
-            let parts: Vec<&str> = stdout.split_whitespace().collect();
-            if parts.len() < 5 || parts[0] != "cpu" {
-                return Err(format!("Invalid /proc/stat format: {}", stdout.trim()));
+            let trimmed = stdout.trim();
+            //tracing::debug!("[{}] Output:\n{}", distro_name, trimmed);
+
+            let mut cpu_sum = 0.0f64;
+            let mut mem_sum = 0.0f64;
+            let mut iteration = 0u32;
+
+            for line in trimmed.lines() {
+                if line.contains("%Cpu") {
+                    iteration += 1;
+                    continue;
+                }
+
+                if iteration < 2 {
+                    continue;
+                }
+
+                let fields: Vec<&str> = line.split_whitespace().collect();
+                if fields.len() >= 10
+                    && fields[0].chars().all(|c| c.is_ascii_digit())
+                    && !fields[0].is_empty()
+                {
+                    if let Ok(cpu) = fields[8].parse::<f64>() {
+                        cpu_sum += cpu;
+                    }
+                    if let Ok(res) = fields[5].parse::<f64>() {
+                        mem_sum += res;
+                    }
+                }
             }
 
-            let user = parts[1].parse::<u64>().unwrap_or(0);
-            let nice = parts[2].parse::<u64>().unwrap_or(0);
-            let system = parts[3].parse::<u64>().unwrap_or(0);
-            let idle = parts[4].parse::<u64>().unwrap_or(0);
-            let iowait = if parts.len() > 5 {
-                parts[5].parse::<u64>().ok()
-            } else {
-                None
-            };
-
+            let total_mem_kib = mem_sum;
+            let num_cores = get_distro_num_cores(distro_name);
+            let cpu_percent = (cpu_sum / num_cores as f64).min(100.0);
             tracing::debug!(
-                "CPU stat for {}: user={}, nice={}, system={}, idle={}, iowait={:?}",
+                "[{}] cpu={} mem_kib={}",
                 distro_name,
-                user,
-                nice,
-                system,
-                idle,
-                iowait
+                cpu_percent,
+                total_mem_kib
             );
-
-            Ok(CpuStat {
-                user,
-                nice,
-                system,
-                idle,
-                iowait,
-            })
+            Ok((cpu_percent, total_mem_kib))
         }
         Ok(out) => {
             let stderr = crate::wsl::decoder::decode_output(&out.stderr);
-            Err(format!("Failed to read /proc/stat: {}", stderr.trim()))
+            tracing::warn!("[{}] stderr: {}", distro_name, stderr.trim());
+            Err(format!("top command failed: {}", stderr.trim()))
         }
-        Err(e) => Err(format!("Failed to execute command: {}", e)),
+        Err(e) => Err(format!("Failed to execute top command: {}", e)),
     }
 }

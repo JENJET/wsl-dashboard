@@ -12,6 +12,7 @@ import {
     VSCodeStartupDialog,
     WslConfigDialog,
     NetworkAddRuleDialog,
+    TerminalConfigDialog,
 } from "dialogs.slint";
 import { ProxyHelpDialog } from "./dialogs/proxy_help_dialog.slint";
 import { CheckProxyDialog } from "./dialogs/check_proxy_dialog.slint";
@@ -29,6 +30,9 @@ export component ModalManager inherits Rectangle {
     in property <bool> show_wsl_update_confirm: false;
     in property <string> wsl_update_confirm_message: "";
     in-out property <bool> wsl_preview_checked: false;
+    in property <bool> show_wsl_shutdown_confirm: false;
+    in property <string> wsl_shutdown_confirm_title: "";
+    in property <string> wsl_shutdown_confirm_message: "";
     in property <bool> show_install_warn: false;
     in property <bool> show_expire: false;
     in property <bool> show_information: false;
@@ -42,6 +46,23 @@ export component ModalManager inherits Rectangle {
     in property <bool> is_installing: false;
     in-out property <bool> show_set_sparse_confirm: false;
     in-out property <bool> show_vhdx_resize_warning: false;
+    in-out property <bool> show_terminal_config: false;
+    in property <string> terminal_config_distro_name: "";
+    in property <[string]> terminal_config_options: [];
+    in-out property <int> terminal_config_index: 0;
+    in-out property <bool> terminal_config_show_custom: false;
+    in-out property <string> terminal_config_custom_path;
+    in-out property <string> terminal_config_custom_args;
+    in property <string> terminal_config_validation_text: "";
+    in property <bool> terminal_config_validation_ok: false;
+    in property <bool> terminal_config_is_default: false;
+    in property <string> terminal_config_default_label: "";
+    in property <string> terminal_config_current_preset_name: "";
+    in property <string> terminal_config_current_preset_template: "";
+    in property <string> terminal_config_command_display: "";
+    in property <string> terminal_config_current_preset_exe: "";
+    in property <string> terminal_config_proxy_hint: "";
+    in-out property <string> terminal_config_terminal_dir: "~";
 
     // Data
     in property <string> delete_target_name: "";
@@ -61,6 +82,9 @@ export component ModalManager inherits Rectangle {
     in-out property <string> move_target_path;
     in property <string> move_error: "";
     in property <string> move_confirm_message: "";
+    in property <bool> show_clone_shutdown_confirm: false;
+    in property <string> clone_shutdown_confirm_message: "";
+    in property <string> clone_shutdown_confirm_title: "";
     in property <string> message_text;
     in property <string> message_link_text: "";
     in property <string> message_action_text: "";
@@ -131,6 +155,8 @@ export component ModalManager inherits Rectangle {
     callback browse_move();
     callback confirm_move_action();
     callback cancel_move_confirm();
+    callback confirm_clone_shutdown_action();
+    callback cancel_clone_shutdown_confirm();
     callback close_message();
     callback message_link_clicked();
     callback message_action_clicked();
@@ -139,6 +165,8 @@ export component ModalManager inherits Rectangle {
     callback close_update();
     callback confirm_wsl_update();
     callback cancel_wsl_update();
+    callback confirm_wsl_shutdown();
+    callback cancel_wsl_shutdown();
     callback confirm_install_warn();
     callback cancel_install_warn();
     callback close_expire();
@@ -162,6 +190,11 @@ export component ModalManager inherits Rectangle {
     callback open_url(string);
     callback add_network_rule(string, string, string, string, bool);
     callback check_proxy_connection(string);
+    callback confirm_terminal_config(string, int, string, string);
+    callback close_terminal_config();
+    callback terminal_config_path_browse();
+    callback terminal_config_index_changed(int);
+    callback terminal_config_dir_edited(string);
     if (show_delete): ConfirmationDialog {
         width: 100%;
         height: 100%;
@@ -240,11 +273,26 @@ export component ModalManager inherits Rectangle {
         dialog_height: 250px;
         title_text: AppI18n.t("dialog.move_title", [root.move_source_name, AppI18n.version]);
         message: root.move_confirm_message;
+        is_warning: true;
         confirm => {
             root.confirm_move_action();
         }
         cancel => {
             root.cancel_move_confirm();
+        }
+    }
+    if (show_clone_shutdown_confirm): ConfirmationDialog {
+        width: 100%;
+        height: 100%;
+        dialog_height: 250px;
+        title_text: root.clone_shutdown_confirm_title;
+        message: root.clone_shutdown_confirm_message;
+        is_warning: true;
+        confirm => {
+            root.confirm_clone_shutdown_action();
+        }
+        cancel => {
+            root.cancel_clone_shutdown_confirm();
         }
     }
     if (show_message): Rectangle {
@@ -295,6 +343,20 @@ export component ModalManager inherits Rectangle {
         }
         cancel => {
             root.cancel_wsl_update();
+        }
+    }
+    if (show_wsl_shutdown_confirm): ConfirmationDialog {
+        width: 100%;
+        height: 100%;
+        dialog_height: 180px;
+        title_text: root.wsl_shutdown_confirm_title;
+        message: root.wsl_shutdown_confirm_message;
+        is_warning: true;
+        confirm => {
+            root.confirm_wsl_shutdown();
+        }
+        cancel => {
+            root.cancel_wsl_shutdown();
         }
     }
     if (show_install_warn): StoreInstallWarnDialog {
@@ -492,6 +554,42 @@ export component ModalManager inherits Rectangle {
             clicked => { root.show_network_proxy_help = false; }
         }
         ProxyHelpDialog {
+        }
+    }
+
+    if (show_terminal_config): TerminalConfigDialog {
+        width: 100%;
+        height: 100%;
+        distro_name: root.terminal_config_distro_name;
+        emulator_options: root.terminal_config_options;
+        selected_emulator_index <=> root.terminal_config_index;
+        show_custom <=> root.terminal_config_show_custom;
+        custom_path <=> root.terminal_config_custom_path;
+        custom_args <=> root.terminal_config_custom_args;
+        validation_result: root.terminal_config_validation_text;
+        validation_ok: root.terminal_config_validation_ok;
+        is_default: root.terminal_config_is_default;
+        default_label: root.terminal_config_default_label;
+        current_preset_name: root.terminal_config_current_preset_name;
+        current_preset_template: root.terminal_config_current_preset_template;
+        command_display: root.terminal_config_command_display;
+        current_preset_exe: root.terminal_config_current_preset_exe;
+        proxy_hint: root.terminal_config_proxy_hint;
+        terminal_dir <=> root.terminal_config_terminal_dir;
+        save(emulator_index, path, args) => {
+            root.confirm_terminal_config(root.terminal_config_distro_name, emulator_index, path, args);
+        }
+        close => {
+            root.close_terminal_config();
+        }
+        path_browse => {
+            root.terminal_config_path_browse();
+        }
+        index_changed(index) => {
+            root.terminal_config_index_changed(index);
+        }
+        dir_edited(dir) => {
+            root.terminal_config_dir_edited(dir);
         }
     }
 }

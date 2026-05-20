@@ -83,7 +83,7 @@ component BatchBar inherits Rectangle {
             clicked => { root.start(); }
         }
         ActionIcon {
-            icon: "\u{E71A}";
+            icon: "\u{E769}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.stop", [AppI18n.version]);
             enabled: selected_count > 0 && !root.operating;
@@ -193,7 +193,7 @@ component BatchBar inherits Rectangle {
             clicked => { root.restart(); }
         }
         ActionIcon {
-            icon: "\u{E71A}";
+            icon: "\u{E769}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.stop", [AppI18n.version]);
             enabled: selected_count > 0 && !root.operating;
@@ -382,6 +382,7 @@ component DistroList inherits VerticalLayout {
     callback delete_clicked(string);
     callback settings_clicked(string);
     callback configs_clicked(string);
+    callback terminal_config_clicked(string);
     callback set_default_distro(string);
     callback copy_distro_ip(string);
     callback copy_distro_name(string);
@@ -453,6 +454,9 @@ component DistroList inherits VerticalLayout {
         configs_clicked => {
             root.configs_clicked(d.name);
         }
+        terminal_config_clicked => {
+            root.terminal_config_clicked(d.name);
+        }
         set_default_clicked => {
             root.set_default_distro(d.name);
         }
@@ -486,6 +490,7 @@ export component MainView inherits VerticalLayout {
     callback delete_clicked(string);
     callback settings_clicked(string);
     callback configs_clicked(string);
+    callback terminal_config_clicked(string);
     callback set_default_distro(string);
     callback copy_distro_ip(string);
     callback copy_distro_name(string);
@@ -579,6 +584,9 @@ export component MainView inherits VerticalLayout {
                 }
                 configs_clicked(n) => {
                     root.configs_clicked(n);
+                }
+                terminal_config_clicked(n) => {
+                    root.terminal_config_clicked(n);
                 }
                 set_default_distro(n) => {
                     root.set_default_distro(n);

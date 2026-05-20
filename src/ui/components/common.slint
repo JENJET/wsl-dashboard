@@ -138,7 +138,6 @@ export component ActionIcon inherits Rectangle {
     // Tooltip - Use properties instead of conditional creation
     Rectangle {
         visible: root.enabled && touch.has-hover && tooltip != "";
-        opacity: (root.enabled && touch.has-hover && tooltip != "") ? 1 : 0;
         background: Theme.dark_mode ? #2D2D30 : #FFFFFF;
         border-color: Theme.border_color;
         border-width: 1px;

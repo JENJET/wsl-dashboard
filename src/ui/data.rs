@@ -175,7 +175,19 @@ static IS_REFRESHING: AtomicBool = AtomicBool::new(false);
 // which only returns string literals (e.g., "ubuntu", "debian"). These have 'static
 // lifetime and remain valid for the entire program duration.
 static LAST_REFRESH_SNAPSHOT: Lazy<
-    std::sync::Mutex<Option<Vec<(String, String, String, bool, Option<&'static str>, String)>>>,
+    std::sync::Mutex<
+        Option<
+            Vec<(
+                String,
+                String,
+                String,
+                bool,
+                Option<&'static str>,
+                String,
+                String,
+            )>,
+        >,
+    >,
 > = Lazy::new(|| std::sync::Mutex::new(None));
 static LAST_INSTALLABLE_SNAPSHOT: Lazy<std::sync::Mutex<Option<Vec<String>>>> =
     Lazy::new(|| std::sync::Mutex::new(None));
@@ -199,7 +211,7 @@ pub async fn refresh_distros_ui(
     });
 
     // Acquire all needed data under a single lock (avoid second lock acquisition race)
-    let (distros, executor, active_ops) = {
+    let (distros, executor, active_ops, terminal_emulators) = {
         let lock_timeout = std::time::Duration::from_millis(1000);
         match tokio::time::timeout(lock_timeout, app_state.lock()).await {
             Ok(app_state_lock) => {
@@ -222,10 +234,40 @@ pub async fn refresh_distros_ui(
                     .iter()
                     .map(|d| dashboard.get_active_op(&d.name).unwrap_or_default())
                     .collect();
+
+                // Resolve terminal emulator for each distro: per-instance -> global -> "cmd"
+                let global_terminal = app_state_lock
+                    .config_manager
+                    .get_settings()
+                    .terminal_emulator
+                    .clone();
+                let instances_path = crate::config::ConfigManager::get_instances_path();
+                let instances_container = crate::config::instances::load_instances(&instances_path);
+                let terminal_emulators: Vec<String> = distros
+                    .iter()
+                    .map(|d| {
+                        let instance_terminal = instances_container
+                            .instances
+                            .get(&d.name)
+                            .map(|c| c.terminal_emulator.clone())
+                            .unwrap_or_default();
+                        if instance_terminal.is_empty() {
+                            if global_terminal.is_empty() {
+                                "cmd".to_string()
+                            } else {
+                                global_terminal.clone()
+                            }
+                        } else {
+                            instance_terminal
+                        }
+                    })
+                    .collect();
+
                 (
                     distros,
                     app_state_lock.wsl_dashboard.executor().clone(),
                     active_ops,
+                    terminal_emulators,
                 )
             }
             Err(_) => {
@@ -236,21 +278,30 @@ pub async fn refresh_distros_ui(
     };
 
     // Quick check: has the actual data changed before we do heavy icon loading?
-    let current_snapshot: Vec<(String, String, String, bool, Option<&'static str>, String)> =
-        distros
-            .iter()
-            .zip(active_ops.iter())
-            .map(|(d, op)| {
-                (
-                    d.name.clone(),
-                    format!("{:?}", d.status),
-                    format!("{:?}", d.version),
-                    d.is_default,
-                    crate::utils::icon_mapper::map_name_to_icon_key(&d.name),
-                    op.clone(),
-                )
-            })
-            .collect();
+    let current_snapshot: Vec<(
+        String,
+        String,
+        String,
+        bool,
+        Option<&'static str>,
+        String,
+        String,
+    )> = distros
+        .iter()
+        .zip(active_ops.iter())
+        .zip(terminal_emulators.iter())
+        .map(|((d, op), te)| {
+            (
+                d.name.clone(),
+                format!("{:?}", d.status),
+                format!("{:?}", d.version),
+                d.is_default,
+                crate::utils::icon_mapper::map_name_to_icon_key(&d.name),
+                op.clone(),
+                te.clone(),
+            )
+        })
+        .collect();
 
     let data_changed = {
         let mut last = LAST_REFRESH_SNAPSHOT.lock().unwrap();
@@ -300,7 +351,11 @@ pub async fn refresh_distros_ui(
         }
     }
 
-    for (d, active_op) in distros.into_iter().zip(active_ops.into_iter()) {
+    for ((d, active_op), terminal_emulator) in distros
+        .into_iter()
+        .zip(active_ops.into_iter())
+        .zip(terminal_emulators.into_iter())
+    {
         let icon_key: Option<&'static str> =
             crate::utils::icon_mapper::map_name_to_icon_key(&d.name);
 
@@ -308,16 +363,14 @@ pub async fn refresh_distros_ui(
         intermediate_distros.push((
             d.name.clone(),
             status_str,
-            match d.version {
-                crate::wsl::models::WslVersion::V1 => "1",
-                crate::wsl::models::WslVersion::V2 => "2",
-            },
+            d.version.to_string(),
             d.is_default,
             icon_key,
             crate::utils::icon_mapper::get_initial(&d.name),
             icon_key.and_then(crate::utils::icon_mapper::load_icon_data),
             d.status == wsl::models::WslStatus::Running,
             active_op,
+            terminal_emulator,
         ));
     }
 
@@ -397,7 +450,7 @@ pub async fn refresh_distros_ui(
         });
 
         if let Some(app) = app_handle.upgrade() {
-            // Preserve existing ip/cpu/memory from current model so refresh_distros_ui
+            // Preserve existing ip/cpu/mem from current model so refresh_distros_ui
             // does not race with spawn_state_monitor Phase 2 updates.
             let existing_model = app.get_distros();
             let mut existing_resources: Vec<(String, String, String, String)> = Vec::new();
@@ -428,6 +481,7 @@ pub async fn refresh_distros_ui(
                             preloaded_icon,
                             _is_running,
                             active_op,
+                            terminal_emulator,
                         ),
                     )| {
                         let mut image = slint::Image::default();
@@ -450,7 +504,7 @@ pub async fn refresh_distros_ui(
                             .iter()
                             .find(|(n, _, _, _)| n == &name)
                             .map(|(_, i, c, m)| (i.clone(), c.clone(), m.clone()))
-                            .unwrap_or_default();
+                            .unwrap_or_else(|| (String::new(), String::new(), String::new()));
                         Distro {
                             sequence: (idx + 1) as i32,
                             name: name.clone().into(),
@@ -470,6 +524,7 @@ pub async fn refresh_distros_ui(
                             show_ip: crate::utils::wsl_config::show_distro_ip(),
                             selected: selected_distros.contains(&name),
                             active_op: active_op.into(),
+                            terminal_emulator: terminal_emulator.into(),
                         }
                     },
                 )
@@ -506,6 +561,7 @@ pub async fn refresh_distros_ui(
                             || old_distro.show_ip != new_distro.show_ip
                             || old_distro.selected != new_distro.selected
                             || old_distro.active_op != new_distro.active_op
+                            || old_distro.terminal_emulator != new_distro.terminal_emulator
                         {
                             existing_model.set_row_data(i, new_distro.clone());
                         }
@@ -633,6 +689,7 @@ pub async fn load_settings_to_ui(
         .get_config()
         .sidebar
         .clone();
+    app.set_sidebar_toggle(sidebar.toggle);
     app.set_sidebar_add(sidebar.add);
     app.set_sidebar_wsl_manage(sidebar.wsl_manage);
     app.set_sidebar_usb(sidebar.usb);
@@ -677,6 +734,60 @@ pub async fn load_settings_to_ui(
     app.global::<crate::Theme>()
         .set_dark_mode(settings.dark_mode);
 
+    // Populate terminal emulator options and user preset list
+    {
+        use crate::wsl::terminal;
+        let all_presets = terminal::resolve_presets(
+            terminal::get_builtin_presets_map(),
+            &settings.terminal_presets,
+            &settings.terminal_user_presets,
+        );
+        let mut preset_names: Vec<String> = all_presets
+            .keys()
+            .filter(|name| {
+                terminal::BuiltinTerminal::is_always_visible(name)
+                    || terminal::validate_preset(&all_presets[name.as_str()]).is_ok()
+            })
+            .cloned()
+            .collect();
+        preset_names.sort_by(|a, b| {
+            let prio_a = terminal::BuiltinTerminal::from_str(a)
+                .map(|t| t.priority())
+                .unwrap_or(4);
+            let prio_b = terminal::BuiltinTerminal::from_str(b)
+                .map(|t| t.priority())
+                .unwrap_or(4);
+            prio_a.cmp(&prio_b).then(a.cmp(b))
+        });
+        let model: slint::ModelRc<slint::SharedString> =
+            slint::ModelRc::new(slint::VecModel::from(
+                preset_names
+                    .iter()
+                    .map(|s| slint::SharedString::from(s.as_str()))
+                    .collect::<Vec<_>>(),
+            ));
+        app.set_terminal_emulator_options(model);
+        let index = preset_names
+            .iter()
+            .position(|n| n == &settings.terminal_emulator)
+            .unwrap_or(0);
+        app.set_terminal_emulator_index(index as i32);
+        app.set_saved_terminal_emulator_index(index as i32);
+
+        // Load user-defined preset names
+        let user_names: Vec<String> = settings.terminal_user_presets.keys().cloned().collect();
+        let mut sorted = user_names;
+        sorted.sort();
+        let user_model: slint::ModelRc<slint::SharedString> =
+            slint::ModelRc::new(slint::VecModel::from(
+                sorted
+                    .iter()
+                    .map(|s| slint::SharedString::from(s.as_str()))
+                    .collect::<Vec<_>>(),
+            ));
+        app.set_terminal_user_preset_names(user_model);
+    }
+
     // Set default font based on language to fix Chinese rendering issues
     let font_family = if crate::app::is_chinese_lang(&settings.ui_language) {
         crate::app::constants::FONT_ZH
@@ -707,4 +818,44 @@ pub async fn load_settings_to_ui(
         settings.log_level,
         log_days
     );
+}
+
+/// Refresh the terminal emulator dropdown options and index after presets change.
+pub fn refresh_terminal_emulator_options(app: &AppWindow, settings: &crate::config::UserSettings) {
+    use crate::wsl::terminal;
+    let all_presets = terminal::resolve_presets(
+        terminal::get_builtin_presets_map(),
+        &settings.terminal_presets,
+        &settings.terminal_user_presets,
+    );
+    let mut preset_names: Vec<String> = all_presets
+        .keys()
+        .filter(|name| {
+            terminal::BuiltinTerminal::is_always_visible(name)
+                || terminal::validate_preset(&all_presets[name.as_str()]).is_ok()
+        })
+        .cloned()
+        .collect();
+    preset_names.sort_by(|a, b| {
+        let prio_a = terminal::BuiltinTerminal::from_str(a)
+            .map(|t| t.priority())
+            .unwrap_or(4);
+        let prio_b = terminal::BuiltinTerminal::from_str(b)
+            .map(|t| t.priority())
+            .unwrap_or(4);
+        prio_a.cmp(&prio_b).then(a.cmp(b))
+    });
+    let model: ModelRc<slint::SharedString> = ModelRc::new(VecModel::from(
+        preset_names
+            .iter()
+            .map(|s| slint::SharedString::from(s.as_str()))
+            .collect::<Vec<_>>(),
+    ));
+    app.set_terminal_emulator_options(model);
+    let index = preset_names
+        .iter()
+        .position(|n| n == &settings.terminal_emulator)
+        .unwrap_or(0);
+    app.set_terminal_emulator_index(index as i32);
+    app.set_saved_terminal_emulator_index(index as i32);
 }

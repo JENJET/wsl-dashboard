@@ -28,6 +28,7 @@ component DistroInfo inherits VerticalLayout {
         alignment: start;
         
         name_touch := TouchArea {
+            horizontal-stretch: 1;
             mouse-cursor: root.batch_mode ? default : pointer;
             clicked => {
                 if (!root.batch_mode) { root.copy_distro_name(); }
@@ -126,6 +127,27 @@ component DistroInfo inherits VerticalLayout {
                 horizontal-alignment: center;
                 vertical-alignment: center;
             }
+            cpu_tip := TouchArea {
+                Rectangle {
+                    visible: cpu_tip.has-hover;
+                    background: Theme.dark_mode ? #2D2D30 : #FFFFFF;
+                    border-color: Theme.border_color;
+                    border-width: 1px;
+                    border-radius: 4px;
+                    x: (parent.width - self.width) / 2;
+                    y: -20px;
+                    width: ttc.width + 12px;
+                    height: ttc.height + 6px;
+                    ttc := Text {
+                        text: AppI18n.t("distro.cpu_tooltip", [AppI18n.version]) + ":" + distro.cpu_usage;
+                        color: Theme.text_primary;
+                        font-size: 11px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
         }
         
         if (distro.status == "Running" && distro.memory_usage != ""): Rectangle {
@@ -141,6 +163,27 @@ component DistroInfo inherits VerticalLayout {
                 color: Theme.text_secondary;
                 horizontal-alignment: center;
                 vertical-alignment: center;
+            }
+            mem_tip := TouchArea {
+                Rectangle {
+                    visible: mem_tip.has-hover;
+                    background: Theme.dark_mode ? #2D2D30 : #FFFFFF;
+                    border-color: Theme.border_color;
+                    border-width: 1px;
+                    border-radius: 4px;
+                    x: (parent.width - self.width) / 2;
+                    y: -20px;
+                    width: ttm.width + 12px;
+                    height: ttm.height + 6px;
+                    ttm := Text {
+                        text: AppI18n.t("distro.memory_tooltip", [AppI18n.version]) + ":" + distro.memory_usage;
+                        color: Theme.text_primary;
+                        font-size: 11px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
             }
         }
     }
@@ -197,31 +240,7 @@ component DistroBadge inherits VerticalLayout {
                 color: Theme.text_primary;
             }
         }
-        touch := TouchArea {
-            mouse-cursor: pointer;
-        }
-
-        // Tooltip
-        Rectangle {
-            visible: touch.has-hover && distro.distro_display_name != "";
-            opacity: (touch.has-hover && distro.distro_display_name != "") ? 1 : 0;
-            background: Theme.dark_mode ? #2D2D30 : #FFFFFF;
-            border-color: Theme.border_color;
-            border-width: 1px;
-            border-radius: 4px;
-            z: 100;
-            x: (parent.width - self.width) / 2;
-            y: -4px;
-            width: tt_text.width + 12px;
-            height: tt_text.height + 6px;
-            tt_text := Text {
-                text: distro.distro_display_name;
-                color: Theme.text_primary;
-                font-size: 11px * LayoutConstants.font-scale;
-                font-family: Theme.default_font;
-                horizontal-alignment: center;
-                vertical-alignment: center;
-            }
+        icon_touch := TouchArea {
         }
     }
 }
@@ -235,7 +254,7 @@ component StartStopButton inherits VerticalLayout {
     alignment: center; // Vertically center
 
     ActionIcon {
-        icon: (distro.status == "Running") ? "\u{E71A}" : "\u{E768}";
+        icon: (distro.status == "Running") ? "\u{E769}" : "\u{E768}";
         is_font_icon: true;
         tooltip: (distro.status == "Running") ? AppI18n.t("distro.stop", [AppI18n.version]) : AppI18n.t("distro.start", [AppI18n.version]);
         clicked => {
@@ -251,6 +270,7 @@ component StartStopButton inherits VerticalLayout {
 // Quick action icon group (terminal, etc.)
 component QuickActionIcons inherits VerticalLayout {
     in property <bool> expanded;
+    in property <Distro> distro;
     callback terminal();
     callback vscode();
     callback folder();
@@ -272,7 +292,7 @@ component QuickActionIcons inherits VerticalLayout {
         ActionIcon {
             icon: "\u{E756}";
             is_font_icon: true;
-            tooltip: AppI18n.t("distro.terminal", [AppI18n.version]);
+            tooltip: AppI18n.t("distro.terminal", [AppI18n.version]) + " (" + root.distro.terminal_emulator + ")";
             clicked => {
                 root.terminal();
             }
@@ -320,6 +340,7 @@ component ExpandedActionIcons inherits VerticalLayout {
     callback settings();
     callback configs();
     callback set_default();
+    callback terminal_config();
     alignment: center; // Vertically center (core)
     
     HorizontalLayout {
@@ -413,6 +434,15 @@ component ExpandedActionIcons inherits VerticalLayout {
                 root.configs();
             }
         }
+
+        ActionIcon {
+            icon: "\u{E756}";
+            is_font_icon: true;
+            tooltip: AppI18n.t("distro.terminal_config", [AppI18n.version]);
+            clicked => {
+                root.terminal_config();
+            }
+        }
     }
 }
 
@@ -438,6 +468,7 @@ export component DistroCard inherits Rectangle {
     callback move_clicked;
     callback information_clicked;
     callback configs_clicked;
+    callback terminal_config_clicked;
     callback expand_clicked;
     callback set_default_clicked();
     callback copy_distro_ip();
@@ -455,26 +486,28 @@ export component DistroCard inherits Rectangle {
         padding: 0px;
         
         // Main row: Revert to physical spring layout, avoid top-level centering
-        Rectangle {
-            height: 48px;
-            touch := TouchArea {
-                mouse-cursor: root.batch_mode ? default : pointer;
-                clicked => {
-                    if (root.batch_mode) {
-                        root.selection_toggled();
-                    } else {
-                        root.expand_clicked();
+            Rectangle {
+                // Main row
+                height: 48px;
+                touch := TouchArea {
+                    mouse-cursor: root.batch_mode ? default : pointer;
+                    clicked => {
+                        if (root.batch_mode) {
+                            root.selection_toggled();
+                        } else {
+                            root.expand_clicked();
+                        }
                     }
                 }
-            }
-            HorizontalLayout {
-                padding-left: 12px;
-                padding-right: 12px;
-                spacing: 0px; // Use Spacer to control spacing
+                HorizontalLayout {
+                    padding-left: 12px;
+                    padding-right: 12px;
+                    spacing: 0px; // Use Spacer to control spacing
 
-                // --- RTL branch: Icons on left, text on right ---
-                if (!root.batch_mode && AppI18n.is-rtl): QuickActionIcons {
+                    // --- RTL branch: Icons on left, text on right ---
+                    if (!root.batch_mode && AppI18n.is-rtl): QuickActionIcons {
                     expanded: root.expanded;
+                    distro: root.distro;
                     terminal => {
                         root.terminal_clicked();
                     }
@@ -517,6 +550,7 @@ export component DistroCard inherits Rectangle {
                 if (AppI18n.is-rtl): HorizontalLayout {
                     spacing: 8px;
                     DistroInfo {
+                        horizontal-stretch: 1;
                         distro: root.distro;
                         is-rtl: true;
                         batch_mode: root.batch_mode;
@@ -528,7 +562,7 @@ export component DistroCard inherits Rectangle {
                         }
                     }
 
-                    DistroBadge {
+                    distro_badge_rtl := DistroBadge {
                         distro: root.distro;
                     }
 
@@ -545,6 +579,7 @@ export component DistroCard inherits Rectangle {
 
                 // --- LTR branch: Text on left, icons on right ---
                 if (!AppI18n.is-rtl): HorizontalLayout {
+                    horizontal-stretch: 1;
                     spacing: 8px;
                     if (root.batch_mode): Rectangle {
                         width: 28px;
@@ -580,11 +615,12 @@ export component DistroCard inherits Rectangle {
                         }
                     }
 
-                    DistroBadge {
+                    distro_badge_ltr := DistroBadge {
                         distro: root.distro;
                     }
 
                     DistroInfo {
+                        horizontal-stretch: 1;
                         distro: root.distro;
                         is-rtl: false;
                         batch_mode: root.batch_mode;
@@ -601,6 +637,7 @@ export component DistroCard inherits Rectangle {
                 } // Middle spring
                 if (!root.batch_mode && !AppI18n.is-rtl): QuickActionIcons {
                     expanded: root.expanded;
+                    distro: root.distro;
                     terminal => {
                         root.terminal_clicked();
                     }
@@ -613,6 +650,31 @@ export component DistroCard inherits Rectangle {
                     expand => {
                         root.expand_clicked();
                     }
+                }
+            }
+            // Badge overlay tooltip - renders on top of all layout items
+            badge_overlay := TouchArea {
+                x: AppI18n.is-rtl ? parent.width - 12px - 28px - 8px - 32px : 12px + 28px + 8px;
+                width: 32px;
+                height: 100%;
+            }
+            Rectangle {
+                visible: badge_overlay.has-hover && root.distro.distro_display_name != "";
+                background: Theme.dark_mode ? #2D2D30 : #FFFFFF;
+                border-color: Theme.border_color;
+                border-width: 1px;
+                border-radius: 4px;
+                x: badge_overlay.x + (badge_overlay.width - self.width) / 2;
+                y: -4px;
+                width: tt_text.width + 12px;
+                height: tt_text.height + 6px;
+                tt_text := Text {
+                    text: root.distro.distro_display_name;
+                    color: Theme.text_primary;
+                    font-size: 11px * LayoutConstants.font-scale;
+                    font-family: Theme.default_font;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
                 }
             }
         }
@@ -667,6 +729,9 @@ export component DistroCard inherits Rectangle {
                         configs => {
                             root.configs_clicked();
                         }
+                        terminal_config => {
+                            root.terminal_config_clicked();
+                        }
                     }
                     Rectangle {
                         horizontal-stretch: 1;
@@ -703,10 +768,13 @@ export component DistroCard inherits Rectangle {
                         }
                         configs => {
                             root.configs_clicked();
+                        }
+                        terminal_config => {
+                            root.terminal_config_clicked();
+                        }
+                    }
+                }
             }
-        }
-    }
-}
         }
     }
 }

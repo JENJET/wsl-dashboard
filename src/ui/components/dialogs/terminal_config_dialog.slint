@@ -1,0 +1,226 @@
+import {
+    Theme,
+    AppI18n,
+    LayoutConstants,
+} from "../../theme.slint";
+import { CustomLineEdit, CustomComboBox, CustomButton } from "../form_widgets.slint";
+
+export component TerminalConfigDialog inherits Rectangle {
+    in property <string> distro_name;
+    in property <[string]> emulator_options;
+    in-out property <int> selected_emulator_index: 0;
+    in-out property <bool> show_custom: false;
+    in-out property <string> custom_path;
+    in-out property <string> custom_args;
+    in property <string> validation_result;
+    in property <bool> validation_ok: false;
+    in property <bool> is_default: false;
+    in property <string> default_label;
+    in property <string> current_preset_name;
+    in property <string> current_preset_template;
+    in property <string> command_display;
+    in property <string> current_preset_exe;
+    in property <string> proxy_hint;
+    in-out property <string> terminal_dir: "~";
+    callback close;
+    callback save(int, string, string);
+    callback path_browse;
+    callback index_changed(int);
+    callback dir_edited(string);
+
+    background: #00000080;
+    TouchArea { }
+
+    Rectangle {
+        width: 520px;
+        height: Math.max(360px, content_box.preferred-height + 160px);
+        background: Theme.card_bg;
+        border-radius: 8px;
+        border-width: 1px;
+        border-color: Theme.border_color;
+        TouchArea { }
+
+        VerticalLayout {
+            padding: 24px;
+            spacing: 0px;
+
+            HorizontalLayout {
+                padding-bottom: 16px;
+                Text {
+                    text: AppI18n.t("dialog.terminal.title", [root.distro_name, AppI18n.version]);
+                    font-size: 18px * LayoutConstants.font-scale;
+                    font-family: Theme.default_font;
+                    font-weight: 500;
+                    color: Theme.text_primary;
+                    horizontal-stretch: 1;
+                }
+                TouchArea {
+                    width: 24px; height: 24px;
+                    clicked => { root.close(); }
+                    Rectangle {
+                        background: parent.has-hover ? Theme.hover_bg : transparent;
+                        border-radius: 4px;
+                        Text {
+                            text: "\u{E8BB}"; font-family: Theme.icon_font;
+                            font-size: 14px; color: Theme.text_primary;
+                            vertical-alignment: center; horizontal-alignment: center;
+                        }
+                    }
+                }
+            }
+
+            Rectangle { height: 1px; background: Theme.border_color; }
+            Rectangle { height: 16px; }
+
+            content_box := VerticalLayout {
+                spacing: 16px;
+                alignment: start;
+
+                // Current (saved) configuration
+                if root.current_preset_name != "" : Rectangle {
+                    border-radius: 6px;
+                    background: Theme.input_bg;
+                    VerticalLayout {
+                        padding: 12px;
+                        spacing: 4px;
+                        Text {
+                            text: AppI18n.t("dialog.terminal.current_config", [AppI18n.version]) + ": " + root.current_preset_name;
+                            font-size: 13px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            font-weight: 600;
+                            color: Theme.text_primary;
+                        }
+                        Text {
+                            text: root.current_preset_template;
+                            font-size: 12px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            color: Theme.text_secondary;
+                            wrap: word-wrap;
+                        }
+                    }
+                }
+
+                // Emulator selector
+                VerticalLayout {
+                    spacing: 8px;
+                    Text {
+                        text: AppI18n.t("dialog.terminal.emulator", [AppI18n.version]);
+                        font-size: 13px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        color: Theme.text_secondary;
+                    }
+                    CustomComboBox {
+                        model: root.emulator_options;
+                        current-index <=> root.selected_emulator_index;
+                        dropdown-height: 200px;
+                        selected(index) => { root.index_changed(index); }
+                    }
+                }
+
+                // Default working directory
+                VerticalLayout {
+                    spacing: 8px;
+                    Text {
+                        text: AppI18n.t("dialog.terminal.dir", [AppI18n.version]);
+                        font-size: 13px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        color: Theme.text_secondary;
+                    }
+                    CustomLineEdit {
+                        text <=> root.terminal_dir;
+                        placeholder-text: "~";
+                        edited => { root.dir_edited(root.terminal_dir); }
+                    }
+                }
+
+                // Selected preset preview
+                if root.command_display != "" : Rectangle {
+                    border-radius: 4px;
+                    background: Theme.input_bg;
+                    VerticalLayout {
+                        padding: 10px;
+                        spacing: 4px;
+                        Text {
+                            text: root.command_display;
+                            font-size: 12px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            color: Theme.text_secondary;
+                            wrap: word-wrap;
+                        }
+                    }
+                }
+
+                if root.validation_result != "" : Text {
+                    text: root.validation_result;
+                    font-size: 12px * LayoutConstants.font-scale;
+                    font-family: Theme.default_font;
+                    color: root.validation_ok ? #2ecc71 : #ff3333;
+                }
+
+                if root.show_custom : VerticalLayout {
+                    spacing: 8px;
+                    Text {
+                        text: AppI18n.t("dialog.terminal.custom_path", [AppI18n.version]);
+                        font-size: 13px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        color: Theme.text_secondary;
+                    }
+                    HorizontalLayout {
+                        spacing: 6px;
+                        CustomLineEdit {
+                            text <=> root.custom_path;
+                            horizontal-stretch: 1;
+                            placeholder-text: "D:\\tools\\wezterm.exe";
+                        }
+                        CustomButton {
+                            text: "...";
+                            width: 40px;
+                            clicked => { root.path_browse(); }
+                        }
+                    }
+                    Text {
+                        text: AppI18n.t("dialog.terminal.custom_args", [AppI18n.version]);
+                        font-size: 13px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        color: Theme.text_secondary;
+                    }
+                    CustomLineEdit {
+                        text <=> root.custom_args;
+                        placeholder-text: "start -- wsl -d {distro} --cd {dir}";
+                    }
+                    Text {
+                        text: "{exe} \u{2192} " + root.current_preset_exe + "    {distro} \u{2192} " + root.distro_name + "    {dir} \u{2192} " + root.terminal_dir + "    {proxy} \u{2192} " + root.proxy_hint;
+                        font-size: 11px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        color: Theme.text_secondary;
+                        wrap: word-wrap;
+                    }
+                }
+
+                Rectangle { height: 8px; }
+            }
+
+            Rectangle { height: 16px; }
+
+            HorizontalLayout {
+                alignment: AppI18n.is-rtl ? start : end;
+                spacing: 12px;
+                if (AppI18n.is-rtl): CustomButton {
+                    text: AppI18n.t("dialog.save", [AppI18n.version]);
+                    primary: true; height: 32px; enabled: root.validation_ok || root.is_default;
+                    clicked => { root.save(root.selected_emulator_index, root.custom_path, root.custom_args); }
+                }
+                CustomButton {
+                    text: AppI18n.t("dialog.cancel", [AppI18n.version]);
+                    height: 32px;
+                    clicked => { root.close(); }
+                }
+                if (!AppI18n.is-rtl): CustomButton {
+                    text: AppI18n.t("dialog.save", [AppI18n.version]);
+                    primary: true; height: 32px; enabled: root.validation_ok || root.is_default;
+                    clicked => { root.save(root.selected_emulator_index, root.custom_path, root.custom_args); }
+                }
+            }
+        }
+    }
+}

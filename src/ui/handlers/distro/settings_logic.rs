@@ -97,12 +97,21 @@ pub async fn perform_save_settings(
     }
 
     // 2. Save to instances.toml
+    let current_emulator = {
+        let state = as_ptr.lock().await;
+        state
+            .config_manager
+            .get_instance_config(&name)
+            .terminal_emulator
+            .clone()
+    };
     let config = crate::config::DistroInstanceConfig {
         terminal_dir,
         vscode_dir,
         auto_startup: autostart,
         startup_script: startup_script.clone(),
         terminal_proxy,
+        terminal_emulator: current_emulator,
     };
 
     {

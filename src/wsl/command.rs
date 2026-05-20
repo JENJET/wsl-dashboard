@@ -1,4 +1,4 @@
-use crate::config::ConfigManager;
+use crate::config::{ConfigManager, TerminalPreset};
 pub use crate::wsl::executor::WslCommandExecutor;
 use crate::wsl::models::{WslCommandResult, WslDistro, WslInformation};
 
@@ -99,9 +99,16 @@ impl WslCommandExecutor {
         distro_name: &str,
         working_dir: &str,
         proxy_exports: Option<Vec<(String, String)>>,
+        terminal_preset: &TerminalPreset,
     ) -> WslCommandResult<String> {
-        crate::wsl::ops::ui::open_distro_terminal(self, distro_name, working_dir, proxy_exports)
-            .await
+        crate::wsl::ops::ui::open_distro_terminal(
+            self,
+            distro_name,
+            working_dir,
+            proxy_exports,
+            terminal_preset,
+        )
+        .await
     }
 
     // Open specified path in distribution

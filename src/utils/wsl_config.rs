@@ -48,8 +48,7 @@ fn get_wsl_networking_mode_impl() -> String {
 }
 
 /// Whether to show distro IP in the instance list.
-/// Controlled by networking mode — only enabled under "virtioproxy" mode.
+/// Controlled by networking mode — only enabled under "bridged" mode.
 pub fn show_distro_ip() -> bool {
-    //get_wsl_networking_mode_impl() == "virtioproxy"
-    false
+    get_wsl_networking_mode_impl() == "bridged"
 }

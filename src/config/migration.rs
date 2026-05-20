@@ -68,6 +68,14 @@ pub fn migrate_config(config: &mut Config) {
         config.settings.system_color = false;
     }
 
+    // v5 -> v6 logic
+    if old_version < 6 {
+        info!(
+            "Upgrading to v6: adding [settings] terminal-emulator, terminal-presets, terminal-user-presets"
+        );
+        config.settings.terminal_emulator = super::default_terminal_emulator();
+    }
+
     config.application.setting_version = SETTINGS_VERSION as u8;
     info!(
         "✅ Configuration migration complete, current version: v{}",
@@ -90,6 +98,10 @@ pub fn migrate_instances_config(container: &mut super::InstancesContainer) {
 
     if old_version < 2 {
         info!("Upgrading instances config to v2: adding terminal-proxy field (default enabled)");
+    }
+
+    if old_version < 3 {
+        info!("Upgrading instances config to v3: adding terminal-emulator field");
     }
 
     container.common.setting_version = super::INSTANCES_VERSION;

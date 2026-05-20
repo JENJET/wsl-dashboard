@@ -263,6 +263,7 @@ async fn move_wsl1(
     };
 
     if !import_result.success {
+        let _ = std::fs::remove_dir_all(&target_path);
         return WslCommandResult {
             success: false,
             output: "BACKUP_SAVED".into(),
@@ -282,7 +283,7 @@ async fn move_wsl1(
         executor.execute_command(&["-l", "-v"]).await
     };
 
-    if verify_result.success && verify_result.output.contains(target_name) {
+    return if verify_result.success && verify_result.output.contains(target_name) {
         info!("WSL1 Move: Success, cleaning up temp file");
         let _ = std::fs::remove_file(&temp_file_str);
         WslCommandResult::success("Move successful".into(), None)
@@ -295,7 +296,7 @@ async fn move_wsl1(
             data: None,
             timeout: false,
         }
-    }
+    };
 }
 
 pub async fn perform_batch_move(

@@ -1,8 +1,9 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 // Configuration file version constant
-pub const SETTINGS_VERSION: u32 = 5;
+pub const SETTINGS_VERSION: u32 = 6;
 
 // Application configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -24,6 +25,12 @@ pub struct SystemConfig {
     pub system_language: String,
     #[serde(rename = "timezone")]
     pub timezone: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TerminalPreset {
+    pub path: String,
+    pub args: String,
 }
 
 // User settings
@@ -55,6 +62,20 @@ pub struct UserSettings {
     pub log_level: u8,
     #[serde(rename = "log-days", default = "default_log_days")]
     pub log_days: u8,
+    #[serde(rename = "terminal-emulator", default = "default_terminal_emulator")]
+    pub terminal_emulator: String,
+    #[serde(
+        rename = "terminal-presets",
+        default,
+        skip_serializing_if = "HashMap::is_empty"
+    )]
+    pub terminal_presets: HashMap<String, TerminalPreset>,
+    #[serde(
+        rename = "terminal-user-presets",
+        default,
+        skip_serializing_if = "HashMap::is_empty"
+    )]
+    pub terminal_user_presets: HashMap<String, TerminalPreset>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -89,6 +110,11 @@ pub fn default_log_days() -> u8 {
 }
 pub fn default_check_update() -> u8 {
     7
+}
+pub fn default_terminal_emulator() -> String {
+    crate::wsl::terminal::BuiltinTerminal::Cmd
+        .as_str()
+        .to_string()
 }
 
 // Complete configuration
@@ -148,6 +174,9 @@ impl Config {
                 sidebar_collapsed: false,
                 log_level: 4,
                 log_days: 7,
+                terminal_emulator: default_terminal_emulator(),
+                terminal_presets: HashMap::new(),
+                terminal_user_presets: HashMap::new(),
             },
 
             tray: TraySettings::default(),
@@ -171,6 +200,8 @@ pub struct SidebarConfig {
     pub network: bool,
     #[serde(default = "default_true")]
     pub about: bool,
+    #[serde(default = "default_true")]
+    pub toggle: bool,
 }
 
 fn default_true() -> bool {
@@ -185,6 +216,7 @@ impl Default for SidebarConfig {
             usb: true,
             network: true,
             about: true,
+            toggle: true,
         }
     }
 }
@@ -257,7 +289,7 @@ pub struct UsbAutoAttachDevice {
 
 // --- Instance-specific configuration (instances.toml) ---
 
-pub const INSTANCES_VERSION: u32 = 2;
+pub const INSTANCES_VERSION: u32 = 3;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CachedDistro {
@@ -288,6 +320,8 @@ pub struct DistroInstanceConfig {
     pub startup_script: String,
     #[serde(rename = "terminal-proxy", default = "default_true")]
     pub terminal_proxy: bool,
+    #[serde(rename = "terminal-emulator", default)]
+    pub terminal_emulator: String,
 }
 
 pub fn default_terminal_dir() -> String {
@@ -305,6 +339,7 @@ impl Default for DistroInstanceConfig {
             auto_startup: false,
             startup_script: String::new(),
             terminal_proxy: true,
+            terminal_emulator: String::new(),
         }
     }
 }

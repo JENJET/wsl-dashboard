@@ -206,135 +206,138 @@ export component InformationDialog inherits Rectangle {
                 }
 
                 // --- VHDX Section ---
-                Rectangle {
-                    height: 1px;
-                    background: Theme.border_color.with-alpha(50%);
-                }
-
-                InfoRow {
-                    label: AppI18n.t("dialog.vhdx_usage", [AppI18n.version]);
-                    value: root.info.vhdx_size;
-                    is_pill: true;
-                }
-
-                Rectangle {
-                    height: 24px;
-                    Text {
-                        x: AppI18n.is-rtl ? parent.width - self.width : 0;
-                        text: AppI18n.t("dialog.vhdx_virtual_size", [AppI18n.version]) + ":" + (AppI18n.is-rtl ? "\u{200F}" : "");
-                        width: 110px;
-                        color: Theme.text_secondary;
-                        font-size: 13px * LayoutConstants.font-scale;
-                        font-family: Theme.default_font;
-                        vertical-alignment: center;
-                        horizontal-alignment: AppI18n.is-rtl ? right : left;
-                    }
+                if (root.info.wsl_version == "WSL2"): VerticalLayout {
+                    spacing: 8px;
                     Rectangle {
-                        x: AppI18n.is-rtl ? 0 : 122px;
-                        y: (parent.height - self.height) / 2;
-                        width: virtual_pill_text.width + 16px;
-                        height: 20px;
-                        background: Theme.dark_mode ? #1E1E1E : #F3F3F3;
-                        border-radius: 4px;
-                        virtual_pill_text := Text {
-                            text: root.info.vhdx_virtual_size;
-                            color: Theme.accent;
-                            font-family: Theme.default_font;
-                            font-size: 12px * LayoutConstants.font-scale;
-                            font-weight: 500;
-                            vertical-alignment: center;
-                            horizontal-alignment: center;
-                        }
+                        height: 1px;
+                        background: Theme.border_color.with-alpha(50%);
                     }
-                    if (root.info.vhdx_path != "" && root.info.status != "Running"): ActionIcon {
-                        x: parent.width - 20px;
-                        y: (parent.height - 10px) / 2;
-                        width: 10px;
-                        height: 10px;
-                        icon: "\u{e932}";
-                        is_font_icon: true;
-                        tooltip: AppI18n.t("dialog.vhdx_resize", [AppI18n.version]);
-                        tooltip_x_offset: -10px;
-                        clicked => {
-                            root.resize_vhdx_clicked();
-                        }
-                    }
-                }
 
-                InfoRow {
-                    label: AppI18n.t("dialog.vhdx_type", [AppI18n.version]);
-                    value: root.info.vhdx_type;
-                    is_pill: true;
-                }
-
-                Rectangle {
-                    height: 24px;
-                    Text {
-                        x: AppI18n.is-rtl ? parent.width - self.width : 0;
-                        text: AppI18n.t("dialog.vhdx_sparse", [AppI18n.version]) + ":" + (AppI18n.is-rtl ? "\u{200F}" : "");
-                        width: 110px;
-                        color: Theme.text_secondary;
-                        font-size: 13px * LayoutConstants.font-scale;
-                        font-family: Theme.default_font;
-                        vertical-alignment: center;
-                        horizontal-alignment: AppI18n.is-rtl ? right : left;
+                    InfoRow {
+                        label: AppI18n.t("dialog.vhdx_usage", [AppI18n.version]);
+                        value: root.info.vhdx_size;
+                        is_pill: true;
                     }
+
                     Rectangle {
-                        x: AppI18n.is-rtl ? 0 : 122px;
-                        y: (parent.height - self.height) / 2;
-                        width: sparse_pill_text.width + 16px;
-                        height: 20px;
-                        background: Theme.dark_mode ? #1E1E1E : #F3F3F3;
-                        border-radius: 4px;
-                        sparse_pill_text := Text {
-                            text: root.info.vhdx_is_sparse ? AppI18n.t("dialog.vhdx_sparse_yes", [AppI18n.version]) : AppI18n.t("dialog.vhdx_sparse_no", [AppI18n.version]);
-                            color: Theme.accent;
+                        height: 24px;
+                        Text {
+                            x: AppI18n.is-rtl ? parent.width - self.width : 0;
+                            text: AppI18n.t("dialog.vhdx_virtual_size", [AppI18n.version]) + ":" + (AppI18n.is-rtl ? "\u{200F}" : "");
+                            width: 110px;
+                            color: Theme.text_secondary;
+                            font-size: 13px * LayoutConstants.font-scale;
                             font-family: Theme.default_font;
-                            font-size: 12px * LayoutConstants.font-scale;
-                            font-weight: 500;
                             vertical-alignment: center;
-                            horizontal-alignment: center;
+                            horizontal-alignment: AppI18n.is-rtl ? right : left;
+                        }
+                        Rectangle {
+                            x: AppI18n.is-rtl ? 0 : 122px;
+                            y: (parent.height - self.height) / 2;
+                            width: virtual_pill_text.width + 16px;
+                            height: 20px;
+                            background: Theme.dark_mode ? #1E1E1E : #F3F3F3;
+                            border-radius: 4px;
+                            virtual_pill_text := Text {
+                                text: root.info.vhdx_virtual_size;
+                                color: Theme.accent;
+                                font-family: Theme.default_font;
+                                font-size: 12px * LayoutConstants.font-scale;
+                                font-weight: 500;
+                                vertical-alignment: center;
+                                horizontal-alignment: center;
+                            }
+                        }
+                        if (root.info.vhdx_path != "" && root.info.status != "Running"): ActionIcon {
+                            x: parent.width - 20px;
+                            y: (parent.height - 10px) / 2;
+                            width: 10px;
+                            height: 10px;
+                            icon: "\u{e932}";
+                            is_font_icon: true;
+                            tooltip: AppI18n.t("dialog.vhdx_resize", [AppI18n.version]);
+                            tooltip_x_offset: -10px;
+                            clicked => {
+                                root.resize_vhdx_clicked();
+                            }
                         }
                     }
-                    if (root.info.vhdx_path != "" && root.info.status != "Running" && !root.info.vhdx_is_sparse): ActionIcon {
-                        x: parent.width - 24px;
-                        y: (parent.height - 20px) / 2;
-                        width: 20px;
-                        height: 20px;
-                        icon: "\u{E734}";
-                        is_font_icon: true;
-                        tooltip: AppI18n.t("dialog.vhdx_set_sparse", [AppI18n.version]);
-                        tooltip_x_offset: -10px;
-                        clicked => {
-                            root.set_sparse_clicked();
-                        }
-                    }
-                    if (root.info.vhdx_path != "" && root.info.status != "Running" && root.info.vhdx_is_sparse): ActionIcon {
-                        x: parent.width - 24px;
-                        y: (parent.height - 20px) / 2;
-                        width: 20px;
-                        height: 20px;
-                        icon: "\u{E74D}";
-                        is_font_icon: true;
-                        tooltip: AppI18n.t("dialog.vhdx_unset_sparse", [AppI18n.version]);
-                        tooltip_x_offset: -10px;
-                        clicked => {
-                            root.unset_sparse_clicked();
-                        }
-                    }
-                }
 
-                InfoRow {
-                    label: AppI18n.t("dialog.vhdx_location", [AppI18n.version]);
-                    value: root.info.vhdx_path;
-                    clickable: true;
-                    show_copy_button: root.info.vhdx_path != "";
-                    clicked => {
-                        root.open_path(root.info.install_location);
+                    InfoRow {
+                        label: AppI18n.t("dialog.vhdx_type", [AppI18n.version]);
+                        value: root.info.vhdx_type;
+                        is_pill: true;
                     }
-                    copy_clicked => {
-                        root.copy_to_clipboard(root.info.vhdx_path);
-                        root.show_copy_success();
+
+                    Rectangle {
+                        height: 24px;
+                        Text {
+                            x: AppI18n.is-rtl ? parent.width - self.width : 0;
+                            text: AppI18n.t("dialog.vhdx_sparse", [AppI18n.version]) + ":" + (AppI18n.is-rtl ? "\u{200F}" : "");
+                            width: 110px;
+                            color: Theme.text_secondary;
+                            font-size: 13px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            vertical-alignment: center;
+                            horizontal-alignment: AppI18n.is-rtl ? right : left;
+                        }
+                        Rectangle {
+                            x: AppI18n.is-rtl ? 0 : 122px;
+                            y: (parent.height - self.height) / 2;
+                            width: sparse_pill_text.width + 16px;
+                            height: 20px;
+                            background: Theme.dark_mode ? #1E1E1E : #F3F3F3;
+                            border-radius: 4px;
+                            sparse_pill_text := Text {
+                                text: root.info.vhdx_is_sparse ? AppI18n.t("dialog.vhdx_sparse_yes", [AppI18n.version]) : AppI18n.t("dialog.vhdx_sparse_no", [AppI18n.version]);
+                                color: Theme.accent;
+                                font-family: Theme.default_font;
+                                font-size: 12px * LayoutConstants.font-scale;
+                                font-weight: 500;
+                                vertical-alignment: center;
+                                horizontal-alignment: center;
+                            }
+                        }
+                        if (root.info.vhdx_path != "" && root.info.status != "Running" && !root.info.vhdx_is_sparse): ActionIcon {
+                            x: parent.width - 24px;
+                            y: (parent.height - 20px) / 2;
+                            width: 20px;
+                            height: 20px;
+                            icon: "\u{E734}";
+                            is_font_icon: true;
+                            tooltip: AppI18n.t("dialog.vhdx_set_sparse", [AppI18n.version]);
+                            tooltip_x_offset: -10px;
+                            clicked => {
+                                root.set_sparse_clicked();
+                            }
+                        }
+                        if (root.info.vhdx_path != "" && root.info.status != "Running" && root.info.vhdx_is_sparse): ActionIcon {
+                            x: parent.width - 24px;
+                            y: (parent.height - 20px) / 2;
+                            width: 20px;
+                            height: 20px;
+                            icon: "\u{E74D}";
+                            is_font_icon: true;
+                            tooltip: AppI18n.t("dialog.vhdx_unset_sparse", [AppI18n.version]);
+                            tooltip_x_offset: -10px;
+                            clicked => {
+                                root.unset_sparse_clicked();
+                            }
+                        }
+                    }
+
+                    InfoRow {
+                        label: AppI18n.t("dialog.vhdx_location", [AppI18n.version]);
+                        value: root.info.vhdx_path;
+                        clickable: true;
+                        show_copy_button: root.info.vhdx_path != "";
+                        clicked => {
+                            root.open_path(root.info.install_location);
+                        }
+                        copy_clicked => {
+                            root.copy_to_clipboard(root.info.vhdx_path);
+                            root.show_copy_success();
+                        }
                     }
                 }
             }

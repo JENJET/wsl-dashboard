@@ -5,3 +5,4 @@ pub mod executor;
 pub mod models;
 pub mod ops;
 pub mod parser;
+pub mod terminal;

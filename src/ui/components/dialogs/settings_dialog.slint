@@ -196,7 +196,7 @@ export component SettingsDialog inherits Rectangle {
                         VerticalLayout {
                             spacing: 8px;
                             Text {
-                                text: AppI18n.t("dialog.terminal_dir", [AppI18n.version]);
+                                text: AppI18n.t("dialog.terminal.dir", [AppI18n.version]);
                                 font-size: 13px * LayoutConstants.font-scale;
                                 font-family: Theme.default_font;
                                 color: Theme.text_secondary;
@@ -219,7 +219,7 @@ export component SettingsDialog inherits Rectangle {
 
                         // Proxy Toggle
                         CustomCheckBox {
-                            text: AppI18n.t("dialog.terminal_proxy", [AppI18n.version]);
+                            text: AppI18n.t("dialog.terminal.proxy", [AppI18n.version]);
                             checked <=> root.terminal_proxy;
                         }
 

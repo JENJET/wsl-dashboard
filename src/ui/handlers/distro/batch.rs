@@ -1,6 +1,8 @@
 use crate::network::tracker;
+use crate::wsl::models::WslVersion;
 use crate::{AppState, AppWindow, i18n};
 use scopeguard;
+use slint::ComponentHandle;
 use slint::Model;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -8,6 +10,20 @@ use tokio::sync::Mutex;
 use tracing::{info, warn};
 
 static BATCH_CANCEL: AtomicBool = AtomicBool::new(false);
+
+struct BatchCloneState {
+    root_path: std::path::PathBuf,
+    target_names: Vec<String>,
+}
+
+static BATCH_CLONE_STATE: std::sync::Mutex<Option<BatchCloneState>> = std::sync::Mutex::new(None);
+
+pub(super) struct BatchMoveState {
+    pub(super) root_path: std::path::PathBuf,
+}
+
+pub(super) static BATCH_MOVE_STATE: std::sync::Mutex<Option<BatchMoveState>> =
+    std::sync::Mutex::new(None);
 
 pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc<Mutex<AppState>>) {
     // Toggle batch mode on/off
@@ -513,156 +529,118 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     }
                 }
 
+                // Check if any selected distro is Running
+                let distros = app.get_distros();
+                let mut running_names = Vec::new();
+                for j in 0..distros.row_count() {
+                    if let Some(d) = distros.row_data(j) {
+                        if d.selected && d.status.as_str() == "Running" {
+                            running_names.push(d.name.to_string());
+                        }
+                    }
+                }
+
+                if !running_names.is_empty() {
+                    let warning_msg =
+                        i18n::tr("dialog.clone_shutdown_warning", &[running_names.join(", ")]);
+                    if let Ok(mut state) = BATCH_CLONE_STATE.lock() {
+                        *state = Some(BatchCloneState {
+                            root_path: root_path.clone(),
+                            target_names: target_names.clone(),
+                        });
+                    }
+                    app.set_clone_shutdown_confirm_message(warning_msg.into());
+                    app.set_clone_shutdown_confirm_title(i18n::t("batch.clone_title").into());
+                    app.set_show_clone_shutdown_confirm(true);
+                    app.set_show_clone_dialog(false);
+                    return;
+                }
+
                 let root_path_clone = root_path.clone();
                 let target_names_clone = target_names.clone();
                 let _ = slint::spawn_local(async move {
-                    let dashboard = {
-                        let state = as_ptr.lock().await;
-                        state.wsl_dashboard.clone()
-                    };
+                    launch_clone_execution(ah, as_ptr, root_path_clone, target_names_clone).await;
+                });
+            }
+        });
+    }
 
-                    // Check overlap for each selected distro
-                    let app_ui = ah.upgrade();
-                    if let Some(app) = app_ui {
-                        let mut overlap = false;
-                        let distros = app.get_distros();
-                        let mut idx = 0;
-                        for j in 0..distros.row_count() {
-                            if let Some(d) = distros.row_data(j) {
-                                if d.selected {
-                                    let tname = &target_names_clone[idx];
-                                    idx += 1;
-                                    let old = dashboard
-                                        .executor()
-                                        .get_distro_install_location(&d.name)
-                                        .await
-                                        .data;
-                                    let target =
-                                        root_path_clone.join(tname).to_string_lossy().to_string();
-                                    if let Some(ref old_path) = old {
-                                        if super::paths_overlap(old_path, &target) {
-                                            app.set_clone_error(
-                                                format!(
-                                                    "'{}': {}",
-                                                    d.name,
-                                                    i18n::tr(
-                                                        "dialog.path_overlap",
-                                                        &[old_path.clone()]
-                                                    )
-                                                )
-                                                .into(),
-                                            );
-                                            overlap = true;
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        if overlap {
-                            return;
-                        }
-                    }
-
-                    // Close dialog and start batch
-                    let total = target_names_clone.len();
-                    if let Some(app) = ah.upgrade() {
-                        app.set_show_clone_dialog(false);
-                        app.set_batch_operating(true);
-                        tracker::BATCH_OPERATING.store(true, Ordering::SeqCst);
-                        app.set_is_cloning(true);
-                        app.set_task_status_text(i18n::t("operation.cloning").into());
-                        app.set_batch_progress_suffix(format!(" [0/{}]", total).into());
-                        app.set_task_status_visible(true);
-                    }
-
-                    BATCH_CANCEL.store(false, Ordering::SeqCst);
-
+    // Batch clone shutdown confirmed
+    {
+        let ah = app_handle.clone();
+        let as_ptr = app_state.clone();
+        app.on_confirm_clone_shutdown_action(move || {
+            let ah = ah.clone();
+            let as_ptr = as_ptr.clone();
+            if let Some(app) = ah.upgrade() {
+                app.set_show_clone_shutdown_confirm(false);
+                let source_name = app.get_clone_source_name().to_string();
+                if !source_name.is_empty() {
+                    // Single clone - read from app properties
+                    let target_name = app.get_clone_target_name().to_string();
+                    let target_path = app.get_clone_target_path().to_string();
+                    app.set_is_cloning(true);
+                    app.set_show_clone_dialog(false);
+                    let ah_weak = app.as_weak();
+                    let as_ptr = as_ptr.clone();
                     tokio::spawn(async move {
-                        let names = get_selected_names(&as_ptr).await;
-                        if names.is_empty() {
-                            return;
-                        }
-
-                        let mut failed_count = 0;
-                        let mut success_count = 0;
-                        let mut cancelled = false;
-
-                        for (i, name) in names.iter().enumerate() {
-                            if BATCH_CANCEL.load(Ordering::SeqCst) {
-                                info!("Batch clone cancelled by user");
-                                cancelled = true;
-                                break;
-                            }
-
-                            let target_name = &target_names[i];
-
-                            info!(
-                                "Batch clone processing [{}/{}]: {} -> {}",
-                                i + 1,
-                                total,
-                                name,
-                                target_name
+                        let manager = {
+                            let state = as_ptr.lock().await;
+                            state.wsl_dashboard.clone()
+                        };
+                        if let Some(op) = manager.get_active_op(&source_name) {
+                            let msg = i18n::tr(
+                                "toast.distro_busy",
+                                &[source_name.clone(), op.to_string()],
                             );
-
-                            let _ = slint::invoke_from_event_loop({
-                                let ah = ah.clone();
-                                let name = name.clone();
-                                let suffix = format!(" [{}/{}]", i + 1, total);
-                                move || {
-                                    if let Some(app) = ah.upgrade() {
-                                        app.set_task_status_text(
-                                            format!("{} {}", name, i18n::t("operation.cloning"))
-                                                .into(),
-                                        );
-                                        app.set_batch_progress_suffix(suffix.into());
-                                        app.set_task_status_visible(true);
-                                    }
-                                }
-                            });
-
-                            let target_path =
-                                root_path.join(target_name).to_string_lossy().to_string();
-
-                            let name_clone = name.clone();
-                            let tname = target_name.clone();
-                            let success = super::clone_logic::perform_batch_clone(
-                                ah.clone(),
-                                as_ptr.clone(),
-                                name_clone,
-                                tname,
-                                target_path,
-                            )
-                            .await;
-
-                            info!(
-                                "Batch clone [{}/{}] {} -> {}: success={}",
-                                i + 1,
-                                total,
-                                name,
-                                target_name,
-                                success
-                            );
-                            if success {
-                                success_count += 1;
-                                deselect_distro(&as_ptr, &ah, name).await;
-                            } else {
-                                failed_count += 1;
-                            }
-                        }
-
-                        let skipped = total as i32 - success_count - failed_count;
-                        finish_batch(&ah, success_count, failed_count, skipped, cancelled);
-                        let _ = slint::invoke_from_event_loop({
-                            let ah = ah.clone();
-                            move || {
-                                if let Some(app) = ah.upgrade() {
+                            let _ = slint::invoke_from_event_loop(move || {
+                                if let Some(app) = ah_weak.upgrade() {
+                                    app.set_current_message(msg.into());
+                                    app.set_show_message_dialog(true);
                                     app.set_is_cloning(false);
                                 }
-                            }
-                        });
+                            });
+                            return;
+                        }
+                        super::clone_logic::perform_clone(
+                            ah_weak,
+                            as_ptr,
+                            source_name,
+                            target_name,
+                            target_path,
+                        )
+                        .await;
                     });
+                    return;
+                }
+            }
+            let state = BATCH_CLONE_STATE.lock().ok().and_then(|mut s| s.take());
+            if let Some(BatchCloneState {
+                root_path,
+                target_names,
+            }) = state
+            {
+                let ah = ah.clone();
+                let as_ptr = as_ptr.clone();
+                let _ = slint::spawn_local(async move {
+                    launch_clone_execution(ah, as_ptr, root_path, target_names).await;
                 });
+            }
+        });
+    }
+
+    // Batch clone shutdown cancelled
+    {
+        let ah = app_handle.clone();
+        app.on_cancel_clone_shutdown_confirm(move || {
+            if let Some(app) = ah.upgrade() {
+                app.set_show_clone_shutdown_confirm(false);
+                app.set_clone_source_name("".into());
+                app.set_clone_target_name("".into());
+                app.set_clone_target_path("".into());
+            }
+            if let Ok(mut state) = BATCH_CLONE_STATE.lock() {
+                *state = None;
             }
         });
     }
@@ -721,6 +699,44 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     }
                 }
                 if !valid {
+                    return;
+                }
+
+                // Check if any selected distro is WSL2
+                let distros = app.get_distros();
+                let mut has_wsl2 = false;
+                let mut running_dists = Vec::new();
+                for j in 0..distros.row_count() {
+                    if let Some(d) = distros.row_data(j) {
+                        if d.selected && d.version.as_str() == WslVersion::V2.to_string() {
+                            has_wsl2 = true;
+                        }
+                    }
+                }
+
+                // Collect running distros for warning
+                for j in 0..distros.row_count() {
+                    if let Some(d) = distros.row_data(j) {
+                        if d.status.as_str() == "Running" {
+                            if has_wsl2 || d.selected {
+                                running_dists.push(d.name.to_string());
+                            }
+                        }
+                    }
+                }
+
+                if !running_dists.is_empty() {
+                    let warning_msg =
+                        i18n::tr("dialog.move_shutdown_warning", &[running_dists.join(", ")]);
+
+                    if let Ok(mut state) = BATCH_MOVE_STATE.lock() {
+                        *state = Some(BatchMoveState {
+                            root_path: root_path.clone(),
+                        });
+                    }
+                    app.set_move_confirm_message(warning_msg.into());
+                    app.set_show_move_confirm(true);
+                    app.set_show_move_dialog(false);
                     return;
                 }
 
@@ -784,7 +800,6 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
 
                     tokio::spawn(async move {
                         let root_path = std::path::PathBuf::from(&path);
-
                         let names = get_selected_names(&as_ptr).await;
                         if names.is_empty() {
                             return;
@@ -938,7 +953,11 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
     }
 }
 
-async fn deselect_distro(as_ptr: &Arc<Mutex<AppState>>, ah: &slint::Weak<AppWindow>, name: &str) {
+pub(super) async fn deselect_distro(
+    as_ptr: &Arc<Mutex<AppState>>,
+    ah: &slint::Weak<AppWindow>,
+    name: &str,
+) {
     let mut state = as_ptr.lock().await;
     state.selected_distros.remove(name);
     let count = state.selected_distros.len() as i32;
@@ -955,7 +974,7 @@ async fn deselect_distro(as_ptr: &Arc<Mutex<AppState>>, ah: &slint::Weak<AppWind
     });
 }
 
-fn finish_batch(
+pub(super) fn finish_batch(
     ah: &slint::Weak<AppWindow>,
     success_count: i32,
     failed_count: i32,
@@ -1027,7 +1046,7 @@ fn update_model_selection(app: &AppWindow, name: &str, selected: bool) {
     }
 }
 
-async fn get_selected_names(as_ptr: &Arc<Mutex<AppState>>) -> Vec<String> {
+pub(super) async fn get_selected_names(as_ptr: &Arc<Mutex<AppState>>) -> Vec<String> {
     let state = as_ptr.lock().await;
     state.selected_distros.iter().cloned().collect()
 }
@@ -1177,5 +1196,156 @@ async fn run_batch_op<F>(
             }
             app.set_show_message_dialog(true);
         }
+    });
+}
+
+async fn launch_clone_execution(
+    ah: slint::Weak<AppWindow>,
+    as_ptr: Arc<Mutex<AppState>>,
+    root_path: std::path::PathBuf,
+    target_names: Vec<String>,
+) {
+    let dashboard = {
+        let state = as_ptr.lock().await;
+        state.wsl_dashboard.clone()
+    };
+
+    let root_path_clone = root_path.clone();
+    let target_names_clone = target_names.clone();
+
+    // Check overlap for each selected distro
+    let app_ui = ah.upgrade();
+    if let Some(app) = app_ui {
+        let mut overlap = false;
+        let distros = app.get_distros();
+        let mut idx = 0;
+        for j in 0..distros.row_count() {
+            if let Some(d) = distros.row_data(j) {
+                if d.selected {
+                    let tname = &target_names_clone[idx];
+                    idx += 1;
+                    let old = dashboard
+                        .executor()
+                        .get_distro_install_location(&d.name)
+                        .await
+                        .data;
+                    let target = root_path_clone.join(tname).to_string_lossy().to_string();
+                    if let Some(ref old_path) = old {
+                        if super::paths_overlap(old_path, &target) {
+                            app.set_clone_error(
+                                format!(
+                                    "'{}': {}",
+                                    d.name,
+                                    i18n::tr("dialog.path_overlap", &[old_path.clone()])
+                                )
+                                .into(),
+                            );
+                            overlap = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        if overlap {
+            return;
+        }
+    }
+
+    // Close dialog and start batch
+    let total = target_names_clone.len();
+    if let Some(app) = ah.upgrade() {
+        app.set_show_clone_dialog(false);
+        app.set_batch_operating(true);
+        tracker::BATCH_OPERATING.store(true, Ordering::SeqCst);
+        app.set_is_cloning(true);
+        app.set_task_status_text(i18n::t("operation.cloning").into());
+        app.set_batch_progress_suffix(format!(" [0/{}]", total).into());
+        app.set_task_status_visible(true);
+    }
+
+    BATCH_CANCEL.store(false, Ordering::SeqCst);
+
+    tokio::spawn(async move {
+        let names = get_selected_names(&as_ptr).await;
+        if names.is_empty() {
+            return;
+        }
+
+        let mut failed_count = 0;
+        let mut success_count = 0;
+        let mut cancelled = false;
+
+        for (i, name) in names.iter().enumerate() {
+            if BATCH_CANCEL.load(Ordering::SeqCst) {
+                info!("Batch clone cancelled by user");
+                cancelled = true;
+                break;
+            }
+
+            let target_name = &target_names[i];
+
+            info!(
+                "Batch clone processing [{}/{}]: {} -> {}",
+                i + 1,
+                total,
+                name,
+                target_name
+            );
+
+            let _ = slint::invoke_from_event_loop({
+                let ah = ah.clone();
+                let name = name.clone();
+                let suffix = format!(" [{}/{}]", i + 1, total);
+                move || {
+                    if let Some(app) = ah.upgrade() {
+                        app.set_task_status_text(
+                            format!("{} {}", name, i18n::t("operation.cloning")).into(),
+                        );
+                        app.set_batch_progress_suffix(suffix.into());
+                        app.set_task_status_visible(true);
+                    }
+                }
+            });
+
+            let target_path = root_path.join(target_name).to_string_lossy().to_string();
+
+            let name_clone = name.clone();
+            let tname = target_name.clone();
+            let success = super::clone_logic::perform_batch_clone(
+                ah.clone(),
+                as_ptr.clone(),
+                name_clone,
+                tname,
+                target_path,
+            )
+            .await;
+
+            info!(
+                "Batch clone [{}/{}] {} -> {}: success={}",
+                i + 1,
+                total,
+                name,
+                target_name,
+                success
+            );
+            if success {
+                success_count += 1;
+                deselect_distro(&as_ptr, &ah, name).await;
+            } else {
+                failed_count += 1;
+            }
+        }
+
+        let skipped = total as i32 - success_count - failed_count;
+        finish_batch(&ah, success_count, failed_count, skipped, cancelled);
+        let _ = slint::invoke_from_event_loop({
+            let ah = ah.clone();
+            move || {
+                if let Some(app) = ah.upgrade() {
+                    app.set_is_cloning(false);
+                }
+            }
+        });
     });
 }

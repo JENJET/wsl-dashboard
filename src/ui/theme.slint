@@ -30,6 +30,7 @@ export struct Distro {
     show_ip: bool,
     selected: bool,
     active_op: string,
+    terminal_emulator: string,
 }
 
 export struct InstallableDistro {
@@ -124,6 +125,10 @@ export struct WslManageStrings {
     update_btn: string,
     updating_btn: string,
     shutdown_btn: string,
+    shutdown_btn_tooltip: string,
+    shutdown_confirm_title: string,
+    shutdown_confirm_message: string,
+    start_btn_tooltip: string,
     version_output_title: string,
     status_output_title: string,
     uninstall_btn: string,

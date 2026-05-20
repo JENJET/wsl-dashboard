@@ -7,6 +7,7 @@ import {
 import { 
     GeneralSettingsSection, 
     PathSettingsSection, 
+    TerminalSettingsSection, 
     SidebarSettingsSection 
 } from "sections.slint";
 
@@ -17,11 +18,33 @@ export component SettingsView inherits Rectangle {
     in-out property <int> log_level: 4;
     in-out property <int> log_days: 7;
     in-out property <int> check_update_interval: 7;
+    in property <[string]> terminal_emulator_options: [];
+    in-out property <int> terminal_emulator_index: 0;
+    in-out property <bool> terminal_show_custom: false;
+    in-out property <string> terminal_custom_path: "";
+    in-out property <string> terminal_custom_args: "";
+    in property <string> terminal_validation_result: "";
+    in property <bool> terminal_validation_ok: false;
+    in property <[string]> terminal_user_preset_names: [];
+    in property <string> terminal_user_preset_form_title: "";
+    in-out property <bool> terminal_show_user_preset_form: false;
+    in-out property <string> terminal_user_preset_form_name: "";
+    in-out property <string> terminal_user_preset_form_path: "";
+    in-out property <string> terminal_user_preset_form_args: "";
+    in property <string> terminal_user_preset_form_error: "";
+    in-out property <string> terminal_user_preset_original_name: "";
+    callback edit_user_preset(string);
+    callback delete_user_preset(string);
+    callback save_user_preset(string, string, string, string);
+    callback cancel_user_preset_form;
+    callback add_user_preset;
+    callback user_preset_path_browse;
     in-out property <bool> system_color: false;
     in-out property <bool> auto_shutdown: false;
     in-out property <bool> tray_autostart: false;
     in-out property <bool> tray_start_minimized: false;
     in-out property <bool> tray_close_to_tray: true;
+    in-out property <bool> sidebar_toggle: true;
     in-out property <bool> sidebar_add: true;
     in-out property <bool> sidebar_wsl_manage: true;
     in-out property <bool> sidebar_usb: true;
@@ -174,6 +197,7 @@ export component SettingsView inherits Rectangle {
     callback select-distro-folder();
     callback select-logs-folder();
     callback open-wsl-settings();
+    callback terminal-path-browse();
 
     VerticalLayout {
         padding: 0px;
@@ -232,8 +256,35 @@ export component SettingsView inherits Rectangle {
                         }
                     }
 
+                    TerminalSettingsSection {
+                        strings: root.strings;
+                        emulator_options: root.terminal_emulator_options;
+                        selected_emulator_index <=> root.terminal_emulator_index;
+                        show_custom <=> root.terminal_show_custom;
+                        custom_path <=> root.terminal_custom_path;
+                        custom_args <=> root.terminal_custom_args;
+                        validation_result: root.terminal_validation_result;
+                        validation_ok: root.terminal_validation_ok;
+                        path_browse => { root.terminal-path-browse(); }
+                        user_preset_names: root.terminal_user_preset_names;
+                        user_preset_form_title: root.terminal_user_preset_form_title;
+                        show_user_preset_form <=> root.terminal_show_user_preset_form;
+                        user_preset_form_name <=> root.terminal_user_preset_form_name;
+                        user_preset_form_path <=> root.terminal_user_preset_form_path;
+                        user_preset_form_args <=> root.terminal_user_preset_form_args;
+                        user_preset_form_error: root.terminal_user_preset_form_error;
+                        user_preset_original_name <=> root.terminal_user_preset_original_name;
+                        edit_user_preset(name) => { root.edit_user_preset(name); }
+                        delete_user_preset(name) => { root.delete_user_preset(name); }
+                        save_user_preset(old, name, path, args) => { root.save_user_preset(old, name, path, args); }
+                        cancel_user_preset_form => { root.cancel_user_preset_form(); }
+                        add_user_preset => { root.add_user_preset(); }
+                        user_preset_path_browse => { root.user_preset_path_browse(); }
+                    }
+
                     SidebarSettingsSection {
                         strings: root.strings;
+                        sidebar_toggle <=> root.sidebar_toggle;
                         sidebar_add <=> root.sidebar_add;
                         sidebar_wsl_manage <=> root.sidebar_wsl_manage;
                         sidebar_usb <=> root.sidebar_usb;
