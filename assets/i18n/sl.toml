@@ -86,6 +86,7 @@ update_wsl = "Obiščite stran za prenos najnovejše različice."
 terminal_emulator = "Privzeti terminal"
 terminal_custom_path = "Pot do izvedljive datoteke po meri"
 terminal_custom_args = "Predloga ukazne vrstice"
+refresh_terminals = "Ponovno zaznaj terminale"
 terminal_placeholders_hint = "Razpoložljive nadomestne oznake: {distro} {dir} {proxy}"
 select_terminal_exe = "Izberite izvedljivo datoteko terminala"
 tab_general = "Splošno"
@@ -534,6 +535,7 @@ system_busy = "Sistem je zaseden z drugo težko nalogo (izvoz, premikanje, kloni
 default_set_success = "'{0}' je bil nastavljen kot privzeta distribucija."
 default_set_failed = "Ni mogoče nastaviti '{0}' kot privzeto: {1}"
 copy_success = "Kopirano v odložišče"
+operation_success = "Operacija je uspela"
 
 [wsl_manage]
 status_title = "Stanje WSL"

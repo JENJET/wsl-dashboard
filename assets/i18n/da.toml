@@ -86,6 +86,7 @@ update_wsl = "Besøg download-siden for den nyeste version."
 terminal_emulator = "Standardterminal"
 terminal_custom_path = "Brugerdefineret sti til eksekverbar fil"
 terminal_custom_args = "Kommandolinjeskabelon"
+refresh_terminals = "Genkend terminaler"
 terminal_placeholders_hint = "Tilgængelige pladsholdere: {distro} {dir} {proxy}"
 select_terminal_exe = "Vælg terminal eksekverbar"
 tab_general = "Generelt"
@@ -534,6 +535,7 @@ system_busy = "Systemet er optaget af en anden tung opgave (eksport, flytning, k
 default_set_success = "'{0}' er blevet indstillet som standard distro."
 default_set_failed = "Kunne ikke indstille '{0}' som standard: {1}"
 copy_success = "Kopieret til udklipsholderen"
+operation_success = "Handlingen lykkedes"
 
 [wsl_manage]
 status_title = "WSL-status"

@@ -50,6 +50,7 @@ export component CustomLineEdit inherits Rectangle {
 
 export component CustomComboBox inherits Rectangle {
     in property <[string]> model;
+    in property <[bool]> item-disabled;
     in-out property <int> current-index;
     in-out property <bool> open-dropdown: false;
     in property <length> dropdown-height: 160px;
@@ -142,19 +143,22 @@ export component CustomComboBox inherits Rectangle {
                     alignment: start;
                     for item[i] in root.model: Rectangle {
                         height: 32px;
-                        background: area.pressed ? Theme.selected_bg : area.has-hover ? Theme.hover_bg : transparent;
+                        background: (!(i < root.item-disabled.length && root.item-disabled[i])) && area.pressed ? Theme.selected_bg : (!(i < root.item-disabled.length && root.item-disabled[i])) && area.has-hover ? Theme.hover_bg : transparent;
                         border-radius: 2px;
+                        opacity: i < root.item-disabled.length && root.item-disabled[i] ? 0.5 : 1.0;
                         area := TouchArea {
                             clicked => {
-                                root.open-dropdown = false;
-                                root.current-index = i;
-                                root.selected(i);
+                                if (!(i < root.item-disabled.length && root.item-disabled[i])) {
+                                    root.open-dropdown = false;
+                                    root.current-index = i;
+                                    root.selected(i);
+                                }
                             }
                         }
 
                         Text {
                             text: item;
-                            color: Theme.text_primary;
+                            color: i < root.item-disabled.length && root.item-disabled[i] ? Theme.text_secondary : Theme.text_primary;
                             font-family: Theme.default_font;
                             font-size: 13px * LayoutConstants.font-scale;
                             vertical-alignment: center;

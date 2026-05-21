@@ -86,6 +86,7 @@ update_wsl = "Visita la pagina di download dell'ultima versione."
 terminal_emulator = "Terminale predefinito"
 terminal_custom_path = "Percorso eseguibile personalizzato"
 terminal_custom_args = "Modello riga di comando"
+refresh_terminals = "Rileva di nuovo i terminali"
 terminal_placeholders_hint = "Segnaposto disponibili: {distro} {dir} {proxy}"
 select_terminal_exe = "Seleziona eseguibile terminale"
 tab_general = "Generale"
@@ -534,6 +535,7 @@ system_busy = "Il sistema è occupato con un'altra operazione pesante (esportazi
 default_set_success = "'{0}' è stato impostato come distribuzione predefinita."
 default_set_failed = "Impossibile impostare '{0}' come predefinito: {1}"
 copy_success = "Copiato negli appunti"
+operation_success = "Operazione riuscita"
 
 [wsl_manage]
 status_title = "Stato WSL"

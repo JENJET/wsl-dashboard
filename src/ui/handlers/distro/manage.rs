@@ -413,7 +413,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                                                 "-B1M",
                                                 "/",
                                             ])
-                                            .creation_flags(0x08000000)
+                                            .creation_flags(crate::utils::system::CREATE_NO_WINDOW)
                                             .output();
 
                                         if let Ok(out) = df_output {
@@ -1245,15 +1245,20 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                         &global_settings.terminal_presets,
                         &global_settings.terminal_user_presets,
                     );
-                    let mut preset_names: Vec<String> = all_presets
-                        .keys()
-                        .filter(|name| {
-                            terminal::BuiltinTerminal::is_always_visible(name)
-                                || terminal::validate_preset(&all_presets[name.as_str()]).is_ok()
-                        })
-                        .cloned()
-                        .collect();
-                    preset_names.sort_by(|a, b| {
+
+                    let mut installed: Vec<&String> = Vec::new();
+                    let mut uninstalled: Vec<&String> = Vec::new();
+                    for name in all_presets.keys() {
+                        if terminal::BuiltinTerminal::is_always_visible(name)
+                            || terminal::validate_preset(&all_presets[name.as_str()]).is_ok()
+                        {
+                            installed.push(name);
+                        } else {
+                            uninstalled.push(name);
+                        }
+                    }
+
+                    installed.sort_by(|a, b| {
                         let prio_a = terminal::BuiltinTerminal::from_str(a)
                             .map(|t| t.priority())
                             .unwrap_or(4);
@@ -1262,15 +1267,29 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                             .unwrap_or(4);
                         prio_a.cmp(&prio_b).then(a.cmp(b))
                     });
+                    uninstalled.sort();
 
                     let mut options: Vec<String> = Vec::new();
+                    let mut disabled: Vec<bool> = Vec::new();
                     options.push(i18n::tr(
                         "dialog.terminal.use_global",
                         &[global_settings.terminal_emulator.clone()],
                     ));
-                    for name in &preset_names {
-                        options.push(name.clone());
+                    disabled.push(false);
+                    for name in &installed {
+                        options.push((*name).clone());
+                        disabled.push(false);
                     }
+                    for name in &uninstalled {
+                        options.push((*name).clone());
+                        disabled.push(true);
+                    }
+
+                    let preset_names: Vec<String> = installed
+                        .into_iter()
+                        .cloned()
+                        .chain(uninstalled.into_iter().cloned())
+                        .collect();
 
                     let current_terminal = instance_config.terminal_emulator.clone();
                     let is_default = current_terminal.is_empty();
@@ -1283,6 +1302,10 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                                 idx = i + 1;
                                 break;
                             }
+                        }
+                        // Fallback if saved terminal is no longer installed
+                        if idx > 0 && idx < disabled.len() && disabled[idx] {
+                            idx = 0;
                         }
                         idx
                     };
@@ -1345,12 +1368,16 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                         .iter()
                         .map(|s| slint::SharedString::from(s.as_str()))
                         .collect();
+                    let disabled_vec: Vec<bool> = disabled;
                     let _ = slint::invoke_from_event_loop(move || {
                         let model: slint::ModelRc<slint::SharedString> =
                             slint::ModelRc::new(slint::VecModel::from(options_strs.clone()));
+                        let disabled_model: slint::ModelRc<bool> =
+                            slint::ModelRc::new(slint::VecModel::from(disabled_vec));
                         if let Some(win) = ah_inner.upgrade() {
                             win.set_terminal_config_distro_name(name.into());
                             win.set_terminal_config_options(model);
+                            win.set_terminal_config_disabled(disabled_model);
                             win.set_terminal_config_index(selected_index as i32);
                             win.set_terminal_config_show_custom(false);
                             win.set_terminal_config_custom_path("".into());

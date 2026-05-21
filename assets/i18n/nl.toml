@@ -86,6 +86,7 @@ update_wsl = "Bezoek de downloadpagina voor de nieuwste versie."
 terminal_emulator = "Standaardterminal"
 terminal_custom_path = "Aangepast uitvoerbaar bestandspad"
 terminal_custom_args = "Opdrachtregelsjabloon"
+refresh_terminals = "Terminals opnieuw detecteren"
 terminal_placeholders_hint = "Beschikbare plaatsaanduidingen: {distro} {dir} {proxy}"
 select_terminal_exe = "Selecteer uitvoerbaar terminalbestand"
 tab_general = "Algemeen"
@@ -534,6 +535,7 @@ system_busy = "Systeem is bezig met een andere zware taak (exporteren, verplaats
 default_set_success = "'{0}' is ingesteld als standaard distro."
 default_set_failed = "Kan '{0}' niet instellen als standaard: {1}"
 copy_success = "Gekopieerd naar klembord"
+operation_success = "Bewerking gelukt"
 
 [wsl_manage]
 status_title = "WSL-status"

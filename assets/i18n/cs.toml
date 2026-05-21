@@ -86,6 +86,7 @@ update_wsl = "Navštivte stránku pro stažení nejnovější verze."
 terminal_emulator = "Výchozí terminál"
 terminal_custom_path = "Vlastní cesta ke spustitelnému souboru"
 terminal_custom_args = "Šablona příkazového řádku"
+refresh_terminals = "Znovu detekovat terminály"
 terminal_placeholders_hint = "Dostupné zástupné znaky: {distro} {dir} {proxy}"
 select_terminal_exe = "Vybrat spustitelný soubor terminálu"
 tab_general = "Obecné"
@@ -534,6 +535,7 @@ system_busy = "Systém je zaneprázdněn jinou náročnou úlohou (export, přes
 default_set_success = "'{0}' byl nastaven jako výchozí distribuce."
 default_set_failed = "Nepodařilo se nastavit '{0}' jako výchozí: {1}"
 copy_success = "Zkopírováno do schránky"
+operation_success = "Operace byla úspěšná"
 
 [wsl_manage]
 status_title = "Stav WSL"

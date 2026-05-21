@@ -86,6 +86,7 @@ update_wsl = "Besuchen Sie die Download-Seite für die neueste Version."
 terminal_emulator = "Standard-Terminal"
 terminal_custom_path = "Benutzerdefinierter Pfad zur ausführbaren Datei"
 terminal_custom_args = "Befehlszeilenvorlage"
+refresh_terminals = "Terminals neu erkennen"
 terminal_placeholders_hint = "Verfügbare Platzhalter: {distro} {dir} {proxy}"
 select_terminal_exe = "Terminal-Programm auswählen"
 tab_general = "Allgemein"
@@ -534,6 +535,7 @@ system_busy = "Das System ist mit einer anderen schweren Aufgabe beschäftigt (E
 default_set_success = "'{0}' wurde als Standard-Distro festgelegt."
 default_set_failed = "Fehler beim Festlegen von '{0}' als Standard: {1}"
 copy_success = "In Zwischenablage kopiert"
+operation_success = "Vorgang erfolgreich"
 
 [wsl_manage]
 status_title = "WSL-Status"

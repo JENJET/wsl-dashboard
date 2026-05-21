@@ -90,6 +90,7 @@ update_wsl = "Visit the latest version download page."
 terminal_emulator = "Default Terminal"
 terminal_custom_path = "Custom executable path"
 terminal_custom_args = "Command line template"
+refresh_terminals = "Re-detect terminals"
 terminal_placeholders_hint = "Available placeholders: {distro} {dir} {proxy}"
 select_terminal_exe = "Select terminal executable"
 tab_general = "General"
@@ -538,6 +539,7 @@ system_busy = "System is busy with another heavy task (Export,Move,Clone,Delete 
 default_set_success = "'{0}' has been set as the default distro."
 default_set_failed = "Failed to set '{0}' as default: {1}"
 copy_success = "Copied to clipboard"
+operation_success = "Operation successful"
 
 [wsl_manage]
 status_title = "WSL Status"

@@ -1,7 +1,22 @@
 use std::collections::HashMap;
 use std::path::Path;
+use std::sync::LazyLock;
+use std::sync::Mutex;
 
 use crate::config::TerminalPreset;
+
+// Cache for where.exe path resolution — results don't change at runtime
+static EXE_RESOLVE_CACHE: LazyLock<Mutex<HashMap<String, Option<String>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+// Cache for validate_preset results
+static VALIDATE_CACHE: LazyLock<Mutex<HashMap<String, bool>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+pub fn invalidate_caches() {
+    EXE_RESOLVE_CACHE.lock().unwrap().clear();
+    VALIDATE_CACHE.lock().unwrap().clear();
+}
 
 /// Built-in terminal preset identifiers.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -201,16 +216,42 @@ pub fn build_proxy_prefix(proxy_exports: Option<&[(String, String)]>) -> String 
 }
 
 pub fn resolve_exe_path(path: &str) -> String {
+    let key = path.to_string();
+
+    // Check cache first
+    {
+        let cache = EXE_RESOLVE_CACHE.lock().unwrap();
+        if let Some(cached) = cache.get(&key) {
+            return cached.clone().unwrap_or_else(|| key);
+        }
+    }
+
+    let result = resolve_exe_path_uncached(path);
+
+    // Store in cache
+    let mut cache = EXE_RESOLVE_CACHE.lock().unwrap();
+    cache.insert(key, Some(result.clone()));
+    result
+}
+
+fn resolve_exe_path_uncached(path: &str) -> String {
     if Path::new(path).is_absolute() || Path::new(path).exists() {
         return path.to_string();
     }
 
-    if let Ok(out) = std::process::Command::new("where.exe").arg(path).output() {
-        if out.status.success() {
-            if let Some(line) = String::from_utf8_lossy(&out.stdout).lines().next() {
-                let trimmed = line.trim();
-                if !trimmed.is_empty() {
-                    return trimmed.to_string();
+    {
+        use std::os::windows::process::CommandExt;
+        if let Ok(out) = std::process::Command::new("where.exe")
+            .arg(path)
+            .creation_flags(crate::utils::system::CREATE_NO_WINDOW)
+            .output()
+        {
+            if out.status.success() {
+                if let Some(line) = String::from_utf8_lossy(&out.stdout).lines().next() {
+                    let trimmed = line.trim();
+                    if !trimmed.is_empty() {
+                        return trimmed.to_string();
+                    }
                 }
             }
         }
@@ -334,7 +375,29 @@ pub fn build_command(
 }
 
 pub fn validate_preset(preset: &TerminalPreset) -> Result<(), String> {
-    let path = &preset.path;
+    let key = preset.path.clone();
+
+    // Check cache first
+    {
+        let cache = VALIDATE_CACHE.lock().unwrap();
+        if let Some(&valid) = cache.get(&key) {
+            return if valid {
+                Ok(())
+            } else {
+                Err(format!("未找到 {}，请检查是否已安装", key))
+            };
+        }
+    }
+
+    let result = validate_preset_uncached(&key);
+
+    // Store in cache
+    let mut cache = VALIDATE_CACHE.lock().unwrap();
+    cache.insert(key, result.is_ok());
+    result
+}
+
+fn validate_preset_uncached(path: &str) -> Result<(), String> {
     // cmd.exe and powershell.exe are system components
     let exe_name = Path::new(path)
         .file_name()
@@ -350,9 +413,16 @@ pub fn validate_preset(preset: &TerminalPreset) -> Result<(), String> {
     }
 
     // Try where.exe
-    if let Ok(out) = std::process::Command::new("where.exe").arg(path).output() {
-        if out.status.success() {
-            return Ok(());
+    {
+        use std::os::windows::process::CommandExt;
+        if let Ok(out) = std::process::Command::new("where.exe")
+            .arg(path)
+            .creation_flags(crate::utils::system::CREATE_NO_WINDOW)
+            .output()
+        {
+            if out.status.success() {
+                return Ok(());
+            }
         }
     }
 

@@ -86,6 +86,7 @@ update_wsl = "Heimsæktu niðurhalssíðu fyrir nýjustu útgáfu."
 terminal_emulator = "Sjálfgefinn skjáhermi"
 terminal_custom_path = "Sérsniðin slóð á keyrsluskrá"
 terminal_custom_args = "Skipanalínusniðmát"
+refresh_terminals = "Endurskynja skjái"
 terminal_placeholders_hint = "Tiltækir staðgenglar: {distro} {dir} {proxy}"
 select_terminal_exe = "Velja keyrsluskrá fyrir skeljarglugga"
 tab_general = "Almennt"
@@ -534,6 +535,7 @@ system_busy = "Kerfið er upptekið við aðra þunga vinnu (útflutningur, flut
 default_set_success = "'{0}' hefur verið sett sem sjálfgefin dreifing."
 default_set_failed = "Mistókst að setja '{0}' sem sjálfgefið: {1}"
 copy_success = "Afritað á klemmuspjaldið"
+operation_success = "Aðgerð tókst"
 
 [wsl_manage]
 status_title = "WSL staða"

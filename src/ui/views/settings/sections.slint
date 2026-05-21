@@ -10,6 +10,7 @@ import {
     CustomCheckBox,
     CustomButton,
 } from "../../components/form_widgets.slint";
+import { ActionIcon } from "../../components/common.slint";
 
 export component GeneralSettingsSection inherits VerticalLayout {
     in property <SettingsStrings> strings;
@@ -181,6 +182,7 @@ export component PathSettingsSection inherits VerticalLayout {
 export component TerminalSettingsSection inherits Rectangle {
     in property <SettingsStrings> strings;
     in property <[string]> emulator_options;
+    in property <[bool]> emulator_disabled;
     in-out property <int> selected_emulator_index: 0;
     in-out property <bool> show_custom: false;
     in-out property <string> custom_path;
@@ -188,6 +190,7 @@ export component TerminalSettingsSection inherits Rectangle {
     in property <string> validation_result;
     in property <bool> validation_ok: false;
     callback path_browse();
+    callback refresh_terminals();
 
     // User-defined terminal preset management
     in property <[string]> user_preset_names;
@@ -219,11 +222,24 @@ export component TerminalSettingsSection inherits Rectangle {
         }
         VerticalLayout {
             spacing: 8px;
-            CustomComboBox {
-                model: root.emulator_options;
-                current-index <=> root.selected_emulator_index;
-                height: 32px;
-                dropdown-height: 200px;
+            HorizontalLayout {
+                spacing: 6px;
+                CustomComboBox {
+                    model: root.emulator_options;
+                    item-disabled: root.emulator_disabled;
+                    current-index <=> root.selected_emulator_index;
+                    height: 32px;
+                    dropdown-height: 200px;
+                    horizontal-stretch: 1;
+                }
+                ActionIcon {
+                    icon: "\u{E72C}";
+                    is_font_icon: true;
+                    tooltip: AppI18n.t("settings.refresh_terminals", [AppI18n.version]);
+                    width: 32px;
+                    height: 32px;
+                    clicked => { root.refresh_terminals(); }
+                }
             }
             if root.validation_result != "" : Text {
                 text: root.validation_result;

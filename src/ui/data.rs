@@ -238,30 +238,59 @@ pub async fn refresh_distros_ui(
                     .map(|d| dashboard.get_active_op(&d.name).unwrap_or_default())
                     .collect();
 
-                // Resolve terminal emulator for each distro: per-instance -> global -> "cmd"
-                let global_terminal = app_state_lock
-                    .config_manager
-                    .get_settings()
-                    .terminal_emulator
-                    .clone();
+                // Resolve terminal emulator for each distro: per-instance -> global -> BuiltinTerminal::Cmd,
+                // with fallback if the resolved preset is not installed
+                let settings = app_state_lock.config_manager.get_settings().clone();
+                let global_terminal = settings.terminal_emulator.clone();
+                let all_presets = crate::wsl::terminal::resolve_presets(
+                    crate::wsl::terminal::get_builtin_presets_map(),
+                    &settings.terminal_presets,
+                    &settings.terminal_user_presets,
+                );
                 let instances_path = crate::config::ConfigManager::get_instances_path();
                 let instances_container = crate::config::instances::load_instances(&instances_path);
                 let terminal_emulators: Vec<String> = distros
                     .iter()
                     .map(|d| {
-                        let instance_terminal = instances_container
-                            .instances
-                            .get(&d.name)
-                            .map(|c| c.terminal_emulator.clone())
-                            .unwrap_or_default();
-                        if instance_terminal.is_empty() {
-                            if global_terminal.is_empty() {
-                                "cmd".to_string()
+                        let terminal = {
+                            let instance_terminal = instances_container
+                                .instances
+                                .get(&d.name)
+                                .map(|c| c.terminal_emulator.clone())
+                                .unwrap_or_default();
+                            if instance_terminal.is_empty() {
+                                if global_terminal.is_empty() {
+                                    crate::wsl::terminal::BuiltinTerminal::Cmd
+                                        .as_str()
+                                        .to_string()
+                                } else {
+                                    global_terminal.clone()
+                                }
                             } else {
-                                global_terminal.clone()
+                                instance_terminal
                             }
+                        };
+                        // Validate: if the resolved terminal's preset is not installed, fallback
+                        let is_valid = all_presets
+                            .get(&terminal)
+                            .map(|p| crate::wsl::terminal::validate_preset(p).is_ok())
+                            .unwrap_or(false);
+                        if is_valid {
+                            terminal
                         } else {
-                            instance_terminal
+                            // Try global default first, then fallback
+                            if global_terminal != terminal
+                                && all_presets
+                                    .get(&global_terminal)
+                                    .map(|p| crate::wsl::terminal::validate_preset(p).is_ok())
+                                    .unwrap_or(false)
+                            {
+                                global_terminal.clone()
+                            } else {
+                                crate::wsl::terminal::BuiltinTerminal::Cmd
+                                    .as_str()
+                                    .to_string()
+                            }
                         }
                     })
                     .collect();
@@ -737,7 +766,7 @@ pub async fn load_settings_to_ui(
     app.global::<crate::Theme>()
         .set_dark_mode(settings.dark_mode);
 
-    // Populate terminal emulator options and user preset list
+    // Populate terminal emulator options (all presets shown, uninstalled grayed out)
     {
         use crate::wsl::terminal;
         let all_presets = terminal::resolve_presets(
@@ -745,15 +774,20 @@ pub async fn load_settings_to_ui(
             &settings.terminal_presets,
             &settings.terminal_user_presets,
         );
-        let mut preset_names: Vec<String> = all_presets
-            .keys()
-            .filter(|name| {
-                terminal::BuiltinTerminal::is_always_visible(name)
-                    || terminal::validate_preset(&all_presets[name.as_str()]).is_ok()
-            })
-            .cloned()
-            .collect();
-        preset_names.sort_by(|a, b| {
+
+        let mut installed: Vec<&String> = Vec::new();
+        let mut uninstalled: Vec<&String> = Vec::new();
+        for name in all_presets.keys() {
+            if terminal::BuiltinTerminal::is_always_visible(name)
+                || terminal::validate_preset(&all_presets[name.as_str()]).is_ok()
+            {
+                installed.push(name);
+            } else {
+                uninstalled.push(name);
+            }
+        }
+
+        installed.sort_by(|a, b| {
             let prio_a = terminal::BuiltinTerminal::from_str(a)
                 .map(|t| t.priority())
                 .unwrap_or(4);
@@ -762,6 +796,33 @@ pub async fn load_settings_to_ui(
                 .unwrap_or(4);
             prio_a.cmp(&prio_b).then(a.cmp(b))
         });
+        uninstalled.sort();
+
+        let mut preset_names: Vec<String> = Vec::new();
+        let mut disabled: Vec<bool> = Vec::new();
+        for name in &installed {
+            preset_names.push((*name).clone());
+            disabled.push(false);
+        }
+        for name in &uninstalled {
+            preset_names.push((*name).clone());
+            disabled.push(true);
+        }
+
+        let mut index = preset_names
+            .iter()
+            .position(|n| n == &settings.terminal_emulator)
+            .unwrap_or(0);
+        if index < disabled.len() && disabled[index] {
+            let fallback = preset_names[0].clone();
+            let mut state = app_state.lock().await;
+            let mut updated = state.config_manager.get_settings().clone();
+            updated.terminal_emulator = fallback;
+            let _ = state.config_manager.update_settings(updated);
+            drop(state);
+            index = 0;
+        }
+
         let model: slint::ModelRc<slint::SharedString> =
             slint::ModelRc::new(slint::VecModel::from(
                 preset_names
@@ -769,11 +830,10 @@ pub async fn load_settings_to_ui(
                     .map(|s| slint::SharedString::from(s.as_str()))
                     .collect::<Vec<_>>(),
             ));
+        let disabled_model: slint::ModelRc<bool> =
+            slint::ModelRc::new(slint::VecModel::from(disabled));
         app.set_terminal_emulator_options(model);
-        let index = preset_names
-            .iter()
-            .position(|n| n == &settings.terminal_emulator)
-            .unwrap_or(0);
+        app.set_terminal_emulator_disabled(disabled_model);
         app.set_terminal_emulator_index(index as i32);
         app.set_saved_terminal_emulator_index(index as i32);
 
@@ -831,15 +891,20 @@ pub fn refresh_terminal_emulator_options(app: &AppWindow, settings: &crate::conf
         &settings.terminal_presets,
         &settings.terminal_user_presets,
     );
-    let mut preset_names: Vec<String> = all_presets
-        .keys()
-        .filter(|name| {
-            terminal::BuiltinTerminal::is_always_visible(name)
-                || terminal::validate_preset(&all_presets[name.as_str()]).is_ok()
-        })
-        .cloned()
-        .collect();
-    preset_names.sort_by(|a, b| {
+
+    let mut installed: Vec<&String> = Vec::new();
+    let mut uninstalled: Vec<&String> = Vec::new();
+    for name in all_presets.keys() {
+        if terminal::BuiltinTerminal::is_always_visible(name)
+            || terminal::validate_preset(&all_presets[name.as_str()]).is_ok()
+        {
+            installed.push(name);
+        } else {
+            uninstalled.push(name);
+        }
+    }
+
+    installed.sort_by(|a, b| {
         let prio_a = terminal::BuiltinTerminal::from_str(a)
             .map(|t| t.priority())
             .unwrap_or(4);
@@ -848,13 +913,28 @@ pub fn refresh_terminal_emulator_options(app: &AppWindow, settings: &crate::conf
             .unwrap_or(4);
         prio_a.cmp(&prio_b).then(a.cmp(b))
     });
+    uninstalled.sort();
+
+    let mut preset_names: Vec<String> = Vec::new();
+    let mut disabled: Vec<bool> = Vec::new();
+    for name in &installed {
+        preset_names.push((*name).clone());
+        disabled.push(false);
+    }
+    for name in &uninstalled {
+        preset_names.push((*name).clone());
+        disabled.push(true);
+    }
+
     let model: ModelRc<slint::SharedString> = ModelRc::new(VecModel::from(
         preset_names
             .iter()
             .map(|s| slint::SharedString::from(s.as_str()))
             .collect::<Vec<_>>(),
     ));
+    let disabled_model: ModelRc<bool> = ModelRc::new(VecModel::from(disabled));
     app.set_terminal_emulator_options(model);
+    app.set_terminal_emulator_disabled(disabled_model);
     let index = preset_names
         .iter()
         .position(|n| n == &settings.terminal_emulator)

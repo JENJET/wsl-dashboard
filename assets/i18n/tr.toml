@@ -86,6 +86,7 @@ update_wsl = "En son sürüm indirme sayfasını ziyaret edin."
 terminal_emulator = "Varsayılan terminal"
 terminal_custom_path = "Özel çalıştırılabilir dosya yolu"
 terminal_custom_args = "Komut satırı şablonu"
+refresh_terminals = "Terminalleri yeniden algıla"
 terminal_placeholders_hint = "Kullanılabilir yer tutucular: {distro} {dir} {proxy}"
 select_terminal_exe = "Terminal çalıştırılabilir dosyasını seç"
 tab_general = "Genel"
@@ -534,6 +535,7 @@ system_busy = "Sistem başka bir ağır işlemle (Dışa Aktarma, Taşıma, Klon
 default_set_success = "'{0}' varsayılan dağıtım olarak ayarlandı."
 default_set_failed = "'{0}' varsayılan olarak ayarlanamadı: {1}"
 copy_success = "Panoya kopyalandı"
+operation_success = "İşlem başarılı"
 
 [wsl_manage]
 status_title = "WSL Durumu"

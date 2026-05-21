@@ -86,6 +86,7 @@ update_wsl = "Látogasson el a legújabb verzió letöltési oldalára."
 terminal_emulator = "Alapértelmezett terminál"
 terminal_custom_path = "Egyéni futtatható fájl elérési útja"
 terminal_custom_args = "Parancssori sablon"
+refresh_terminals = "Terminálok újraészlelése"
 terminal_placeholders_hint = "Elérhető helykitöltők: {distro} {dir} {proxy}"
 select_terminal_exe = "Terminál futtatható fájl kiválasztása"
 tab_general = "Általános"
@@ -534,6 +535,7 @@ system_busy = "A rendszer más nehéz feladattal foglalkozik (exportálás, áth
 default_set_success = "A '{0}' alapértelmezett disztribúcióként lett beállítva."
 default_set_failed = "Nem sikerült beállítani a '{0}' alapértelmezettként: {1}"
 copy_success = "Vágólapra másolva"
+operation_success = "A művelet sikeres"
 
 [wsl_manage]
 status_title = "WSL állapot"

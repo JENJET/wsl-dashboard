@@ -49,6 +49,7 @@ export component ModalManager inherits Rectangle {
     in-out property <bool> show_terminal_config: false;
     in property <string> terminal_config_distro_name: "";
     in property <[string]> terminal_config_options: [];
+    in property <[bool]> terminal_config_disabled: [];
     in-out property <int> terminal_config_index: 0;
     in-out property <bool> terminal_config_show_custom: false;
     in-out property <string> terminal_config_custom_path;
@@ -581,6 +582,7 @@ export component ModalManager inherits Rectangle {
         height: 100%;
         distro_name: root.terminal_config_distro_name;
         emulator_options: root.terminal_config_options;
+        emulator_disabled: root.terminal_config_disabled;
         selected_emulator_index <=> root.terminal_config_index;
         show_custom <=> root.terminal_config_show_custom;
         custom_path <=> root.terminal_config_custom_path;

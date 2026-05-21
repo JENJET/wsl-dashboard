@@ -1,3 +1,4 @@
+use crate::ui::handlers::network::utils::show_toast;
 use crate::utils::system::CREATE_NO_WINDOW;
 use crate::{AppI18n, AppState, AppWindow, Theme, config, i18n};
 use slint::{ComponentHandle, Model};
@@ -363,6 +364,23 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 app.set_terminal_custom_path(path.display().to_string().into());
             }
         }
+    });
+
+    let ah = app_handle.clone();
+    let as_ptr = app_state.clone();
+    app.on_terminal_refresh_terminals(move || {
+        let ah = ah.clone();
+        let as_ptr = as_ptr.clone();
+        let _ = slint::spawn_local(async move {
+            crate::wsl::terminal::invalidate_caches();
+            let state = as_ptr.lock().await;
+            let settings = state.config_manager.get_settings().clone();
+            drop(state);
+            if let Some(app) = ah.upgrade() {
+                crate::ui::data::refresh_terminal_emulator_options(&app, &settings);
+                show_toast(app.as_weak(), i18n::t("toast.operation_success"));
+            }
+        });
     });
 
     // User-defined terminal preset management

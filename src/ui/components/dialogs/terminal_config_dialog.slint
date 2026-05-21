@@ -8,6 +8,7 @@ import { CustomLineEdit, CustomComboBox, CustomButton } from "../form_widgets.sl
 export component TerminalConfigDialog inherits Rectangle {
     in property <string> distro_name;
     in property <[string]> emulator_options;
+    in property <[bool]> emulator_disabled;
     in-out property <int> selected_emulator_index: 0;
     in-out property <bool> show_custom: false;
     in-out property <string> custom_path;
@@ -111,6 +112,7 @@ export component TerminalConfigDialog inherits Rectangle {
                     }
                     CustomComboBox {
                         model: root.emulator_options;
+                        item-disabled: root.emulator_disabled;
                         current-index <=> root.selected_emulator_index;
                         dropdown-height: 200px;
                         selected(index) => { root.index_changed(index); }

@@ -86,6 +86,7 @@ update_wsl = "Kunjungi halaman unduhan versi terbaru."
 terminal_emulator = "Terminal bawaan"
 terminal_custom_path = "Path eksekusi kustom"
 terminal_custom_args = "Templat baris perintah"
+refresh_terminals = "Deteksi ulang terminal"
 terminal_placeholders_hint = "Placeholder tersedia: {distro} {dir} {proxy}"
 select_terminal_exe = "Pilih file terminal yang dapat dijalankan"
 tab_general = "Umum"
@@ -534,6 +535,7 @@ system_busy = "Sistem sedang sibuk dengan tugas berat lainnya (Ekspor, Pindah, K
 default_set_success = "'{0}' telah ditetapkan sebagai distro default."
 default_set_failed = "Gagal menetapkan '{0}' sebagai default: {1}"
 copy_success = "Disalin ke clipboard"
+operation_success = "Operasi berhasil"
 
 [wsl_manage]
 status_title = "Status WSL"
