@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 Extract used icons from .slint files and generate subset font
 Compatible with Python 2.7 and Python 3.x
