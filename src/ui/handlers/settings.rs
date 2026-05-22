@@ -200,6 +200,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 match state.config_manager.update_settings(user_settings) {
                     Ok(_) => {
                         drop(state);
+                        crate::ui::data::refresh_distros_ui(ah.clone(), as_ptr.clone()).await;
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(app) = ah.upgrade() {
                                 // Sync saved terminal index so next settings visit uses saved value
@@ -376,10 +377,12 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
             let state = as_ptr.lock().await;
             let settings = state.config_manager.get_settings().clone();
             drop(state);
+            let ah2 = ah.clone();
             if let Some(app) = ah.upgrade() {
                 crate::ui::data::refresh_terminal_emulator_options(&app, &settings);
                 show_toast(app.as_weak(), i18n::t("toast.operation_success"));
             }
+            crate::ui::data::refresh_distros_ui(ah2, as_ptr).await;
         });
     });
 
