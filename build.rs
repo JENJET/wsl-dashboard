@@ -218,13 +218,31 @@ fn verify_translations() {
                 }
 
                 if !missing.is_empty() {
+                    let is_fatal = missing.len() > 100;
+                    let level = if is_fatal { "error" } else { "warning" };
                     println!(
-                        "cargo:warning=[!] Language '{}' is missing {} keys:",
+                        "cargo:{}={} Language '{}' is missing {} keys{}",
+                        level,
+                        if is_fatal { "[!] FATAL" } else { "[!]" },
                         filename,
-                        missing.len()
+                        missing.len(),
+                        if is_fatal {
+                            " (exceeds threshold of 100)"
+                        } else {
+                            ":"
+                        }
                     );
-                    for key in missing {
-                        println!("cargo:warning=    - {}", key);
+                    if !is_fatal {
+                        for key in &missing {
+                            println!("cargo:warning=    - {}", key);
+                        }
+                    }
+                    if is_fatal {
+                        panic!(
+                            "i18n integrity check failed: '{}' is missing {} keys (threshold: 100)",
+                            filename,
+                            missing.len()
+                        );
                     }
                 }
             }

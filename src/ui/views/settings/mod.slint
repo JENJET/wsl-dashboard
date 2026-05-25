@@ -94,6 +94,7 @@ export component SettingsView inherits Rectangle {
     in-out property <bool> sidebar_usb: true;
     in-out property <bool> sidebar_network: true;
     in-out property <bool> sidebar_about: true;
+    in-out property <bool> settings_auto_save: false;
     in property <SettingsStrings> strings;
 
     // Tab selection
@@ -141,21 +142,44 @@ export component SettingsView inherits Rectangle {
     // Sync back indices to properties
     changed selected-language-index => {
         ui_language = index-to-lang(selected-language-index);
+        if (root.settings_auto_save) { root.save-settings(); }
     }
     changed selected-log-level-index => {
         log_level = selected-log-level-index + 1;
+        if (root.settings_auto_save) { root.save-settings(); }
     }
     changed selected-check-update-index => {
         if (selected-check-update-index == 0) { check_update_interval = 1; }
         else if (selected-check-update-index == 1) { check_update_interval = 7; }
         else if (selected-check-update-index == 2) { check_update_interval = 15; }
         else if (selected-check-update-index == 3) { check_update_interval = 30; }
+        if (root.settings_auto_save) { root.save-settings(); }
     }
     changed selected-log-days-index => {
         if (selected-log-days-index == 0) { log_days = 7; }
         else if (selected-log-days-index == 1) { log_days = 15; }
         else if (selected-log-days-index == 2) { log_days = 30; }
+        if (root.settings_auto_save) { root.save-settings(); }
     }
+
+    // Auto-save on property changes (guarded to skip initialization)
+    changed distro_location => { if (root.settings_auto_save) { root.save-settings(); } }
+    changed logs_location => { if (root.settings_auto_save) { root.save-settings(); } }
+    changed terminal_emulator_index => { if (root.settings_auto_save) { root.save-settings(); } }
+    changed terminal_show_custom => { if (root.settings_auto_save) { root.save-settings(); } }
+    changed terminal_custom_path => { if (root.settings_auto_save) { root.save-settings(); } }
+    changed terminal_custom_args => { if (root.settings_auto_save) { root.save-settings(); } }
+    changed system_color => { if (root.settings_auto_save) { root.save-settings(); } }
+    changed auto_shutdown => { if (root.settings_auto_save) { root.save-settings(); } }
+    changed tray_autostart => { if (root.settings_auto_save) { root.save-settings(); } }
+    changed tray_start_minimized => { if (root.settings_auto_save) { root.save-settings(); } }
+    changed tray_close_to_tray => { if (root.settings_auto_save) { root.save-settings(); } }
+    changed sidebar_toggle => { if (root.settings_auto_save) { root.save-settings(); } }
+    changed sidebar_add => { if (root.settings_auto_save) { root.save-settings(); } }
+    changed sidebar_wsl_manage => { if (root.settings_auto_save) { root.save-settings(); } }
+    changed sidebar_usb => { if (root.settings_auto_save) { root.save-settings(); } }
+    changed sidebar_network => { if (root.settings_auto_save) { root.save-settings(); } }
+    changed sidebar_about => { if (root.settings_auto_save) { root.save-settings(); } }
 
     pure function get-language-index(lang: string) -> int {
         if (lang == "en") { return 1; }
@@ -345,6 +369,23 @@ export component SettingsView inherits Rectangle {
                                 CustomCheckBox { checked <=> root.tray_close_to_tray; text: root.strings.close_to_tray; }
                             }
                         }
+
+                        Rectangle {
+                            height: 1px;
+                            background: Theme.border_color;
+                        }
+
+                        Rectangle {
+                            background: Theme.card_bg;
+                            border-radius: 8px;
+                            border-width: 1px;
+                            border-color: Theme.border_color;
+                            VerticalLayout {
+                                padding: 12px;
+                                spacing: 12px;
+                                CustomCheckBox { checked <=> root.auto_shutdown; text: root.strings.auto_close; }
+                            }
+                        }
                     }
                 }
                 if (general-flickable.viewport-height > general-flickable.height): CustomScrollbar {
@@ -373,6 +414,39 @@ export component SettingsView inherits Rectangle {
                         padding-bottom: 4px;
                         spacing: 12px;
                         alignment: start;
+
+                        TerminalSettingsSection {
+                            strings: root.strings;
+                            emulator_options: root.terminal_emulator_options;
+                            emulator_disabled: root.terminal_emulator_disabled;
+                            selected_emulator_index <=> root.terminal_emulator_index;
+                            show_custom <=> root.terminal_show_custom;
+                            custom_path <=> root.terminal_custom_path;
+                            custom_args <=> root.terminal_custom_args;
+                            validation_result: root.terminal_validation_result;
+                            validation_ok: root.terminal_validation_ok;
+                            path_browse => { root.terminal-path-browse(); }
+                            refresh_terminals => { root.terminal-refresh-terminals(); }
+                            user_preset_names: root.terminal_user_preset_names;
+                            user_preset_form_title: root.terminal_user_preset_form_title;
+                            show_user_preset_form <=> root.terminal_show_user_preset_form;
+                            user_preset_form_name <=> root.terminal_user_preset_form_name;
+                            user_preset_form_path <=> root.terminal_user_preset_form_path;
+                            user_preset_form_args <=> root.terminal_user_preset_form_args;
+                            user_preset_form_error: root.terminal_user_preset_form_error;
+                            user_preset_original_name <=> root.terminal_user_preset_original_name;
+                            edit_user_preset(name) => { root.edit_user_preset(name); }
+                            delete_user_preset(name) => { root.delete_user_preset(name); }
+                            save_user_preset(old, name, path, args) => { root.save_user_preset(old, name, path, args); }
+                            cancel_user_preset_form => { root.cancel_user_preset_form(); }
+                            add_user_preset => { root.add_user_preset(); }
+                            user_preset_path_browse => { root.user_preset_path_browse(); }
+                        }
+
+                        Rectangle {
+                            height: 1px;
+                            background: Theme.border_color;
+                        }
 
                         PathSettingsSection {
                             strings: root.strings;
@@ -435,55 +509,6 @@ export component SettingsView inherits Rectangle {
                             }
                         }
 
-                        Rectangle {
-                            height: 1px;
-                            background: Theme.border_color;
-                        }
-
-                        TerminalSettingsSection {
-                            strings: root.strings;
-                            emulator_options: root.terminal_emulator_options;
-                            emulator_disabled: root.terminal_emulator_disabled;
-                            selected_emulator_index <=> root.terminal_emulator_index;
-                            show_custom <=> root.terminal_show_custom;
-                            custom_path <=> root.terminal_custom_path;
-                            custom_args <=> root.terminal_custom_args;
-                            validation_result: root.terminal_validation_result;
-                            validation_ok: root.terminal_validation_ok;
-                            path_browse => { root.terminal-path-browse(); }
-                            refresh_terminals => { root.terminal-refresh-terminals(); }
-                            user_preset_names: root.terminal_user_preset_names;
-                            user_preset_form_title: root.terminal_user_preset_form_title;
-                            show_user_preset_form <=> root.terminal_show_user_preset_form;
-                            user_preset_form_name <=> root.terminal_user_preset_form_name;
-                            user_preset_form_path <=> root.terminal_user_preset_form_path;
-                            user_preset_form_args <=> root.terminal_user_preset_form_args;
-                            user_preset_form_error: root.terminal_user_preset_form_error;
-                            user_preset_original_name <=> root.terminal_user_preset_original_name;
-                            edit_user_preset(name) => { root.edit_user_preset(name); }
-                            delete_user_preset(name) => { root.delete_user_preset(name); }
-                            save_user_preset(old, name, path, args) => { root.save_user_preset(old, name, path, args); }
-                            cancel_user_preset_form => { root.cancel_user_preset_form(); }
-                            add_user_preset => { root.add_user_preset(); }
-                            user_preset_path_browse => { root.user_preset_path_browse(); }
-                        }
-
-                        Rectangle {
-                            height: 1px;
-                            background: Theme.border_color;
-                        }
-
-                        Rectangle {
-                            background: Theme.card_bg;
-                            border-radius: 8px;
-                            border-width: 1px;
-                            border-color: Theme.border_color;
-                            VerticalLayout {
-                                padding: 12px;
-                                spacing: 12px;
-                                CustomCheckBox { checked <=> root.auto_shutdown; text: root.strings.auto_close; }
-                            }
-                        }
                     }
                 }
                 if (advanced-flickable.viewport-height > advanced-flickable.height): CustomScrollbar {
@@ -552,27 +577,18 @@ export component SettingsView inherits Rectangle {
             }
         }
 
-        // Bottom Buttons
+        // Bottom Buttons (save is auto-save now, show WSL Settings only)
         HorizontalLayout {
             padding-left: AppI18n.is-rtl ? 16px : 4px;
             padding-right: AppI18n.is-rtl ? 4px : 16px;
             padding-top: 4px;
             padding-bottom: 4px;
             spacing: 8px;
-            // RTL: Save first (appears on right), then spacer, then WSL settings (appears on left)
-            if (AppI18n.is-rtl): CustomButton {
-                text: root.strings.save; primary: true; height: 32px;
-                clicked => { root.save_settings(); }
-            }
             if (!AppI18n.is-rtl): CustomButton {
                 text: root.strings.wsl_settings; height: 32px;
                 clicked => { root.open-wsl-settings(); }
             }
             Rectangle { horizontal-stretch: 1; }
-            if (!AppI18n.is-rtl): CustomButton {
-                text: root.strings.save; primary: true; height: 32px;
-                clicked => { root.save_settings(); }
-            }
             if (AppI18n.is-rtl): CustomButton {
                 text: root.strings.wsl_settings; height: 32px;
                 clicked => { root.open-wsl-settings(); }

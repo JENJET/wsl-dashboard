@@ -705,6 +705,7 @@ pub async fn load_settings_to_ui(
     app.set_new_instance_path(settings.distro_location.clone().into());
     app.set_logs_location(settings.logs_location.clone().into());
     app.set_auto_shutdown(settings.auto_shutdown);
+    app.set_vhdx_sparse_mode(settings.vhdx_sparse_mode);
     app.set_system_color(settings.system_color);
     app.global::<crate::Theme>()
         .set_system_color(settings.system_color);

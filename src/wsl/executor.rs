@@ -77,6 +77,7 @@ impl WslCommandExecutor {
             "--update",
             "--move",
             "--resize",
+            "/bin/true",
         ];
         let is_write_op = args_owned.iter().any(|arg| {
             let lower = arg.to_lowercase();
@@ -96,7 +97,7 @@ impl WslCommandExecutor {
             let lower = arg.to_lowercase();
             matches!(
                 lower.as_str(),
-                "--import" | "--export" | "--install" | "--move" | "--resize"
+                "--import" | "--export" | "--install" | "--move" | "--resize" | "--update"
             )
         });
         let timeout_duration = if is_heavy_op {

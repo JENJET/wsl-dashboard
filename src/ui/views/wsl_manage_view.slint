@@ -4,7 +4,7 @@ import {
     WslManageStrings,
     LayoutConstants,
 } from "../theme.slint";
-import { CustomButton } from "../components/form_widgets.slint";
+import { CustomButton, CustomCheckBox } from "../components/form_widgets.slint";
 import { CustomScrollbar } from "../components/scrollbar.slint";
 
 // Status badge component
@@ -41,7 +41,8 @@ component StatusBadge inherits Rectangle {
 
 // Code block component for displaying command output
 component CodeBlock inherits Rectangle {
-    in property <[string]> lines: [];
+    in property <string> text: "";
+    min-width: 0;
     background: Theme.dark_mode ? #1e1e2e : #f6f8fa;
     border-radius: 6px;
     border-width: 1px;
@@ -49,16 +50,16 @@ component CodeBlock inherits Rectangle {
     clip: true;
 
     VerticalLayout {
+        min-width: 0;
         padding: 12px;
         padding-left: AppI18n.is-rtl ? 12px : 16px;
         padding-right: AppI18n.is-rtl ? 16px : 12px;
-        spacing: 2px;
-        for line in root.lines: Text {
-            text: line == "" ? " " : line;
+        Text {
+            min-width: 0;
+            text: root.text;
             font-size: 12.5px * LayoutConstants.font-scale;
             font-family: Theme.default_font;
             color: Theme.dark_mode ? #cdd6f4 : #24292f;
-            vertical-alignment: top;
             horizontal-alignment: AppI18n.is-rtl ? right : left;
         }
     }
@@ -72,10 +73,13 @@ export component WslManageView inherits Rectangle {
     in property <bool> wsl_installed: false;
     in property <int> default_version: 2;
     in property <bool> has_running_instances: false;
+    in property <bool> has_instances: false;
     in property <bool> is_updating: false;
-    in property <[string]> version_lines: [];
-    in property <[string]> status_lines: [];
+    in property <string> version_text: "";
+    in property <string> status_text: "";
     in property <string> default_distro_name;
+
+    in-out property <bool> vhdx_sparse_mode: false;
 
     // Callbacks
     callback install_wsl();
@@ -85,6 +89,7 @@ export component WslManageView inherits Rectangle {
     callback set_default_version(int);
     callback uninstall_wsl();
     callback open_wsl_settings();
+    callback sparse_mode_toggled();
 
     VerticalLayout {
         spacing: 12px;
@@ -114,8 +119,8 @@ export component WslManageView inherits Rectangle {
                         border-width: 1px;
                         border-color: Theme.border_color;
                         VerticalLayout {
-                            padding: 16px;
-                            spacing: 14px;
+                            padding: 12px;
+                            spacing: 10px;
 
                             // Title row with equidistant spacing between the 3 components
                             HorizontalLayout {
@@ -208,7 +213,7 @@ export component WslManageView inherits Rectangle {
                                     }
                                 }
                                 // Installed but stopped → play icon
-                                if (root.wsl_installed && !root.has_running_instances): Rectangle {
+                                if (root.wsl_installed && !root.has_running_instances && root.has_instances): Rectangle {
                                     width: 28px;
                                     height: 28px;
                                     border-radius: 6px;
@@ -248,54 +253,66 @@ export component WslManageView inherits Rectangle {
                         }
                     }
 
-                    // === Version Info Card (wsl --version raw output) ===
-                    if (root.wsl_installed && root.version_lines.length > 0): Rectangle {
-                        horizontal-stretch: 1;
-                        background: Theme.card_bg;
-                        border-radius: 8px;
-                        border-width: 1px;
-                        border-color: Theme.border_color;
-                        VerticalLayout {
-                            padding: 16px;
-                            spacing: 12px;
+                    // === Version & Status Info side by side ===
+                    if (root.wsl_installed && (root.version_text != "" || root.status_text != "")): HorizontalLayout {
+                        spacing: 12px;
+                        if (root.version_text != ""): Rectangle {
+                            horizontal-stretch: 6;
+                            preferred-width: 0;
+                            min-width: 0;
+                            background: Theme.card_bg;
+                            border-radius: 8px;
+                            border-width: 1px;
+                            border-color: Theme.border_color;
+                            VerticalLayout {
+                                min-width: 0;
+                                padding: 12px;
+                                spacing: 8px;
 
-                            Text {
-                                text: root.strings.version_output_title;
-                                font-size: 14px * LayoutConstants.font-scale;
-                                font-family: Theme.default_font;
-                                font-weight: 500;
-                                color: Theme.text_primary;
-                                horizontal-alignment: AppI18n.is-rtl ? right : left;
-                            }
+                                Text {
+                                    min-width: 0;
+                                    text: root.strings.version_output_title;
+                                    font-size: 14px * LayoutConstants.font-scale;
+                                    font-family: Theme.default_font;
+                                    font-weight: 500;
+                                    color: Theme.text_primary;
+                                    horizontal-alignment: AppI18n.is-rtl ? right : left;
+                                }
 
-                            CodeBlock {
-                                lines: root.version_lines;
+                                CodeBlock {
+                                    vertical-stretch: 1;
+                                    text: root.version_text;
+                                }
                             }
                         }
-                    }
 
-                    // === Status Info Card (wsl --status raw output) ===
-                    if (root.wsl_installed && root.status_lines.length > 0): Rectangle {
-                        horizontal-stretch: 1;
-                        background: Theme.card_bg;
-                        border-radius: 8px;
-                        border-width: 1px;
-                        border-color: Theme.border_color;
-                        VerticalLayout {
-                            padding: 16px;
-                            spacing: 12px;
+                        if (root.status_text != ""): Rectangle {
+                            horizontal-stretch: 4;
+                            preferred-width: 0;
+                            min-width: 0;
+                            background: Theme.card_bg;
+                            border-radius: 8px;
+                            border-width: 1px;
+                            border-color: Theme.border_color;
+                            VerticalLayout {
+                                min-width: 0;
+                                padding: 12px;
+                                spacing: 8px;
 
-                            Text {
-                                text: root.strings.status_output_title;
-                                font-size: 14px * LayoutConstants.font-scale;
-                                font-family: Theme.default_font;
-                                font-weight: 500;
-                                color: Theme.text_primary;
-                                horizontal-alignment: AppI18n.is-rtl ? right : left;
-                            }
+                                Text {
+                                    min-width: 0;
+                                    text: root.strings.status_output_title;
+                                    font-size: 14px * LayoutConstants.font-scale;
+                                    font-family: Theme.default_font;
+                                    font-weight: 500;
+                                    color: Theme.text_primary;
+                                    horizontal-alignment: AppI18n.is-rtl ? right : left;
+                                }
 
-                            CodeBlock {
-                                lines: root.status_lines;
+                                CodeBlock {
+                                    vertical-stretch: 1;
+                                    text: root.status_text;
+                                }
                             }
                         }
                     }
@@ -388,6 +405,13 @@ export component WslManageView inherits Rectangle {
                                     }
                                 }
                             }
+
+                            Rectangle {
+                                height: 1px;
+                                background: Theme.border_color;
+                            }
+
+                            CustomCheckBox { checked <=> root.vhdx_sparse_mode; text: root.strings.sparse_mode; toggled => { root.sparse_mode_toggled(); } }
                         }
                     }
 
@@ -451,6 +475,8 @@ export component WslManageView inherits Rectangle {
                             }
                         }
                     }
+
+
                 }
             }
 

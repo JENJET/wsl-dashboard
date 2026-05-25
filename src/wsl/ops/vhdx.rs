@@ -227,23 +227,37 @@ async fn run_wsl_manage(executor: &WslCommandExecutor, wsl_args: &[&str]) -> Res
     }
 }
 
-/// Set a VHDX as sparse using `wsl --manage --set-sparse true`.
+/// Set or unset a VHDX as sparse using `wsl --manage --set-sparse`.
+/// Retries up to `max_retries` times with 1s delay between attempts.
 pub async fn set_sparse_file(
     executor: &WslCommandExecutor,
     distro_name: &str,
+    sparse: bool,
 ) -> Result<(), String> {
-    info!("Setting VHDX as sparse for distro: {}", distro_name);
-    run_wsl_manage(
-        executor,
-        &[
-            "--manage",
-            distro_name,
-            "--set-sparse",
-            "true",
-            "--allow-unsafe",
-        ],
-    )
-    .await
+    let max_retries = 5;
+    let val = if sparse { "true" } else { "false" };
+    let action = if sparse { "sparse" } else { "non-sparse" };
+    let mut args: Vec<&str> = vec!["--manage", distro_name, "--set-sparse", val];
+    if sparse {
+        args.push("--allow-unsafe");
+    }
+    let mut last_err = String::new();
+    for attempt in 1..=max_retries {
+        info!(
+            "Setting VHDX as {} for distro: {} (attempt {}/{})",
+            action, distro_name, attempt, max_retries
+        );
+        match run_wsl_manage(executor, &args).await {
+            Ok(()) => return Ok(()),
+            Err(e) => {
+                last_err = e;
+                if attempt < max_retries {
+                    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+                }
+            }
+        }
+    }
+    Err(last_err)
 }
 
 /// Resize a VHDX disk using `wsl --manage --resize`.

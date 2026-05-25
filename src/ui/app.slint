@@ -90,6 +90,10 @@ export component AppWindow inherits Window {
     in-out property <bool> show_export_shutdown_confirm: false;
     in property <string> export_shutdown_confirm_message: "";
     in property <string> export_shutdown_confirm_title: "";
+    in-out property <bool> show_sparse_retry_confirm: false;
+    in property <string> sparse_retry_confirm_message: "";
+    in property <string> sparse_retry_confirm_title: "";
+    in-out property <int> wsl_sparse_retry_countdown: 0;
     in-out property <string> clone_batch_suffix: "";
     in-out property <string> clone_batch_path: "";
     in-out property <bool> show_move_dialog: false;
@@ -244,11 +248,14 @@ export component AppWindow inherits Window {
     // --- WSL Management Properties ---
     in property <WslManageStrings> wsl_manage_strings;
     in property <bool> wsl_installed: false;
-    in property <[string]> wsl_version_output: [];
-    in property <[string]> wsl_status_output: [];
+    in property <string> wsl_version_output: "";
+    in property <string> wsl_status_output: "";
     in property <int> wsl_default_version: 2;
     in property <bool> wsl_has_running: false;
+    in property <bool> wsl_has_instances: false;
     in property <bool> wsl_is_updating: false;
+    in-out property <bool> vhdx_sparse_mode: false;
+    in-out property <bool> settings_auto_save: false;
     in-out property <bool> sidebar_wsl_manage: true;
 
     // --- VHDX Resize Properties ---
@@ -343,6 +350,8 @@ export component AppWindow inherits Window {
     callback cancel_clone_shutdown_confirm();
     callback confirm_export_shutdown_action();
     callback cancel_export_shutdown_confirm();
+    callback confirm_sparse_retry_action();
+    callback cancel_sparse_retry_confirm();
     callback close_message_dialog();
     callback message_link_clicked();
     callback message_action_clicked(string);
@@ -409,6 +418,7 @@ export component AppWindow inherits Window {
     callback wsl_manage_update_confirmed(bool);
     callback wsl_manage_shutdown_confirmed();
     callback wsl_manage_shutdown_cancelled();
+    callback vhdx_sparse_mode_toggled();
     
     // Set default distro callback
     callback set_default_distro(string);
@@ -710,6 +720,9 @@ export component AppWindow inherits Window {
                                 toggle_batch_mode => {
                                     root.toggle_batch_mode();
                                 }
+                                request_add_tab => {
+                                    root.select_tab(1);
+                                }
                             }
 
                             AddInstanceView {
@@ -792,12 +805,14 @@ export component AppWindow inherits Window {
                                 x: selected_tab == 4 ? 0px : 10000px;
                                 strings: root.wsl_manage_strings;
                                 wsl_installed: root.wsl_installed;
-                                version_lines: root.wsl_version_output;
-                                status_lines: root.wsl_status_output;
+                                version_text: root.wsl_version_output;
+                                status_text: root.wsl_status_output;
                                 default_version: root.wsl_default_version;
                                 has_running_instances: root.wsl_has_running;
+                                has_instances: root.wsl_has_instances;
                                 is_updating: root.wsl_is_updating;
                                 default_distro_name: root.wsl_default_distro_name;
+                                vhdx_sparse_mode <=> root.vhdx_sparse_mode;
                                 install_wsl => {
                                     root.wsl_manage_install();
                                 }
@@ -819,6 +834,9 @@ export component AppWindow inherits Window {
                                 }
                                 open_wsl_settings => {
                                     root.open_wsl_settings();
+                                }
+                                sparse_mode_toggled => {
+                                    root.vhdx_sparse_mode_toggled();
                                 }
                             }
 
@@ -941,6 +959,7 @@ export component AppWindow inherits Window {
                                 sidebar_usb <=> root.sidebar_usb;
                                 sidebar_network <=> root.sidebar_network;
                                 sidebar_about <=> root.sidebar_about;
+                                settings_auto_save <=> root.settings_auto_save;
                                 terminal_emulator_options: root.terminal_emulator_options;
                                 terminal_emulator_disabled: root.terminal_emulator_disabled;
                                 terminal_emulator_index <=> root.terminal_emulator_index;
@@ -1112,6 +1131,18 @@ export component AppWindow inherits Window {
         cancel_export_shutdown_confirm => {
             root.show_export_shutdown_confirm = false;
             root.cancel_export_shutdown_confirm();
+        }
+        show_sparse_retry_confirm: root.show_sparse_retry_confirm;
+        sparse_retry_confirm_message: root.sparse_retry_confirm_message;
+        sparse_retry_confirm_title: root.sparse_retry_confirm_title;
+        sparse_retry_countdown: root.wsl_sparse_retry_countdown;
+        confirm_sparse_retry_action => {
+            root.show_sparse_retry_confirm = false;
+            root.confirm_sparse_retry_action();
+        }
+        cancel_sparse_retry_confirm => {
+            root.show_sparse_retry_confirm = false;
+            root.cancel_sparse_retry_confirm();
         }
         show_message: root.show_message_dialog;
         message_text: root.current_message;
@@ -1572,7 +1603,6 @@ export component AppWindow inherits Window {
         width: 100%;
         height: 100%;
         z: 101;
-        dialog_height: 200px;
         is_warning: true;
         title_text: AppI18n.t("dialog.vhdx_resize_title", [AppI18n.version]);
         message: AppI18n.t("dialog.vhdx_resize_confirm_msg", [AppI18n.version]);

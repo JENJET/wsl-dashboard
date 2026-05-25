@@ -5,123 +5,134 @@ import { CustomCheckBox } from "../form_widgets.slint";
 export component ConfirmationDialog inherits Rectangle {
     in property <string> title_text: AppI18n.t("dialog.delete_title", [AppI18n.version]);
     in property <string> message;
-    in property <length> dialog_height: 160px;
     in property <bool> show_preview_checkbox: false;
     in-out property <bool> preview_checked: false;
+    in property <int> countdown: 0;
+    in property <string> default_action: "cancel";
     in property <bool> is_warning: false;
+    property <bool> show_confirm_countdown: root.countdown > 0 && root.default_action == "confirm";
+    property <bool> show_cancel_countdown: root.countdown > 0 && root.default_action == "cancel";
     callback confirm;
     callback cancel;
-    
+
     // Background mask covering the whole window
     background: #00000080;
-    
+
     // Trap clicks
     TouchArea { }
 
-    // Dialog Box
-    Rectangle {
-        width: 400px;
-        height: root.dialog_height;
-        background: Theme.card_bg;
-        border-radius: 8px;
-        border-width: 1px;
-        border-color: Theme.border_color;
-        VerticalLayout {
-            padding: 24px;
-            spacing: 16px;
-            alignment: space-between;
-            Text {
-                text: root.title_text;
-                font-size: 18px * LayoutConstants.font-scale;
-                font-family: Theme.default_font;
-                font-weight: 500;
-                color: Theme.text_primary;
-                horizontal-alignment: AppI18n.is-rtl ? right : left;
-            }
-
-            Text {
-                text: root.message;
-                font-size: 14px * LayoutConstants.font-scale;
-                font-family: Theme.default_font;
-                color: root.is_warning ? #ef4444 : Theme.text_primary;
-                wrap: word-wrap;
-                horizontal-alignment: AppI18n.is-rtl ? right : left;
-            }
-
-            if (root.show_preview_checkbox): HorizontalLayout {
-                spacing: 4px;
-                alignment: AppI18n.is-rtl ? start : end;
-                CustomCheckBox {
-                    checked <=> root.preview_checked;
-                    text: AppI18n.t("wsl_manage.include_preview", [AppI18n.version]);
-                }
-            }
-
-            HorizontalLayout {
-                alignment: AppI18n.is-rtl ? start : end;
-                spacing: 12px;
-                if (AppI18n.is-rtl): confirm-btn := Rectangle {
-                    width: 80px;
-                    height: 32px;
-                    border-radius: 4px;
-                    background: touch_confirm_rtl.has-hover ? #C42B1C : #E81123;
+    // Center the dialog box vertically and horizontally
+    VerticalLayout {
+        width: 100%;
+        height: 100%;
+        alignment: center;
+        HorizontalLayout {
+            alignment: center;
+            // Dialog Box
+            Rectangle {
+                width: 400px;
+                background: Theme.card_bg;
+                border-radius: 8px;
+                border-width: 1px;
+                border-color: Theme.border_color;
+                VerticalLayout {
+                    padding: 24px;
+                    spacing: 16px;
+                    alignment: start;
                     Text {
-                        text: AppI18n.t("dialog.confirm", [AppI18n.version]);
-                        font-size: 13px * LayoutConstants.font-scale;
+                        text: root.title_text;
+                        font-size: 18px * LayoutConstants.font-scale;
                         font-family: Theme.default_font;
-                        color: white;
-                        horizontal-alignment: center;
-                        vertical-alignment: center;
-                    }
-
-                    touch_confirm_rtl := TouchArea {
-                        clicked => {
-                            root.confirm();
-                        }
-                    }
-                }
-
-                // Cancel button
-                Rectangle {
-                    width: 80px;
-                    height: 32px;
-                    border-radius: 4px;
-                    background: touch_cancel.has-hover ? Theme.hover_bg : transparent;
-                    border-width: 1px;
-                    border-color: Theme.border_color;
-                    Text {
-                        text: AppI18n.t("dialog.cancel", [AppI18n.version]);
-                        font-size: 13px * LayoutConstants.font-scale;
-                        font-family: Theme.default_font;
+                        font-weight: 500;
                         color: Theme.text_primary;
-                        horizontal-alignment: center;
-                        vertical-alignment: center;
+                        horizontal-alignment: AppI18n.is-rtl ? right : left;
                     }
 
-                    touch_cancel := TouchArea {
-                        clicked => {
-                            root.cancel();
+                    Text {
+                        text: root.message;
+                        font-size: 14px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        color: root.is_warning ? #ef4444 : Theme.text_primary;
+                        wrap: word-wrap;
+                        horizontal-alignment: AppI18n.is-rtl ? right : left;
+                    }
+
+                    if (root.show_preview_checkbox): HorizontalLayout {
+                        spacing: 4px;
+                        alignment: AppI18n.is-rtl ? start : end;
+                        CustomCheckBox {
+                            checked <=> root.preview_checked;
+                            text: AppI18n.t("wsl_manage.include_preview", [AppI18n.version]);
                         }
                     }
-                }
 
-                if (!AppI18n.is-rtl): Rectangle {
-                    width: 80px;
-                    height: 32px;
-                    border-radius: 4px;
-                    background: touch_confirm.has-hover ? #C42B1C : #E81123;
-                    Text {
-                        text: AppI18n.t("dialog.confirm", [AppI18n.version]);
-                        font-size: 13px * LayoutConstants.font-scale;
-                        font-family: Theme.default_font;
-                        color: white;
-                        horizontal-alignment: center;
-                        vertical-alignment: center;
-                    }
+                    HorizontalLayout {
+                        alignment: AppI18n.is-rtl ? start : end;
+                        spacing: 12px;
+                        if (AppI18n.is-rtl): confirm-btn := Rectangle {
+                            width: root.show_confirm_countdown ? 110px : 80px;
+                            height: 32px;
+                            border-radius: 4px;
+                            background: touch_confirm_rtl.has-hover ? #C42B1C : #E81123;
+                            Text {
+                                text: root.show_confirm_countdown ? AppI18n.t("dialog.confirm", [AppI18n.version]) + " (" + root.countdown + "s)" : AppI18n.t("dialog.confirm", [AppI18n.version]);
+                                font-size: 13px * LayoutConstants.font-scale;
+                                font-family: Theme.default_font;
+                                color: white;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
 
-                    touch_confirm := TouchArea {
-                        clicked => {
-                            root.confirm();
+                            touch_confirm_rtl := TouchArea {
+                                clicked => {
+                                    root.confirm();
+                                }
+                            }
+                        }
+
+                        // Cancel button
+                        Rectangle {
+                            width: root.show_cancel_countdown ? 110px : 80px;
+                            height: 32px;
+                            border-radius: 4px;
+                            background: touch_cancel.has-hover ? Theme.hover_bg : transparent;
+                            border-width: 1px;
+                            border-color: Theme.border_color;
+                            Text {
+                                text: root.show_cancel_countdown ? AppI18n.t("dialog.cancel", [AppI18n.version]) + " (" + root.countdown + "s)" : AppI18n.t("dialog.cancel", [AppI18n.version]);
+                                font-size: 13px * LayoutConstants.font-scale;
+                                font-family: Theme.default_font;
+                                color: Theme.text_primary;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+
+                            touch_cancel := TouchArea {
+                                clicked => {
+                                    root.cancel();
+                                }
+                            }
+                        }
+
+                        if (!AppI18n.is-rtl): Rectangle {
+                            width: root.show_confirm_countdown ? 110px : 80px;
+                            height: 32px;
+                            border-radius: 4px;
+                            background: touch_confirm.has-hover ? #C42B1C : #E81123;
+                            Text {
+                                text: root.show_confirm_countdown ? AppI18n.t("dialog.confirm", [AppI18n.version]) + " (" + root.countdown + "s)" : AppI18n.t("dialog.confirm", [AppI18n.version]);
+                                font-size: 13px * LayoutConstants.font-scale;
+                                font-family: Theme.default_font;
+                                color: white;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+
+                            touch_confirm := TouchArea {
+                                clicked => {
+                                    root.confirm();
+                                }
+                            }
                         }
                     }
                 }

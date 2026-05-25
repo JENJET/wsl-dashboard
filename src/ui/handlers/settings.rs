@@ -171,6 +171,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     check_time: state.config_manager.get_settings().check_time.clone(),
                     sidebar_collapsed: app.get_sidebar_collapsed(),
                     system_color,
+                    vhdx_sparse_mode: app.get_vhdx_sparse_mode(),
                     terminal_emulator,
                     terminal_presets,
                     terminal_user_presets,
@@ -199,16 +200,18 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
 
                 match state.config_manager.update_settings(user_settings) {
                     Ok(_) => {
+                        let is_auto = app.get_settings_auto_save();
                         drop(state);
                         crate::ui::data::refresh_distros_ui(ah.clone(), as_ptr.clone()).await;
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(app) = ah.upgrade() {
                                 // Sync saved terminal index so next settings visit uses saved value
                                 app.set_saved_terminal_emulator_index(app.get_terminal_emulator_index());
-                                // Translate message if possible, or just keep english for now as it's dynamic
-                                // But better to use a key if we had one "settings.saved_success"
-                                app.set_current_message(i18n::t("settings.saved_success").into());
-                                app.set_show_message_dialog(true);
+                                // Only show toast on manual save, not auto-save
+                                if !is_auto {
+                                    app.set_current_message(i18n::t("settings.saved_success").into());
+                                    app.set_show_message_dialog(true);
+                                }
                             }
                         });
                     }

@@ -101,15 +101,6 @@ export component Sidebar inherits Rectangle {
                 root.tab_selected(1);
             }
         }
-        if (root.show_wsl_manage): SidebarItem {
-            icon: "\u{E912}";
-            text: root.wsl_manage_text;
-            selected: selected_tab == 4;
-            collapsed: root.collapsed;
-            clicked => {
-                root.tab_selected(4);
-            }
-        }
         if (root.show_usb): SidebarItem {
             icon: "\u{E88E}";
             text: root.usb_text;
@@ -146,6 +137,16 @@ export component Sidebar inherits Rectangle {
 
         Rectangle {
             height: 4px;
+        }
+
+        if (root.show_wsl_manage): SidebarItem {
+            icon: "\u{E912}";
+            text: root.wsl_manage_text;
+            selected: selected_tab == 4;
+            collapsed: root.collapsed;
+            clicked => {
+                root.tab_selected(4);
+            }
         }
 
         SidebarItem {

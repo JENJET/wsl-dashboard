@@ -1143,11 +1143,12 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     let state = as_ptr.lock().await;
                     state.wsl_dashboard.executor().clone()
                 };
-                let result = crate::wsl::ops::vhdx::set_sparse_file(&executor, &distro_name).await;
+                let result =
+                    crate::wsl::ops::vhdx::set_sparse_file(&executor, &distro_name, true).await;
 
                 match result {
                     Ok(()) => {
-                        let msg = i18n::t("dialog.vhdx_set_sparse_success");
+                        let msg = i18n::tr("dialog.vhdx_set_sparse_success", &[distro_name]);
                         let ah3 = ah.clone();
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(app) = ah3.upgrade() {
@@ -1192,14 +1193,12 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     let state = as_ptr.lock().await;
                     state.wsl_dashboard.executor().clone()
                 };
-                let result = executor
-                    .execute_command(&["--manage", &distro_name, "--set-sparse", "false"])
-                    .await;
+                let result =
+                    crate::wsl::ops::vhdx::set_sparse_file(&executor, &distro_name, false).await;
 
-                let (success, err_msg) = if result.success {
-                    (true, String::new())
-                } else {
-                    (false, result.error.unwrap_or_else(|| result.output))
+                let (success, err_msg) = match result {
+                    Ok(()) => (true, String::new()),
+                    Err(e) => (false, e),
                 };
                 let ah2 = ah_spawn.clone();
                 let _ = slint::invoke_from_event_loop(move || {

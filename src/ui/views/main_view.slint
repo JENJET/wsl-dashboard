@@ -509,6 +509,7 @@ export component MainView inherits VerticalLayout {
     callback batch_cancel();
     callback cancel_batch();
     callback toggle_batch_mode();
+    callback request_add_tab();
     in property <int> distro_count;
     in-out property <string> distro_to_delete;
     in-out property <bool> show_delete_confirmation;
@@ -519,105 +520,162 @@ export component MainView inherits VerticalLayout {
     Rectangle {
         vertical-stretch: 1;
         clip: true;
-        // Blocking overlay during batch operation (above views, below BatchBar)
-        if root.batch_operating : Rectangle {
+
+        // Empty state when no instances
+        if (!root.has_distros): Rectangle {
             width: 100%;
             height: 100%;
-            background: transparent;
-            z: 10;
-            TouchArea { }
-        }
-        flick := Flickable {
-            viewport-height: distro_list.preferred-height;
-            width: parent.width;
-            height: 100%;
-            distro_list := DistroList {
-                distros: root.distros;
-                batch_mode: root.batch_mode;
-                expanded_distro <=> root.expanded_distro;
-                distro_selection_toggled(name) => {
-                    root.distro_selection_toggled(name);
+            VerticalLayout {
+                spacing: 24px;
+                Rectangle { vertical-stretch: 1; }
+                Text {
+                    text: "\u{E7C4}"; // Package box icon
+                    font-family: Theme.icon_font;
+                    font-size: 48px * LayoutConstants.font-scale;
+                    color: Theme.text_secondary;
+                    horizontal-alignment: center;
                 }
-                start_distro(n) => {
-                    root.start_distro(n);
+                HorizontalLayout {
+                    alignment: center;
+                    btn := Rectangle {
+                        width: add_btn_text.width + 32px;
+                        height: 32px;
+                        background: btn_touch.has-hover ? Theme.accent.with-alpha(20%) : Theme.accent.with-alpha(10%);
+                        border-radius: 4px;
+                        border-width: 1px;
+                        border-color: Theme.accent;
+                        btn_touch := TouchArea {
+                            mouse-cursor: pointer;
+                            clicked => { root.request_add_tab(); }
+                        }
+                        add_btn_text := Text {
+                            x: (parent.width - self.width) / 2;
+                            y: (parent.height - self.height) / 2;
+                            text: AppI18n.t("sidebar.add", [AppI18n.version]);
+                            font-size: 13px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            color: Theme.accent;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
                 }
-                stop_distro(n) => {
-                    root.stop_distro(n);
+                Text {
+                    text: AppI18n.t("distro.no_instances", [AppI18n.version]);
+                    font-size: 14px * LayoutConstants.font-scale;
+                    font-family: Theme.default_font;
+                    color: Theme.text_secondary;
+                    horizontal-alignment: center;
+                    wrap: word-wrap;
                 }
-                restart_distro(n) => {
-                    root.restart_distro(n);
-                }
-                terminal_distro(n) => {
-                    root.terminal_distro(n);
-                }
-                folder_distro(n) => {
-                    root.folder_distro(n);
-                }
-                open_install_folder(n) => {
-                    root.open_install_folder(n);
-                }
-                vscode_distro(n) => {
-                    root.vscode_distro(n);
-                }
-                open_export_dialog(n) => {
-                    root.open_export_dialog(n);
-                }
-                open_clone_dialog(n) => {
-                    root.open_clone_dialog(n);
-                }
-                open_move_dialog(n) => {
-                    root.open_move_dialog(n);
-                }
-                edit_bashrc_distro(n) => {
-                    root.edit_bashrc_distro(n);
-                }
-                information_clicked(n) => {
-                    root.information_clicked(n);
-                }
-                delete_clicked(n) => {
-                    root.delete_clicked(n);
-                    root.distro_to_delete = n;
-                    root.show_delete_confirmation = true;
-                }
-                settings_clicked(n) => {
-                    root.settings_clicked(n);
-                }
-                configs_clicked(n) => {
-                    root.configs_clicked(n);
-                }
-                terminal_config_clicked(n) => {
-                    root.terminal_config_clicked(n);
-                }
-                set_default_distro(n) => {
-                    root.set_default_distro(n);
-                }
-                copy_distro_ip(n) => {
-                    root.copy_distro_ip(n);
-                }
-                copy_distro_name(n) => {
-                    root.copy_distro_name(n);
-                }
+                Rectangle { vertical-stretch: 3; }
             }
         }
 
-        CustomScrollbar {
-            opacity: (flick.viewport-height > flick.height) ? 1 : 0;
-            visible: flick.viewport-height > flick.height;
-            x: AppI18n.is-rtl ? 2px : parent.width - 4px;
-            y: 0;
-            width: 4px;
+        if (root.has_distros): Rectangle {
+            width: 100%;
             height: 100%;
-            maximum: flick.viewport-height - flick.height;
-            page_size: flick.height;
-            value: -flick.viewport-y;
-            scroll_to(v) => {
-                flick.viewport-y = -v;
+
+            // Blocking overlay during batch operation
+            if (root.batch_operating) : Rectangle {
+                width: 100%;
+                height: 100%;
+                background: transparent;
+                z: 10;
+                TouchArea { }
+            }
+            flick := Flickable {
+                viewport-height: distro_list.preferred-height;
+                width: parent.width;
+                height: 100%;
+                distro_list := DistroList {
+                    distros: root.distros;
+                    batch_mode: root.batch_mode;
+                    expanded_distro <=> root.expanded_distro;
+                    distro_selection_toggled(name) => {
+                        root.distro_selection_toggled(name);
+                    }
+                    start_distro(n) => {
+                        root.start_distro(n);
+                    }
+                    stop_distro(n) => {
+                        root.stop_distro(n);
+                    }
+                    restart_distro(n) => {
+                        root.restart_distro(n);
+                    }
+                    terminal_distro(n) => {
+                        root.terminal_distro(n);
+                    }
+                    folder_distro(n) => {
+                        root.folder_distro(n);
+                    }
+                    open_install_folder(n) => {
+                        root.open_install_folder(n);
+                    }
+                    vscode_distro(n) => {
+                        root.vscode_distro(n);
+                    }
+                    open_export_dialog(n) => {
+                        root.open_export_dialog(n);
+                    }
+                    open_clone_dialog(n) => {
+                        root.open_clone_dialog(n);
+                    }
+                    open_move_dialog(n) => {
+                        root.open_move_dialog(n);
+                    }
+                    edit_bashrc_distro(n) => {
+                        root.edit_bashrc_distro(n);
+                    }
+                    information_clicked(n) => {
+                        root.information_clicked(n);
+                    }
+                    delete_clicked(n) => {
+                        root.delete_clicked(n);
+                        root.distro_to_delete = n;
+                        root.show_delete_confirmation = true;
+                    }
+                    settings_clicked(n) => {
+                        root.settings_clicked(n);
+                    }
+                    configs_clicked(n) => {
+                        root.configs_clicked(n);
+                    }
+                    terminal_config_clicked(n) => {
+                        root.terminal_config_clicked(n);
+                    }
+                    set_default_distro(n) => {
+                        root.set_default_distro(n);
+                    }
+                    copy_distro_ip(n) => {
+                        root.copy_distro_ip(n);
+                    }
+                    copy_distro_name(n) => {
+                        root.copy_distro_name(n);
+                    }
+                }
+            }
+
+            CustomScrollbar {
+                opacity: (flick.viewport-height > flick.height) ? 1 : 0;
+                visible: flick.viewport-height > flick.height;
+                x: AppI18n.is-rtl ? 2px : parent.width - 4px;
+                y: 0;
+                width: 4px;
+                height: 100%;
+                maximum: flick.viewport-height - flick.height;
+                page_size: flick.height;
+                value: -flick.viewport-y;
+                scroll_to(v) => {
+                    flick.viewport-y = -v;
+                }
             }
         }
     }
 
     // Bottom bar: info bar (non-batch) or batch action bar
-    if root.batch_mode && !root.batch_operating : HorizontalLayout {
+    if root.has_distros && root.batch_mode && !root.batch_operating : HorizontalLayout {
         padding-right: 10px;
         BatchBar {
             horizontal-stretch: 1;
@@ -639,7 +697,7 @@ export component MainView inherits VerticalLayout {
             }
         }
     }
-    if !root.batch_mode && root.distro_count > 1 : HorizontalLayout {
+    if root.has_distros && !root.batch_mode && root.distro_count > 1 : HorizontalLayout {
         padding-right: 10px;
         DistroInfoBar {
             horizontal-stretch: 1;

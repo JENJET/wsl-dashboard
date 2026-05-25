@@ -490,12 +490,6 @@ export component SidebarSettingsSection inherits Rectangle {
 
             Row {
                 CustomCheckBox {
-                    text: AppI18n.t("sidebar.wsl_manage", [AppI18n.version]);
-                    checked <=> root.sidebar_wsl_manage;
-                    horizontal-stretch: 1;
-                }
-
-                CustomCheckBox {
                     text: AppI18n.t("sidebar.usb", [AppI18n.version]);
                     checked <=> root.sidebar_usb;
                     horizontal-stretch: 1;
@@ -506,9 +500,18 @@ export component SidebarSettingsSection inherits Rectangle {
                     checked <=> root.sidebar_network;
                     horizontal-stretch: 1;
                 }
+
+                // Empty cell to fill the grid
+                Rectangle { horizontal-stretch: 1; }
             }
 
             Row {
+                CustomCheckBox {
+                    text: AppI18n.t("sidebar.wsl_manage", [AppI18n.version]);
+                    checked <=> root.sidebar_wsl_manage;
+                    horizontal-stretch: 1;
+                }
+
                 CustomCheckBox {
                     text: AppI18n.t("sidebar.settings", [AppI18n.version]);
                     checked: true;
@@ -521,9 +524,6 @@ export component SidebarSettingsSection inherits Rectangle {
                     checked <=> root.sidebar_about;
                     horizontal-stretch: 1;
                 }
-
-                // Empty cell to fill the grid
-                Rectangle { horizontal-stretch: 1; }
             }
         }
     }

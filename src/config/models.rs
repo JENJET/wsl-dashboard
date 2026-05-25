@@ -56,6 +56,8 @@ pub struct UserSettings {
     pub system_color: bool,
     #[serde(rename = "dark-mode", default)]
     pub dark_mode: bool,
+    #[serde(rename = "vhdx-sparse-mode", default)]
+    pub vhdx_sparse_mode: bool,
     #[serde(rename = "sidebar-collapsed", default)]
     pub sidebar_collapsed: bool,
     #[serde(rename = "log-level", default = "default_log_level")]
@@ -171,6 +173,7 @@ impl Config {
                 auto_shutdown: false,
                 system_color: false,
                 dark_mode: false,
+                vhdx_sparse_mode: false,
                 sidebar_collapsed: false,
                 log_level: 4,
                 log_days: 7,

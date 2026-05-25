@@ -4,7 +4,7 @@ use crate::wsl::models::WslCommandResult;
 use crate::{AppState, AppWindow, i18n};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::info;
+use tracing::{error, info};
 
 enum CloneResult {
     Success,
@@ -64,9 +64,7 @@ async fn do_clone_inner(
             );
         }
 
-        let _ = executor
-            .execute_command(&["--terminate", source_name])
-            .await;
+        let _ = crate::wsl::ops::lifecycle::stop_distro(&executor, source_name).await;
         tokio::time::sleep(std::time::Duration::from_millis(3000)).await;
         let stop_signal = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let target_path_buf = std::path::Path::new(target_path);
@@ -103,6 +101,44 @@ async fn do_clone_inner(
                 if ico_src.exists() {
                     let ico_dst = std::path::Path::new(target_path).join("shortcut.ico");
                     let _ = std::fs::copy(&ico_src, &ico_dst);
+                }
+            }
+            // Auto-set VHDX sparse mode if enabled in settings (WSL2 only)
+            {
+                let state = as_ptr.lock().await;
+                let sparse_mode = state.config_manager.get_settings().vhdx_sparse_mode;
+                drop(state);
+                if sparse_mode {
+                    // Terminate distro to release VHDX lock before sparse operation
+                    let _ = crate::wsl::ops::lifecycle::stop_distro(&executor, target_name).await;
+                    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+                    let distro_info =
+                        crate::wsl::ops::info::get_distro_information(&executor, target_name).await;
+                    let is_wsl2 = distro_info.success
+                        && distro_info
+                            .data
+                            .as_ref()
+                            .map_or(false, |info| info.wsl_version.to_uppercase() == "WSL2");
+                    if is_wsl2 {
+                        info!(
+                            "Auto-setting VHDX sparse mode for cloned distro '{}'",
+                            target_name
+                        );
+                        if let Err(e) =
+                            crate::wsl::ops::vhdx::set_sparse_file(&executor, target_name, true)
+                                .await
+                        {
+                            error!(
+                                "Failed to auto-set sparse mode for cloned '{}': {}",
+                                target_name, e
+                            );
+                        }
+                    } else {
+                        info!(
+                            "Skipping VHDX sparse mode for cloned '{}': not a WSL2 distro",
+                            target_name
+                        );
+                    }
                 }
             }
             refresh_distros_ui(ah.clone(), as_ptr.clone()).await;
@@ -184,6 +220,44 @@ async fn do_clone_inner(
             }
             refresh_distros_ui(ah.clone(), as_ptr.clone()).await;
             tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+            // Auto-set VHDX sparse mode if enabled in settings (WSL2 only)
+            {
+                let state = as_ptr.lock().await;
+                let sparse_mode = state.config_manager.get_settings().vhdx_sparse_mode;
+                drop(state);
+                if sparse_mode {
+                    // Terminate distro to release VHDX lock before sparse operation
+                    let _ = crate::wsl::ops::lifecycle::stop_distro(&executor, target_name).await;
+                    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+                    let distro_info =
+                        crate::wsl::ops::info::get_distro_information(&executor, target_name).await;
+                    let is_wsl2 = distro_info.success
+                        && distro_info
+                            .data
+                            .as_ref()
+                            .map_or(false, |info| info.wsl_version.to_uppercase() == "WSL2");
+                    if is_wsl2 {
+                        info!(
+                            "Auto-setting VHDX sparse mode for cloned distro '{}'",
+                            target_name
+                        );
+                        if let Err(e) =
+                            crate::wsl::ops::vhdx::set_sparse_file(&executor, target_name, true)
+                                .await
+                        {
+                            error!(
+                                "Failed to auto-set sparse mode for cloned '{}': {}",
+                                target_name, e
+                            );
+                        }
+                    } else {
+                        info!(
+                            "Skipping VHDX sparse mode for cloned '{}': not a WSL2 distro",
+                            target_name
+                        );
+                    }
+                }
+            }
             CloneResult::Success
         } else {
             let err = import_result

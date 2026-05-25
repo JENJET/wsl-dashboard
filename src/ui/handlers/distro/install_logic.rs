@@ -1,10 +1,25 @@
 use super::{generate_random_suffix, sanitize_instance_name};
 use crate::ui::data::refresh_distros_ui;
 use crate::{AppState, AppWindow, i18n};
+use once_cell::sync::Lazy;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::Mutex as StdMutex;
 use tokio::sync::Mutex;
 use tracing::{error, info};
+
+/// Channel sender for sparse retry confirmation dialog.
+/// `true` = user confirmed (shutdown + retry), `false` = user cancelled.
+static SPARSE_RETRY_CHANNEL: Lazy<StdMutex<Option<tokio::sync::oneshot::Sender<bool>>>> =
+    Lazy::new(|| StdMutex::new(None));
+
+pub fn take_sparse_retry_sender() -> Option<tokio::sync::oneshot::Sender<bool>> {
+    SPARSE_RETRY_CHANNEL.lock().unwrap().take()
+}
+
+pub fn store_sparse_retry_sender(sender: tokio::sync::oneshot::Sender<bool>) {
+    *SPARSE_RETRY_CHANNEL.lock().unwrap() = Some(sender);
+}
 
 pub async fn perform_install(
     ah: slint::Weak<AppWindow>,
@@ -1571,6 +1586,215 @@ pub async fn perform_install(
         }
     }
 
+    // Force-terminate the distro after install to ensure clean state
+    let _ = crate::wsl::ops::lifecycle::stop_distro(&executor, &final_name).await;
+    info!("Terminated distro '{}' after install", final_name);
+
+    // Auto-set VHDX sparse mode if enabled in settings (WSL2 only)
+    if success && config_manager.get_settings().vhdx_sparse_mode {
+        let distro_info =
+            crate::wsl::ops::info::get_distro_information(&executor, &final_name).await;
+        let is_wsl2 = distro_info.success
+            && distro_info
+                .data
+                .as_ref()
+                .map_or(false, |info| info.wsl_version.to_uppercase() == "WSL2");
+        if is_wsl2 {
+            let ah_io = ah.clone();
+            let fn_io = final_name.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(app) = ah_io.upgrade() {
+                    app.set_install_status(
+                        i18n::tr("dialog.sparse_setting", &[fn_io.clone()]).into(),
+                    );
+                    let mut tb = app.get_terminal_output().to_string();
+                    tb.push_str(&i18n::tr("dialog.sparse_setting", &[fn_io]));
+                    tb.push('\n');
+                    app.set_terminal_output(tb.into());
+                }
+            });
+            info!("Auto-setting VHDX sparse mode for distro '{}'", final_name);
+            // Wait for VHDX lock to be released before sparse operation
+            tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+            let sparse_result =
+                crate::wsl::ops::vhdx::set_sparse_file(&executor, &final_name, true).await;
+            match sparse_result {
+                Ok(()) => {
+                    info!("VHDX sparse mode set successfully for '{}'", final_name);
+                    let ah_ok = ah.clone();
+                    let fn_ok = final_name.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah_ok.upgrade() {
+                            let mut tb = app.get_terminal_output().to_string();
+                            tb.push_str(&i18n::tr("dialog.vhdx_set_sparse_success", &[fn_ok]));
+                            tb.push('\n');
+                            app.set_terminal_output(tb.into());
+                        }
+                    });
+                }
+                Err(e) => {
+                    if e.contains("ERROR_SHARING_VIOLATION") {
+                        info!(
+                            "Sparse failed for '{}' (ERROR_SHARING_VIOLATION). Prompting user for shutdown retry...",
+                            final_name
+                        );
+                        let ah_vi = ah.clone();
+                        let fn_vi = final_name.clone();
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(app) = ah_vi.upgrade() {
+                                let mut tb = app.get_terminal_output().to_string();
+                                tb.push_str(&i18n::tr("dialog.sparse_locked", &[fn_vi]));
+                                tb.push('\n');
+                                app.set_terminal_output(tb.into());
+                            }
+                        });
+                        let msg = i18n::tr(
+                            "dialog.sparse_retry_confirm",
+                            &[final_name.clone(), e.clone()],
+                        );
+                        let (tx, rx) = tokio::sync::oneshot::channel::<bool>();
+                        store_sparse_retry_sender(tx);
+                        let ah2 = ah.clone();
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(app) = ah2.upgrade() {
+                                app.set_sparse_retry_confirm_message(msg.into());
+                                app.set_sparse_retry_confirm_title(
+                                    i18n::t("dialog.sparse_retry_title").into(),
+                                );
+                                app.set_wsl_sparse_retry_countdown(15);
+                                app.set_show_sparse_retry_confirm(true);
+                            }
+                        });
+                        // Rust-driven countdown timer
+                        let ah_ct = ah.clone();
+                        let ct_task = tokio::spawn(async move {
+                            for remaining in (0..15).rev() {
+                                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                                let ah_upd = ah_ct.clone();
+                                let _ = slint::invoke_from_event_loop(move || {
+                                    if let Some(app) = ah_upd.upgrade() {
+                                        app.set_wsl_sparse_retry_countdown(remaining);
+                                    }
+                                });
+                            }
+                            // Timeout: take sender and cancel
+                            if let Some(sender) = take_sparse_retry_sender() {
+                                let _ = sender.send(false);
+                            }
+                            let ah_hide = ah_ct.clone();
+                            let _ = slint::invoke_from_event_loop(move || {
+                                if let Some(app) = ah_hide.upgrade() {
+                                    app.set_show_sparse_retry_confirm(false);
+                                }
+                            });
+                        });
+                        // Wait for user action (confirm, cancel, or timeout)
+                        let confirmed = rx.await.unwrap_or(false);
+                        ct_task.abort();
+                        if confirmed {
+                            info!(
+                                "User confirmed sparse retry for '{}', shutting down all WSL...",
+                                final_name
+                            );
+                            let _ = crate::wsl::ops::lifecycle::shutdown_wsl(&executor).await;
+                            tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+                            match crate::wsl::ops::vhdx::set_sparse_file(
+                                &executor,
+                                &final_name,
+                                true,
+                            )
+                            .await
+                            {
+                                Ok(()) => {
+                                    info!(
+                                        "VHDX sparse mode set successfully for '{}' (after shutdown retry)",
+                                        final_name
+                                    );
+                                    let ah_ok = ah.clone();
+                                    let fn_ok = final_name.clone();
+                                    let _ = slint::invoke_from_event_loop(move || {
+                                        if let Some(app) = ah_ok.upgrade() {
+                                            let mut tb = app.get_terminal_output().to_string();
+                                            tb.push_str(&i18n::tr(
+                                                "dialog.vhdx_set_sparse_success",
+                                                &[fn_ok],
+                                            ));
+                                            tb.push('\n');
+                                            app.set_terminal_output(tb.into());
+                                        }
+                                    });
+                                }
+                                Err(e2) => {
+                                    error!(
+                                        "Failed to auto-set sparse mode for '{}' (after shutdown retry): {}",
+                                        final_name, e2
+                                    );
+                                    let ah_fail = ah.clone();
+                                    let fn_fail = final_name.clone();
+                                    let _ = slint::invoke_from_event_loop(move || {
+                                        if let Some(app) = ah_fail.upgrade() {
+                                            let mut tb = app.get_terminal_output().to_string();
+                                            tb.push_str(&i18n::tr(
+                                                "dialog.sparse_failed_toast",
+                                                &[fn_fail, e2.clone()],
+                                            ));
+                                            tb.push('\n');
+                                            app.set_terminal_output(tb.into());
+                                        }
+                                    });
+                                }
+                            }
+                        } else {
+                            info!("Sparse retry cancelled for '{}'", final_name);
+                            let ah_cancel = ah.clone();
+                            let fn_cancel = final_name.clone();
+                            let _ = slint::invoke_from_event_loop(move || {
+                                if let Some(app) = ah_cancel.upgrade() {
+                                    let mut tb = app.get_terminal_output().to_string();
+                                    tb.push_str(&format!(
+                                        "{}\n",
+                                        i18n::tr("dialog.sparse_retry_cancelled", &[fn_cancel],)
+                                    ));
+                                    app.set_terminal_output(tb.into());
+                                }
+                            });
+                        }
+                    } else {
+                        error!("Failed to auto-set sparse mode for '{}': {}", final_name, e);
+                        let ah_fail = ah.clone();
+                        let fn_fail = final_name.clone();
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(app) = ah_fail.upgrade() {
+                                let mut tb = app.get_terminal_output().to_string();
+                                tb.push_str(&i18n::tr(
+                                    "dialog.sparse_failed_toast",
+                                    &[fn_fail, e.clone()],
+                                ));
+                                tb.push('\n');
+                                app.set_terminal_output(tb.into());
+                            }
+                        });
+                    }
+                }
+            }
+        } else {
+            info!(
+                "Skipping VHDX sparse mode for '{}': not a WSL2 distro",
+                final_name
+            );
+            let ah_skip = ah.clone();
+            let fn_skip = final_name.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(app) = ah_skip.upgrade() {
+                    let mut tb = app.get_terminal_output().to_string();
+                    tb.push_str(&i18n::tr("dialog.sparse_skip_not_wsl2", &[fn_skip]));
+                    tb.push('\n');
+                    app.set_terminal_output(tb.into());
+                }
+            });
+        }
+    }
+
     let ah_final = ah.clone();
     let final_name_clone = final_name.clone();
     let error_msg_clone = error_msg.clone();
@@ -1591,12 +1815,6 @@ pub async fn perform_install(
             app_typed.set_is_installing(false);
         }
     });
-
-    // Force-terminate the distro after install to ensure clean state
-    let _ = executor
-        .execute_command(&["--terminate", &final_name])
-        .await;
-    info!("Terminated distro '{}' after install", final_name);
 
     if success {
         refresh_distros_ui(ah.clone(), as_ptr.clone()).await;

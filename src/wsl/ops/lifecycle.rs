@@ -191,11 +191,8 @@ pub async fn delete_distro(
             "Terminating '{}' before unregistration to avoid hangs (10s timeout)...",
             distro_name
         );
-        let _ = tokio::time::timeout(
-            Duration::from_secs(10),
-            executor.execute_command(&["--terminate", distro_name]),
-        )
-        .await;
+        let _ = tokio::time::timeout(Duration::from_secs(10), stop_distro(&executor, distro_name))
+            .await;
 
         // Perform wsl --unregister with specific timeout to avoid permanent hanging
         debug!(

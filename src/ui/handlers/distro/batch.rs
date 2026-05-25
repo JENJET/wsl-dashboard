@@ -1277,6 +1277,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     }
                 })
                 .await;
+                crate::ui::data::refresh_distros_ui(ah.clone(), as_ptr.clone()).await;
             });
         });
     }

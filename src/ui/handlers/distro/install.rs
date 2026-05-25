@@ -582,6 +582,25 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
         },
     );
 
+    // Sparse retry confirm — send signal to unblock install logic
+    let ah_spr = app_handle.clone();
+    app.on_confirm_sparse_retry_action(move || {
+        let _ = super::install_logic::take_sparse_retry_sender().map(|s| s.send(true));
+        if let Some(app) = ah_spr.upgrade() {
+            app.set_show_sparse_retry_confirm(false);
+            app.set_wsl_sparse_retry_countdown(0);
+        }
+    });
+
+    let ah_spc = app_handle.clone();
+    app.on_cancel_sparse_retry_confirm(move || {
+        let _ = super::install_logic::take_sparse_retry_sender().map(|s| s.send(false));
+        if let Some(app) = ah_spc.upgrade() {
+            app.set_show_sparse_retry_confirm(false);
+            app.set_wsl_sparse_retry_countdown(0);
+        }
+    });
+
     // Check if new username is purely numeric, hide default user if so
     let ah_pw2 = app_handle.clone();
     app.on_check_new_username(move |val: slint::SharedString| {

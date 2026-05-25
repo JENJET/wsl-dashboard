@@ -335,6 +335,7 @@ async fn main() {
 
     // 10. Load settings to UI (crucial for i18n, fonts, and theme)
     ui::data::load_settings_to_ui(&app, &app_state, &settings, &tray_settings).await;
+    app.set_settings_auto_save(true);
 
     // 10.1 Initialize System Theme Watcher if enabled
     if settings.system_color {

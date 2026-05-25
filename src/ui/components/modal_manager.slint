@@ -1,4 +1,4 @@
-import {
+﻿import {
     ConfirmationDialog,
     ExportDialog,
     CloneDialog,
@@ -89,6 +89,10 @@ export component ModalManager inherits Rectangle {
     in property <bool> show_export_shutdown_confirm: false;
     in property <string> export_shutdown_confirm_message: "";
     in property <string> export_shutdown_confirm_title: "";
+    in property <bool> show_sparse_retry_confirm: false;
+    in property <string> sparse_retry_confirm_message: "";
+    in property <string> sparse_retry_confirm_title: "";
+    in property <int> sparse_retry_countdown: 0;
     in property <string> message_text;
     in property <string> message_link_text: "";
     in property <string> message_action_text: "";
@@ -163,6 +167,8 @@ export component ModalManager inherits Rectangle {
     callback cancel_clone_shutdown_confirm();
     callback confirm_export_shutdown_action();
     callback cancel_export_shutdown_confirm();
+    callback confirm_sparse_retry_action();
+    callback cancel_sparse_retry_confirm();
     callback close_message();
     callback message_link_clicked();
     callback message_action_clicked();
@@ -204,7 +210,6 @@ export component ModalManager inherits Rectangle {
     if (show_delete): ConfirmationDialog {
         width: 100%;
         height: 100%;
-        dialog_height: 180px;
         title_text: AppI18n.t("dialog.delete_title", [delete_target_name, AppI18n.version]);
         message: AppI18n.t("dialog.delete_msg", [delete_target_name, AppI18n.version]);
         confirm => {
@@ -276,7 +281,6 @@ export component ModalManager inherits Rectangle {
     if (show_move_confirm): ConfirmationDialog {
         width: 100%;
         height: 100%;
-        dialog_height: 250px;
         title_text: AppI18n.t("dialog.move_title", [root.move_source_name, AppI18n.version]);
         message: root.move_confirm_message;
         is_warning: true;
@@ -290,7 +294,6 @@ export component ModalManager inherits Rectangle {
     if (show_clone_shutdown_confirm): ConfirmationDialog {
         width: 100%;
         height: 100%;
-        dialog_height: 250px;
         title_text: root.clone_shutdown_confirm_title;
         message: root.clone_shutdown_confirm_message;
         is_warning: true;
@@ -304,7 +307,6 @@ export component ModalManager inherits Rectangle {
     if (show_export_shutdown_confirm): ConfirmationDialog {
         width: 100%;
         height: 100%;
-        dialog_height: 250px;
         title_text: root.export_shutdown_confirm_title;
         message: root.export_shutdown_confirm_message;
         is_warning: true;
@@ -313,6 +315,21 @@ export component ModalManager inherits Rectangle {
         }
         cancel => {
             root.cancel_export_shutdown_confirm();
+        }
+    }
+    if (show_sparse_retry_confirm): ConfirmationDialog {
+        width: 100%;
+        height: 100%;
+        title_text: root.sparse_retry_confirm_title;
+        message: root.sparse_retry_confirm_message;
+        countdown: root.sparse_retry_countdown;
+        default_action: "cancel";
+        is_warning: true;
+        confirm => {
+            root.confirm_sparse_retry_action();
+        }
+        cancel => {
+            root.cancel_sparse_retry_confirm();
         }
     }
     if (show_message): Rectangle {
@@ -353,9 +370,9 @@ export component ModalManager inherits Rectangle {
     if (show_wsl_update_confirm): ConfirmationDialog {
         width: 100%;
         height: 100%;
-        dialog_height: 220px;
         title_text: AppI18n.t("dialog.wsl_update_title", [AppI18n.version]);
         message: root.wsl_update_confirm_message;
+        is_warning: true;
         show_preview_checkbox: true;
         preview_checked <=> root.wsl_preview_checked;
         confirm => {
@@ -368,7 +385,6 @@ export component ModalManager inherits Rectangle {
     if (show_wsl_shutdown_confirm): ConfirmationDialog {
         width: 100%;
         height: 100%;
-        dialog_height: 180px;
         title_text: root.wsl_shutdown_confirm_title;
         message: root.wsl_shutdown_confirm_message;
         is_warning: true;
@@ -434,7 +450,6 @@ export component ModalManager inherits Rectangle {
     if (root.show_set_sparse_confirm): ConfirmationDialog {
         width: 100%;
         height: 100%;
-        dialog_height: 200px;
         is_warning: true;
         title_text: AppI18n.t("dialog.vhdx_set_sparse_confirm_title", [AppI18n.version]);
         message: AppI18n.t("dialog.vhdx_set_sparse_confirm_msg", [AppI18n.version]);
