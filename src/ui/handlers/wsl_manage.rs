@@ -1,11 +1,22 @@
 use crate::i18n;
 use crate::ui::data;
 use crate::utils::system::CREATE_NO_WINDOW;
+use crate::wsl::models::WslCommandResult;
 use crate::{AppState, AppWindow, WslManageStrings};
 use std::os::windows::process::CommandExt;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::{debug, error, info};
+
+fn update_streaming_output(app: &AppWindow, text: &str) {
+    let cleaned = text.replace('\r', "");
+    if cleaned.is_empty() {
+        return;
+    }
+    let mut new_output = app.get_wsl_streaming_output().to_string();
+    new_output.push_str(&cleaned);
+    app.set_wsl_streaming_output(new_output.into());
+}
 
 pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc<Mutex<AppState>>) {
     // Refresh WSL info when the tab is first opened
@@ -19,29 +30,122 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
         });
     });
 
-    // Install WSL
+    // Install WSL (elevated streaming)
     let ah = app_handle.clone();
     let as_ptr = app_state.clone();
     app.on_wsl_manage_install(move || {
         let ah = ah.clone();
         let as_ptr = as_ptr.clone();
-        let _ = slint::spawn_local(async move {
+        tokio::spawn(async move {
+            let ah2 = ah.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(app) = ah2.upgrade() {
+                    app.set_wsl_streaming_title(i18n::t("wsl_manage.installing_title").into());
+                    app.set_wsl_streaming_output(i18n::t("dialog.processing").into());
+                    app.set_wsl_streaming_is_error(false);
+                    app.set_wsl_streaming_running(true);
+                    app.set_show_wsl_streaming(true);
+                }
+            });
+
             let executor = {
                 let state = as_ptr.lock().await;
                 state.wsl_dashboard.executor().clone()
             };
-            match executor.spawn_console(&["--install"]).await {
+
+            // 一次提权完成全部操作：启用 VMP → 启用 WSL → 安装（不下载发行版）
+            info!("Enabling WSL system components via DISM");
+            let ah_msg = ah.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(app) = ah_msg.upgrade() {
+                    app.set_wsl_streaming_output(
+                        i18n::t("wsl_manage.enabling_wsl_features").into(),
+                    );
+                }
+            });
+
+            // 用临时批处理文件执行，避免 cmd.exe /c & 链的解析歧义
+            let bat_content = "\
+@echo off\r\n\
+dism.exe /online /enable-feature /featurename:VirtualMachinePlatform /all /norestart\r\n\
+if errorlevel 3010 set REBOOT=1\r\n\
+if errorlevel 1 if not errorlevel 3010 set FAIL=1\r\n\
+dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart\r\n\
+if errorlevel 3010 set REBOOT=1\r\n\
+if errorlevel 1 if not errorlevel 3010 set FAIL=1\r\n\
+wsl.exe --install --no-distribution\r\n\
+if defined REBOOT exit /b 3010\r\n\
+if defined FAIL exit /b 1\r\n\
+";
+            let bat_path = std::env::temp_dir().join("wsl_dashboard_install.bat");
+            let result = match std::fs::write(&bat_path, bat_content) {
                 Ok(()) => {
-                    info!("WSL install command launched");
-                    let msg = i18n::t("wsl_manage.install_success");
-                    data::show_message(&ah, &msg);
+                    let bat_str = bat_path.to_string_lossy().to_string();
+                    let r = executor
+                        .execute_command_elevated_streaming(
+                            "cmd.exe",
+                            &["/c", &bat_str],
+                            true,
+                            |_| {},
+                        )
+                        .await;
+                    let _ = std::fs::remove_file(&bat_path);
+                    r
                 }
                 Err(e) => {
-                    error!("Failed to launch WSL install: {}", e);
-                    let msg = i18n::tr("wsl_manage.install_failed", &[e]);
-                    data::show_message(&ah, &msg);
+                    error!("Failed to create temp batch file: {}", e);
+                    WslCommandResult::error(
+                        String::new(),
+                        format!("Cannot create temp script: {}", e),
+                    )
                 }
+            };
+
+            let success = result.success;
+            let error_msg = result.error.unwrap_or_default();
+            let reboot = result.output == "REBOOT_REQUIRED";
+            if reboot {
+                let ah2 = ah.clone();
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(app) = ah2.upgrade() {
+                        app.set_wsl_streaming_running(false);
+                        app.set_wsl_streaming_is_error(false);
+                        update_streaming_output(
+                            &app,
+                            &format!("\n{}", i18n::t("wsl_manage.enable_feature_reboot")),
+                        );
+                        app.set_show_reboot_confirm(true);
+                    }
+                });
+            } else if success {
+                let ah2 = ah.clone();
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(app) = ah2.upgrade() {
+                        app.set_wsl_streaming_running(false);
+                        update_streaming_output(
+                            &app,
+                            &format!("\n{}", i18n::t("wsl_manage.install_success")),
+                        );
+                    }
+                });
+            } else {
+                let ah2 = ah.clone();
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(app) = ah2.upgrade() {
+                        app.set_wsl_streaming_running(false);
+                        app.set_wsl_streaming_is_error(true);
+                        update_streaming_output(
+                            &app,
+                            &format!(
+                                "\n{}",
+                                i18n::tr("wsl_manage.install_failed", &[error_msg.clone()])
+                            ),
+                        );
+                    }
+                });
             }
+
+            refresh_wsl_info(&ah, &as_ptr).await;
         });
     });
 
@@ -136,17 +240,23 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
         });
     });
 
-    // WSL Update Confirmed (user clicked OK on confirmation dialog)
+    // WSL Update Confirmed (elevated streaming)
     let ah = app_handle.clone();
     let as_ptr = app_state.clone();
     app.on_wsl_manage_update_confirmed(move |preview| {
         let ah = ah.clone();
         let as_ptr = as_ptr.clone();
         tokio::spawn(async move {
-            let ah_ui = ah.clone();
+            // Show streaming dialog
+            let ah2 = ah.clone();
             let _ = slint::invoke_from_event_loop(move || {
-                if let Some(app) = ah_ui.upgrade() {
+                if let Some(app) = ah2.upgrade() {
                     app.set_wsl_is_updating(true);
+                    app.set_wsl_streaming_title(i18n::t("wsl_manage.updating_title").into());
+                    app.set_wsl_streaming_output(i18n::t("dialog.processing").into());
+                    app.set_wsl_streaming_is_error(false);
+                    app.set_wsl_streaming_running(true);
+                    app.set_show_wsl_streaming(true);
                 }
             });
 
@@ -160,37 +270,48 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
             } else {
                 vec!["--update"]
             };
-            let result = executor.execute_command(&args).await;
 
-            let ah_ui = ah.clone();
+            let ah_cb = ah.clone();
+            let result = executor
+                .execute_command_elevated_streaming("wsl.exe", &args, true, move |text| {
+                    let ah = ah_cb.clone();
+                    let _ = slint::invoke_from_event_loop(move || {
+                        if let Some(app) = ah.upgrade() {
+                            update_streaming_output(&app, &text);
+                        }
+                    });
+                })
+                .await;
+
+            let success = result.success;
+            let output = result.output.clone();
+            let error_msg = result.error.unwrap_or_default();
+            let status_msg = if success {
+                let output_lower = output.to_lowercase();
+                if output_lower.contains("no update") || output_lower.contains("already") {
+                    i18n::t("wsl_manage.update_already_latest")
+                } else {
+                    i18n::t("wsl_manage.update_success")
+                }
+            } else {
+                i18n::tr("wsl_manage.update_failed", &[error_msg.clone()])
+            };
+            let ah2 = ah.clone();
             let _ = slint::invoke_from_event_loop(move || {
-                if let Some(app) = ah_ui.upgrade() {
+                if let Some(app) = ah2.upgrade() {
                     app.set_wsl_is_updating(false);
+                    app.set_wsl_streaming_running(false);
+                    app.set_wsl_streaming_is_error(!success);
+                    update_streaming_output(&app, &format!("\n{}", status_msg));
                 }
             });
 
-            if result.success {
+            if success {
                 info!("WSL update completed successfully");
-                let output_lower = result.output.to_lowercase();
-                if output_lower.contains("no update") || output_lower.contains("already") {
-                    let msg = i18n::t("wsl_manage.update_already_latest");
-                    data::show_message(&ah, &msg);
-                } else {
-                    let msg = i18n::t("wsl_manage.update_success");
-                    data::show_message(&ah, &msg);
-                    refresh_wsl_info(&ah, &as_ptr).await;
-                }
             } else {
-                error!(
-                    "WSL update failed: {}",
-                    result.error.as_deref().unwrap_or("unknown error")
-                );
-                let msg = i18n::tr(
-                    "wsl_manage.update_failed",
-                    &[result.error.unwrap_or_else(|| "unknown error".to_string())],
-                );
-                data::show_message(&ah, &msg);
+                error!("WSL update failed: {}", error_msg);
             }
+            refresh_wsl_info(&ah, &as_ptr).await;
         });
     });
 
@@ -261,30 +382,100 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
         });
     });
 
-    // Uninstall WSL
+    // Uninstall WSL (confirmation dialog shown in Slint, just log here)
+    app.on_wsl_manage_uninstall(|| {
+        info!("WSL uninstall confirmation requested");
+    });
+
+    // Uninstall WSL Confirmed (elevated streaming)
     let ah = app_handle.clone();
     let as_ptr = app_state.clone();
-    app.on_wsl_manage_uninstall(move || {
+    app.on_wsl_manage_uninstall_confirmed(move || {
         let ah = ah.clone();
         let as_ptr = as_ptr.clone();
-        let _ = slint::spawn_local(async move {
+        tokio::spawn(async move {
+            let ah2 = ah.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(app) = ah2.upgrade() {
+                    app.set_wsl_streaming_title(i18n::t("wsl_manage.uninstalling_title").into());
+                    app.set_wsl_streaming_output(i18n::t("dialog.processing").into());
+                    app.set_wsl_streaming_is_error(false);
+                    app.set_wsl_streaming_running(true);
+                    app.set_show_wsl_streaming(true);
+                }
+            });
+
             let executor = {
                 let state = as_ptr.lock().await;
                 state.wsl_dashboard.executor().clone()
             };
-            match executor.spawn_console(&["--uninstall"]).await {
-                Ok(()) => {
-                    info!("WSL uninstall command launched");
-                    let msg = i18n::t("wsl_manage.uninstall_success");
-                    data::show_message(&ah, &msg);
+
+            let ah_cb = ah.clone();
+            let result = executor
+                .execute_command_elevated_streaming(
+                    "wsl.exe",
+                    &["--uninstall"],
+                    false,
+                    move |text| {
+                        let ah = ah_cb.clone();
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(app) = ah.upgrade() {
+                                update_streaming_output(&app, &text);
+                            }
+                        });
+                    },
+                )
+                .await;
+
+            let success = result.success;
+            let error_msg = result.error.unwrap_or_default();
+            let msg = if success {
+                i18n::t("wsl_manage.uninstall_success")
+            } else {
+                i18n::tr("wsl_manage.uninstall_failed", &[error_msg.clone()])
+            };
+            let ah2 = ah.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(app) = ah2.upgrade() {
+                    app.set_wsl_streaming_running(false);
+                    app.set_wsl_streaming_is_error(!success);
+                    update_streaming_output(&app, &format!("\n{}", msg));
                 }
-                Err(e) => {
-                    error!("Failed to launch WSL uninstall: {}", e);
-                    let msg = i18n::tr("wsl_manage.uninstall_failed", &[e]);
-                    data::show_message(&ah, &msg);
-                }
+            });
+
+            if success {
+                info!("WSL uninstall completed successfully");
+            } else {
+                error!("WSL uninstall failed: {}", error_msg);
             }
+
+            // 直接清空缓存并更新 UI，不跑 wsl 命令（避免延迟）
+            {
+                let state = as_ptr.lock().await;
+                let mut distros_lock = state.wsl_dashboard.distros.lock().await;
+                *distros_lock = Vec::new();
+                state.wsl_dashboard.state_changed().notify_one();
+            }
+            let ah2 = ah.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(app) = ah2.upgrade() {
+                    app.set_wsl_installed(false);
+                    app.set_wsl_has_instances(false);
+                    app.set_wsl_has_running(false);
+                    app.set_wsl_version_output("".into());
+                    app.set_wsl_status_output("".into());
+                    app.set_wsl_default_distro_name("".into());
+                }
+            });
         });
+    });
+
+    // Close WSL streaming dialog
+    let ah = app_handle.clone();
+    app.on_wsl_streaming_close(move || {
+        if let Some(app) = ah.upgrade() {
+            app.set_show_wsl_streaming(false);
+        }
     });
 
     // Auto-save VHDX sparse mode when toggled in UI
@@ -307,6 +498,24 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
             }
         });
     });
+
+    // Reboot system handler (from reboot confirm dialog)
+    {
+        app.on_reboot_system(move || {
+            std::thread::spawn(move || {
+                info!("User confirmed reboot, restarting system...");
+                let args = vec!["/r".to_string(), "/t".to_string(), "0".to_string()];
+                let _ = crate::utils::system::run_elevated_and_wait("shutdown.exe", args, true);
+            });
+        });
+    }
+
+    // Cancel reboot handler
+    {
+        app.on_cancel_reboot(move || {
+            info!("User cancelled reboot");
+        });
+    }
 
     // Open WSL Settings (directly launch wslsettings.exe)
 }

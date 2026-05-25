@@ -8,6 +8,7 @@ use tracing::{debug, error, trace};
 
 // Import Slint UI components
 use crate::i18n;
+use crate::ui::handlers::wsl_manage::refresh_wsl_info;
 use crate::{AppState, AppWindow, Distro, InstallableDistro, SettingsStrings, wsl};
 use once_cell::sync::Lazy;
 use std::time::{Duration, Instant};
@@ -145,8 +146,13 @@ pub async fn refresh_data(app_handle: slint::Weak<AppWindow>, app_state: Arc<Mut
     let ah = app_handle.clone();
     let as_ptr = app_state.clone();
 
-    // 1. Show cached list immediately (warm start)
-    refresh_distros_ui(ah, as_ptr).await;
+    // 1. Skip cached list if wsl.exe does not exist (WSL cannot be installed)
+    if std::path::Path::new("C:\\Windows\\System32\\wsl.exe").exists() {
+        // Show cached list immediately (warm start)
+        refresh_distros_ui(ah, as_ptr).await;
+    } else {
+        debug!("refresh_data: wsl.exe not found, skipping warm start");
+    }
 
     // 2. Trigger initial background refresh to get live WSL data
     // Mark as refreshed NOW to prevent periodic monitor from triggering immediately
@@ -158,6 +164,7 @@ pub async fn refresh_data(app_handle: slint::Weak<AppWindow>, app_state: Arc<Mut
     }
 
     let app_state_clone = app_state.clone();
+    let app_handle_clone = app_handle.clone();
     tokio::spawn(async move {
         let dashboard = {
             let state = app_state_clone.lock().await;
@@ -165,6 +172,9 @@ pub async fn refresh_data(app_handle: slint::Weak<AppWindow>, app_state: Arc<Mut
         };
         debug!("refresh_data: Triggering initial live WSL sync...");
         let _ = dashboard.refresh_distros().await;
+
+        // Also determine WSL installed state (wsl_installed, has_running, etc.)
+        refresh_wsl_info(&app_handle_clone, &app_state_clone).await;
     });
 
     debug!("refresh_data: Background data refresh scheduled");

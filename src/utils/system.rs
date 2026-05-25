@@ -52,7 +52,7 @@ pub fn copy_to_clipboard(text: &str) -> Result<(), String> {
 
 /// Execute a command with UAC elevation using ShellExecuteExW
 pub fn run_command_with_elevation(program_name: &str, args: Vec<String>) -> Result<(), String> {
-    let exit_code = run_elevated_and_wait(program_name, args)?;
+    let exit_code = run_elevated_and_wait(program_name, args, false)?;
     if exit_code == 0 {
         Ok(())
     } else {
@@ -61,7 +61,12 @@ pub fn run_command_with_elevation(program_name: &str, args: Vec<String>) -> Resu
 }
 
 /// Execute a command with UAC elevation using ShellExecuteExW and return its exit code.
-pub fn run_elevated_and_wait(program_name: &str, args: Vec<String>) -> Result<u32, String> {
+/// `show_window`: if true, the console window is visible (for user-facing operations like install).
+pub fn run_elevated_and_wait(
+    program_name: &str,
+    args: Vec<String>,
+    show_window: bool,
+) -> Result<u32, String> {
     use tracing::debug;
     use windows::Win32::Foundation::CloseHandle;
     use windows::Win32::System::Threading::{GetExitCodeProcess, INFINITE, WaitForSingleObject};
@@ -71,12 +76,21 @@ pub fn run_elevated_and_wait(program_name: &str, args: Vec<String>) -> Result<u3
     use windows::Win32::UI::WindowsAndMessaging::SW_HIDE;
     use windows::core::{HSTRING, PCWSTR};
 
+    let n_show = if show_window {
+        windows::Win32::UI::WindowsAndMessaging::SW_SHOW
+    } else {
+        SW_HIDE
+    };
+
     let args_str = args.join(" ");
     let program = HSTRING::from(program_name);
     let parameters = HSTRING::from(&args_str);
     let verb = HSTRING::from("runas");
 
-    debug!("Executing elevated command: {} {}", program_name, args_str);
+    debug!(
+        "Executing elevated command: {} {} (show={})",
+        program_name, args_str, show_window
+    );
 
     let sys_dir = HSTRING::from("C:\\Windows\\System32");
 
@@ -87,7 +101,7 @@ pub fn run_elevated_and_wait(program_name: &str, args: Vec<String>) -> Result<u3
         lpFile: PCWSTR(program.as_ptr()),
         lpParameters: PCWSTR(parameters.as_ptr()),
         lpDirectory: PCWSTR(sys_dir.as_ptr()),
-        nShow: SW_HIDE.0 as i32,
+        nShow: n_show.0 as i32,
         ..Default::default()
     };
 

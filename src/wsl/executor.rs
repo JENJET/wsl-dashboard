@@ -5,7 +5,9 @@ use tracing::{debug, error, info, warn};
 
 use crate::wsl::models::WslCommandResult;
 
-use crate::utils::system::{CREATE_NEW_CONSOLE, CREATE_NO_WINDOW, run_command_with_elevation};
+use crate::utils::system::{
+    CREATE_NEW_CONSOLE, CREATE_NO_WINDOW, run_command_with_elevation, run_elevated_and_wait,
+};
 use crate::wsl::decoder::{WslOutputDecoder, decode_output};
 
 const MAX_CONCURRENT: usize = 30;
@@ -470,6 +472,7 @@ impl WslCommandExecutor {
 
     /// Execute a WSL command in a new console window (interactive, fire-and-forget).
     /// Uses CREATE_NEW_CONSOLE so the user can interact with the terminal.
+    #[allow(dead_code)]
     pub async fn spawn_console(&self, args: &[&str]) -> Result<(), String> {
         let args_owned: Vec<String> = args.iter().map(|&s| s.to_string()).collect();
         let command_str = format!("wsl {}", args_owned.join(" "));
@@ -501,5 +504,71 @@ impl WslCommandExecutor {
                 info!("WSL console spawned successfully: {}", command_str);
             })
             .map_err(|e| format!("Failed to spawn WSL console: {}", e))
+    }
+
+    /// Execute a command with elevation in a console window.
+    /// If `show_window` is true, the console window is visible (for user-facing operations).
+    pub async fn execute_command_elevated_streaming<F>(
+        &self,
+        program: &str,
+        args: &[&str],
+        show_window: bool,
+        _callback: F,
+    ) -> WslCommandResult<String>
+    where
+        F: FnMut(String) + Send + 'static,
+    {
+        let args_str = args.join(" ");
+        let command_str = format!("{} {}", program, args_str);
+        info!(
+            "Executing elevated command (visible window): {}",
+            command_str
+        );
+        let cmd_str = command_str.clone();
+
+        let (prog, cmd_args) = if program == "cmd.exe" {
+            // Already a cmd.exe command, pass through directly (avoid double wrapping)
+            (
+                "cmd.exe".to_string(),
+                args.iter().map(|s| s.to_string()).collect::<Vec<_>>(),
+            )
+        } else {
+            // Wrap non-cmd commands with cmd.exe /c for console window behavior
+            let cmd_code = format!("{} {}", program, args_str);
+            ("cmd.exe".to_string(), vec!["/c".to_string(), cmd_code])
+        };
+
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        std::thread::spawn(move || {
+            let result = match run_elevated_and_wait(&prog, cmd_args, show_window) {
+                Ok(0) => {
+                    info!("Elevated command succeeded: {}", command_str);
+                    WslCommandResult::success(String::new(), None)
+                }
+                Ok(3010) => {
+                    // 3010 = ERROR_SUCCESS_REBOOT_REQUIRED (DISM success with pending reboot)
+                    info!(
+                        "Elevated command succeeded (reboot required): {}",
+                        command_str
+                    );
+                    WslCommandResult::success("REBOOT_REQUIRED".to_string(), None)
+                }
+                Ok(code) => {
+                    let err = format!("exit code: {}", code);
+                    error!("Elevated command failed: {} - {}", command_str, err);
+                    WslCommandResult::error(String::new(), err)
+                }
+                Err(e) => {
+                    error!("Elevated command error: {} - {}", command_str, e);
+                    WslCommandResult::error(String::new(), e)
+                }
+            };
+            let _ = tx.send(result);
+        });
+
+        rx.await.unwrap_or_else(|_| {
+            error!("Elevated command task panicked: {}", cmd_str);
+            WslCommandResult::error(String::new(), "Task panicked".to_string())
+        })
     }
 }

@@ -258,6 +258,19 @@ export component AppWindow inherits Window {
     in-out property <bool> settings_auto_save: false;
     in-out property <bool> sidebar_wsl_manage: true;
 
+    // --- WSL Streaming Dialog ---
+    in-out property <bool> show_wsl_streaming: false;
+    in property <bool> wsl_streaming_running: false;
+    in property <string> wsl_streaming_output: "";
+    in property <bool> wsl_streaming_is_error: false;
+    in property <string> wsl_streaming_title: "";
+
+    // --- WSL Uninstall Confirm Dialog ---
+    in-out property <bool> show_wsl_uninstall_confirm: false;
+
+    // --- Reboot Confirm Dialog ---
+    in-out property <bool> show_reboot_confirm: false;
+
     // --- VHDX Resize Properties ---
     in-out property <bool> show_vhdx_resize: false;
     in-out property <string> vhdx_resize_path: "";
@@ -418,8 +431,12 @@ export component AppWindow inherits Window {
     callback wsl_manage_update_confirmed(bool);
     callback wsl_manage_shutdown_confirmed();
     callback wsl_manage_shutdown_cancelled();
+    callback wsl_manage_uninstall_confirmed();
+    callback wsl_streaming_close();
+    callback reboot_system();
+    callback cancel_reboot();
     callback vhdx_sparse_mode_toggled();
-    
+
     // Set default distro callback
     callback set_default_distro(string);
 
@@ -830,7 +847,7 @@ export component AppWindow inherits Window {
                                     root.wsl_manage_set_default_version(v);
                                 }
                                 uninstall_wsl => {
-                                    root.wsl_manage_uninstall();
+                                    root.show_wsl_uninstall_confirm = true;
                                 }
                                 open_wsl_settings => {
                                     root.open_wsl_settings();
@@ -1188,6 +1205,22 @@ export component AppWindow inherits Window {
         }
         cancel_wsl_shutdown => {
             root.show_wsl_shutdown_confirm = false;
+        }
+        show_wsl_uninstall_confirm: root.show_wsl_uninstall_confirm;
+        confirm_wsl_uninstall => {
+            root.show_wsl_uninstall_confirm = false;
+            root.wsl_manage_uninstall_confirmed();
+        }
+        cancel_wsl_uninstall => {
+            root.show_wsl_uninstall_confirm = false;
+        }
+        show_reboot_confirm: root.show_reboot_confirm;
+        confirm_reboot => {
+            root.show_reboot_confirm = false;
+            root.reboot_system();
+        }
+        cancel_reboot => {
+            root.show_reboot_confirm = false;
         }
         show_install_warn: root.show_install_warn_dialog;
         confirm_install_warn => {
@@ -1612,6 +1645,124 @@ export component AppWindow inherits Window {
         }
         cancel => {
             root.show_vhdx_resize_warning = false;
+        }
+    }
+
+    // WSL Streaming Output Dialog
+    if root.show_wsl_streaming : Rectangle {
+        background: #00000080;
+        z: 100;
+        width: 100%;
+        height: 100%;
+        TouchArea {
+            width: 100%;
+            height: 100%;
+            clicked => {
+                if (!root.wsl_streaming_running) {
+                    root.wsl_streaming_close();
+                }
+            }
+        }
+        Rectangle {
+            width: 540px;
+            height: 220px;
+            x: (parent.width - self.width) / 2;
+            y: (parent.height - self.height) / 2;
+            background: Theme.card_bg;
+            border-radius: 10px;
+            border-width: 1px;
+            border-color: Theme.border_color;
+            drop-shadow-blur: 20px;
+            drop-shadow-color: #00000050;
+            clip: true;
+            TouchArea { }
+            VerticalLayout {
+                padding-left: 20px;
+                padding-right: 20px;
+                padding-top: 16px;
+                padding-bottom: 16px;
+                spacing: 10px;
+                // Header
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: start;
+                    Rectangle {
+                        width: 22px;
+                        height: 22px;
+                        border-radius: 11px;
+                        background: root.wsl_streaming_running ? Theme.accent : (root.wsl_streaming_is_error ? #ef4444 : #22c55e);
+                    }
+                    Text {
+                        text: root.wsl_streaming_title;
+                        font-size: 16px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        font-weight: 600;
+                        color: Theme.text_primary;
+                        horizontal-alignment: left;
+                        vertical-alignment: center;
+                    }
+                }
+                // Output area
+                Rectangle {
+                    horizontal-stretch: 1;
+                    vertical-stretch: 1;
+                    max-height: 120px;
+                    background: Theme.dark_mode ? #1e1e2e : #f0f2f5;
+                    border-radius: 6px;
+                    border-width: 1px;
+                    border-color: Theme.border_color;
+                    clip: true;
+                    wsl-flick := Flickable {
+                        VerticalLayout {
+                            padding-left: 12px;
+                            padding-right: 12px;
+                            padding-top: 10px;
+                            padding-bottom: 10px;
+                            Text {
+                                text: root.wsl_streaming_running && root.wsl_streaming_output == "" ? AppI18n.t("dialog.processing", [AppI18n.version]) : root.wsl_streaming_output;
+                                color: root.wsl_streaming_is_error ? #ef4444 : Theme.text_primary;
+                                font-size: 13px * LayoutConstants.font-scale;
+                                font-family: Theme.default_font;
+                                wrap: word-wrap;
+                                horizontal-alignment: left;
+                                vertical-alignment: top;
+                            }
+                        }
+                    }
+                    wsl_scroll_timer := Timer {
+                        interval: 100ms;
+                        running: root.wsl_streaming_running;
+                        triggered => {
+                            wsl-flick.viewport-y = wsl-flick.height - wsl-flick.viewport-height;
+                        }
+                    }
+                }
+                // Bottom button
+                HorizontalLayout {
+                    alignment: center;
+                    Rectangle {
+                        width: 100px;
+                        height: 32px;
+                        background: root.wsl_streaming_running ? Theme.accent.with-alpha(40%) : Theme.accent;
+                        border-radius: 6px;
+                        Text {
+                            text: root.wsl_streaming_running ? AppI18n.t("dialog.processing", [AppI18n.version]) : AppI18n.t("dialog.confirm", [AppI18n.version]);
+                            color: white;
+                            font-size: 13px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            font-weight: 500;
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                        TouchArea {
+                            enabled: !root.wsl_streaming_running;
+                            clicked => {
+                                root.wsl_streaming_close();
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

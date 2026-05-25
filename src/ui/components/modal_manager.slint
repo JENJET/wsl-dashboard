@@ -47,6 +47,8 @@ export component ModalManager inherits Rectangle {
     in-out property <bool> show_set_sparse_confirm: false;
     in-out property <bool> show_vhdx_resize_warning: false;
     in-out property <bool> show_terminal_config: false;
+    in-out property <bool> show_wsl_uninstall_confirm: false;
+    in-out property <bool> show_reboot_confirm: false;
     in property <string> terminal_config_distro_name: "";
     in property <[string]> terminal_config_options: [];
     in property <[bool]> terminal_config_disabled: [];
@@ -207,6 +209,10 @@ export component ModalManager inherits Rectangle {
     callback terminal_config_path_browse();
     callback terminal_config_index_changed(int);
     callback terminal_config_dir_edited(string);
+    callback confirm_wsl_uninstall();
+    callback cancel_wsl_uninstall();
+    callback confirm_reboot();
+    callback cancel_reboot();
     if (show_delete): ConfirmationDialog {
         width: 100%;
         height: 100%;
@@ -393,6 +399,32 @@ export component ModalManager inherits Rectangle {
         }
         cancel => {
             root.cancel_wsl_shutdown();
+        }
+    }
+    if (show_wsl_uninstall_confirm): ConfirmationDialog {
+        width: 100%;
+        height: 100%;
+        title_text: AppI18n.t("dialog.wsl_uninstall_title", [AppI18n.version]);
+        message: AppI18n.t("dialog.wsl_uninstall_confirm_msg", [AppI18n.version]);
+        is_warning: true;
+        confirm => {
+            root.confirm_wsl_uninstall();
+        }
+        cancel => {
+            root.cancel_wsl_uninstall();
+        }
+    }
+    if (show_reboot_confirm): ConfirmationDialog {
+        width: 100%;
+        height: 100%;
+        title_text: AppI18n.t("wsl_manage.reboot_title", [AppI18n.version]);
+        message: AppI18n.t("wsl_manage.enable_feature_reboot", [AppI18n.version]);
+        is_warning: true;
+        confirm => {
+            root.confirm_reboot();
+        }
+        cancel => {
+            root.cancel_reboot();
         }
     }
     if (show_install_warn): StoreInstallWarnDialog {
