@@ -68,6 +68,7 @@ pub fn spawn_state_monitor(app_handle: slint::Weak<AppWindow>, app_state: Arc<Mu
                         let running_info: Vec<DistroInfo> = running
                             .into_iter()
                             .filter(|d| matches!(d.status, WslStatus::Running))
+                            .filter(|d| !dashboard.has_stopping_op(&d.name))
                             .map(|d| (d.name, d.version))
                             .collect();
                         if running_info.is_empty() {

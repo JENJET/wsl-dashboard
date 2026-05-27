@@ -210,6 +210,11 @@ impl WslDashboard {
         }
         return op;
     }
+
+    pub fn has_stopping_op(&self, distro_name: &str) -> bool {
+        let ops = self.active_ops.lock().unwrap();
+        ops.get(distro_name).map(|s| s.as_str()) == Some("operation.stopping")
+    }
 }
 
 impl Default for WslDashboard {
