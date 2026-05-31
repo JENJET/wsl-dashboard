@@ -8,6 +8,7 @@ use uuid;
 pub mod batch;
 pub mod clone;
 pub mod clone_logic;
+pub mod compact;
 pub mod config_logic;
 pub mod export;
 pub mod install;
@@ -49,6 +50,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
     batch::setup(app, app_handle.clone(), app_state.clone());
     lifecycle::setup(app, app_handle.clone(), app_state.clone());
     manage::setup(app, app_handle.clone(), app_state.clone());
+    compact::setup(app, app_handle.clone(), app_state.clone());
     export::setup(app, app_handle.clone(), app_state.clone());
     clone::setup(app, app_handle.clone(), app_state.clone());
     install::setup(app, app_handle.clone(), app_state.clone());

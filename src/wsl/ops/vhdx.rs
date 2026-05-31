@@ -260,6 +260,12 @@ pub async fn set_sparse_file(
     Err(last_err)
 }
 
+/// Compact VHDX using elevated diskpart.
+/// Get VHDX file size in bytes.
+pub fn get_vhdx_file_size(vhdx_path: &str) -> Option<u64> {
+    std::fs::metadata(vhdx_path).ok().map(|m| m.len())
+}
+
 /// Resize a VHDX disk using `wsl --manage --resize`.
 /// Calls `on_output` with each chunk of command output for real-time display.
 pub async fn resize_vhdx(

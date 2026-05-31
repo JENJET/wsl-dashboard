@@ -350,6 +350,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                                 slint_data.vhdx_virtual_size = data.vhdx_virtual_size.into();
                                 slint_data.vhdx_type = data.vhdx_type.into();
                                 slint_data.vhdx_is_sparse = data.vhdx_is_sparse;
+                                slint_data.drive_total = data.drive_total.into();
                                 app.set_information(slint_data);
                                 app.set_show_information(true);
 
@@ -1080,6 +1081,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                                     slint_data.vhdx_size = data.vhdx_size.into();
                                     slint_data.vhdx_path = data.vhdx_path.into();
                                     slint_data.vhdx_is_sparse = data.vhdx_is_sparse;
+                                    slint_data.drive_total = data.drive_total.into();
                                     slint_data.vhdx_virtual_size = data.vhdx_virtual_size.into();
                                     slint_data.vhdx_type = data.vhdx_type.into();
                                     app.set_information(slint_data);

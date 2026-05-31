@@ -505,7 +505,8 @@ if defined FAIL exit /b 1\r\n\
             std::thread::spawn(move || {
                 info!("User confirmed reboot, restarting system...");
                 let args = vec!["/r".to_string(), "/t".to_string(), "0".to_string()];
-                let _ = crate::utils::system::run_elevated_and_wait("shutdown.exe", args, true);
+                let _ =
+                    crate::utils::system::run_elevated_and_wait("shutdown.exe", args, true, None);
             });
         });
     }

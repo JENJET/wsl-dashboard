@@ -1,3 +1,4 @@
+use crate::utils::system::get_disk_space;
 use crate::wsl::executor::WslCommandExecutor;
 use crate::wsl::models::{WslCommandResult, WslDistro, WslInformation, WslStatus};
 use tokio::task;
@@ -126,6 +127,15 @@ pub async fn get_distro_information(
                     information.vhdx_type = vhdx_info.vhd_type;
                     information.vhdx_is_sparse = vhdx_info.is_sparse;
                 }
+                // Get drive total size
+                let drive_root = if vhdx_path_str.len() >= 3 {
+                    vhdx_path_str[..3].to_string()
+                } else {
+                    "C:\\".to_string()
+                };
+                let disk_info = get_disk_space(&drive_root);
+                let total_gb = disk_info.total_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
+                information.drive_total = format!("{:.2} GB", total_gb);
             }
             if information.vhdx_path.is_empty() {
                 information.wsl_version = "WSL1".to_string();

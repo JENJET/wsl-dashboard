@@ -540,7 +540,7 @@ impl WslCommandExecutor {
 
         let (tx, rx) = tokio::sync::oneshot::channel();
         std::thread::spawn(move || {
-            let result = match run_elevated_and_wait(&prog, cmd_args, show_window) {
+            let result = match run_elevated_and_wait(&prog, cmd_args, show_window, None) {
                 Ok(0) => {
                     info!("Elevated command succeeded: {}", command_str);
                     WslCommandResult::success(String::new(), None)

@@ -52,7 +52,7 @@ pub fn copy_to_clipboard(text: &str) -> Result<(), String> {
 
 /// Execute a command with UAC elevation using ShellExecuteExW
 pub fn run_command_with_elevation(program_name: &str, args: Vec<String>) -> Result<(), String> {
-    let exit_code = run_elevated_and_wait(program_name, args, false)?;
+    let exit_code = run_elevated_and_wait(program_name, args, false, None)?;
     if exit_code == 0 {
         Ok(())
     } else {
@@ -62,10 +62,12 @@ pub fn run_command_with_elevation(program_name: &str, args: Vec<String>) -> Resu
 
 /// Execute a command with UAC elevation using ShellExecuteExW and return its exit code.
 /// `show_window`: if true, the console window is visible (for user-facing operations like install).
+/// `timeout_secs`: optional timeout in seconds. None means wait forever.
 pub fn run_elevated_and_wait(
     program_name: &str,
     args: Vec<String>,
     show_window: bool,
+    timeout_secs: Option<u64>,
 ) -> Result<u32, String> {
     use tracing::debug;
     use windows::Win32::Foundation::CloseHandle;
@@ -105,11 +107,13 @@ pub fn run_elevated_and_wait(
         ..Default::default()
     };
 
+    let wait_ms = timeout_secs.map(|s| (s * 1000) as u32).unwrap_or(INFINITE);
+
     unsafe {
         match ShellExecuteExW(&mut sei) {
             Ok(()) => {
                 if !sei.hProcess.is_invalid() {
-                    WaitForSingleObject(sei.hProcess, INFINITE);
+                    WaitForSingleObject(sei.hProcess, wait_ms);
                     let mut exit_code: u32 = 0;
                     let _ = GetExitCodeProcess(sei.hProcess, &mut exit_code);
                     let _ = CloseHandle(sei.hProcess);

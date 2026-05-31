@@ -189,6 +189,7 @@ export component ModalManager inherits Rectangle {
     callback show_copy_success();
     callback copy_ip_clicked();
     callback resize_vhdx_clicked();
+    callback compact_vhdx_clicked();
     callback set_sparse_clicked();
     callback unset_sparse_clicked();
     callback confirm_set_sparse();
@@ -471,6 +472,9 @@ export component ModalManager inherits Rectangle {
         }
         resize_vhdx_clicked => {
             root.resize_vhdx_clicked();
+        }
+        compact_vhdx_clicked => {
+            root.compact_vhdx_clicked();
         }
         set_sparse_clicked => {
             root.set_sparse_clicked();

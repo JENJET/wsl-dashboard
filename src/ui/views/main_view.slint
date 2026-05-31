@@ -58,7 +58,7 @@ component BatchBar inherits Rectangle {
             clicked => { root.invert_selection(); }
         }
         ActionIcon {
-            icon: "\u{e930}";
+            icon: "\u{E930}";
             is_font_icon: true;
             tooltip: AppI18n.t("batch.select_running", [AppI18n.version]);
             enabled: !root.operating;
@@ -218,7 +218,7 @@ component BatchBar inherits Rectangle {
             clicked => { root.select_stopped(); }
         }
         ActionIcon {
-            icon: "\u{e930}";
+            icon: "\u{E930}";
             is_font_icon: true;
             tooltip: AppI18n.t("batch.select_running", [AppI18n.version]);
             enabled: !root.operating;

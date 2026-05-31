@@ -61,6 +61,7 @@ pub struct WslInformation {
     pub vhdx_type: String,
     pub vhdx_is_sparse: bool,
     pub actual_unused: String,
+    pub drive_total: String,
 }
 
 impl WslDistro {

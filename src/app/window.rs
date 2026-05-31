@@ -98,7 +98,7 @@ unsafe extern "system" fn enum_fallback_window_proc(hwnd: HWND, lparam: LPARAM) 
 }
 
 #[cfg(target_os = "windows")]
-fn find_main_window() -> Option<HWND> {
+pub fn find_main_window() -> Option<HWND> {
     let mut data = EnumWindowData {
         target_pid: std::process::id(),
         main_window: None,
