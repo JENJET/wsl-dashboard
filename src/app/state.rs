@@ -1,7 +1,7 @@
 use crate::config::ConfigManager;
 use crate::utils::logging::LoggingSystem;
 use crate::wsl::dashboard::WslDashboard;
-use crate::wsl::models::{WslDistro, WslStatus, WslVersion};
+use crate::wsl::models::{MountedDisk, WslDistro, WslStatus, WslVersion};
 use std::collections::HashSet;
 
 // Define application state
@@ -19,6 +19,7 @@ pub struct AppState {
     pub is_silent_mode: bool,
     pub theme_watcher: Option<crate::utils::theme::ThemeWatcher>,
     pub selected_distros: HashSet<String>,
+    pub mounted_disks: Vec<MountedDisk>,
 }
 
 impl AppState {
@@ -62,6 +63,7 @@ impl AppState {
             is_silent_mode,
             theme_watcher: None,
             selected_distros: HashSet::new(),
+            mounted_disks: Vec::new(),
         }
     }
 }

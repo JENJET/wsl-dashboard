@@ -235,7 +235,7 @@ export component InformationDialog inherits Rectangle {
                             background: Theme.dark_mode ? #1E1E1E : #F3F3F3;
                             border-radius: 4px;
                             usage_pill_text := Text {
-                                text: root.info.vhdx_size + " / " + root.info.drive_total;
+                                text: "(" + root.info.vhdx_size + " | " + root.info.drive_free + ")" + " / " + root.info.drive_total;
                                 color: Theme.accent;
                                 font-family: Theme.default_font;
                                 font-size: 12px * LayoutConstants.font-scale;

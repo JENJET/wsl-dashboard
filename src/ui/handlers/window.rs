@@ -93,7 +93,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
         if let Some(app) = ah.upgrade() {
             app.set_show_busy_dialog(false);
         }
-        let _ = slint::quit_event_loop();
+        std::process::exit(0);
     });
 
     // Busy dialog: cancel → go back to normal

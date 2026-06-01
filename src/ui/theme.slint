@@ -13,6 +13,7 @@ export struct Information {
     vhdx_type: string,
     vhdx_is_sparse: bool,
     drive_total: string,
+    drive_free: string,
 }
 
 export struct Distro {
@@ -140,6 +141,34 @@ export struct WslManageStrings {
     version_label_1: string,
     version_label_2: string,
     sparse_mode: string,
+    // Disk mount
+    disk_management_title: string,
+    physical_disk_label: string,
+    usb_mount_hint: string,
+    disk_path_label: string,
+    disk_path_placeholder: string,
+    is_vhd_label: string,
+    bare_mount_label: string,
+    mount_name_label: string,
+    mount_name_placeholder: string,
+    filesystem_label: string,
+    filesystem_placeholder: string,
+    partition_label: string,
+    partition_placeholder: string,
+    mount_options_label: string,
+    mount_options_placeholder: string,
+    mount_btn: string,
+    mounting_btn: string,
+    mounted_disks_title: string,
+    unmount_btn: string,
+    unmount_all_btn: string,
+    no_mounted_disks: string,
+    refresh_disks_btn: string,
+    mount_success: string,
+    mount_failed: string,
+    unmount_success: string,
+    unmount_failed: string,
+    disk_label: string,
 }
 
 export global Theme {

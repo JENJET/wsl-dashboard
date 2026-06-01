@@ -175,6 +175,13 @@ pub async fn refresh_data(app_handle: slint::Weak<AppWindow>, app_state: Arc<Mut
 
         // Also determine WSL installed state (wsl_installed, has_running, etc.)
         refresh_wsl_info(&app_handle_clone, &app_state_clone).await;
+
+        // Also refresh physical disks list for the mount UI
+        crate::ui::handlers::wsl_manage::refresh_physical_disks_inner(
+            &app_handle_clone,
+            &app_state_clone,
+        )
+        .await;
     });
 
     debug!("refresh_data: Background data refresh scheduled");

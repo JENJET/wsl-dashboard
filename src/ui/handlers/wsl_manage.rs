@@ -1,7 +1,7 @@
 use crate::i18n;
 use crate::ui::data;
 use crate::utils::system::CREATE_NO_WINDOW;
-use crate::wsl::models::WslCommandResult;
+use crate::wsl::models::{MountedDisk, WslCommandResult};
 use crate::{AppState, AppWindow, WslManageStrings};
 use std::os::windows::process::CommandExt;
 use std::sync::Arc;
@@ -27,6 +27,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
         let as_ptr = as_ptr.clone();
         let _ = slint::spawn_local(async move {
             refresh_wsl_info(&ah, &as_ptr).await;
+            refresh_physical_disks_inner(&ah, &as_ptr).await;
         });
     });
 
@@ -518,6 +519,259 @@ if defined FAIL exit /b 1\r\n\
         });
     }
 
+    // === Disk Mount Handlers ===
+
+    // Mount disk
+    let ah = app_handle.clone();
+    let as_ptr = app_state.clone();
+    app.on_wsl_mount_disk(
+        move |disk, _is_vhd, is_bare, name, fs_type, partition, options| {
+            let ah = ah.clone();
+            let as_ptr = as_ptr.clone();
+            tokio::spawn(async move {
+                let disk_str = disk.to_string();
+                let is_vhd = disk_str.to_lowercase().ends_with(".vhd")
+                    || disk_str.to_lowercase().ends_with(".vhdx");
+                let mut name_str = name.to_string();
+                let fs_type_str = fs_type.to_string();
+                let partition_str = partition.to_string();
+                let options_str = options.to_string();
+
+                // Auto-fill mount name from VHD filename if not specified
+                if name_str.is_empty() && is_vhd {
+                    if let Some(stem) = std::path::Path::new(&disk_str).file_stem() {
+                        name_str = stem.to_string_lossy().to_string();
+                    }
+                }
+
+                // Show streaming dialog
+                let ah2 = ah.clone();
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(app) = ah2.upgrade() {
+                        app.set_wsl_mount_running(true);
+                        app.set_wsl_mount_output(i18n::t("dialog.processing").into());
+                        app.set_wsl_mount_is_error(false);
+                    }
+                });
+
+                let executor = {
+                    let state = as_ptr.lock().await;
+                    state.wsl_dashboard.executor().clone()
+                };
+
+                let mut result = executor
+                    .mount_disk(
+                        &disk_str,
+                        is_vhd,
+                        is_bare,
+                        &name_str,
+                        &fs_type_str,
+                        &partition_str,
+                        &options_str,
+                    )
+                    .await;
+
+                // If mount failed due to missing elevation, retry elevated
+                if !result.success {
+                    let err = result.error.as_deref().unwrap_or("");
+                    let err_lower = err.to_lowercase();
+                    let needs_elevation = err_lower.contains("elevation")
+                        || err_lower.contains("elevated")
+                        || err_lower.contains("access denied")
+                        || err_lower.contains("access_denied")
+                        || err_lower.contains("admin")
+                        || err_lower.contains("permission");
+                    if needs_elevation {
+                        info!("Mount requires elevation, retrying via elevated wsl.exe...");
+                        result = crate::wsl::ops::disk_mount::mount_disk_elevated(
+                            &disk_str,
+                            is_vhd,
+                            is_bare,
+                            &name_str,
+                            &fs_type_str,
+                            &partition_str,
+                            &options_str,
+                        )
+                        .await;
+                    }
+                }
+
+                let success = result.success;
+                let error_msg = result.error.unwrap_or_default();
+
+                // Track mounted disk in state on success
+                if success {
+                    let mut state = as_ptr.lock().await;
+                    state.mounted_disks.push(MountedDisk {
+                        disk: disk_str.clone(),
+                        mount_name: name_str.clone(),
+                        filesystem: fs_type_str.clone(),
+                    });
+                }
+
+                let msg = if success {
+                    i18n::t("wsl_manage.mount_success")
+                } else {
+                    let error_lower = error_msg.to_lowercase();
+                    let hint = if error_lower.contains("no such device")
+                        || error_lower.contains("装载失败")
+                    {
+                        i18n::t("wsl_manage.mount_hint_no_such_device")
+                    } else {
+                        i18n::t("wsl_manage.mount_hint_generic")
+                    };
+                    format!(
+                        "{}\n{}",
+                        i18n::tr("wsl_manage.mount_failed", &[error_msg.clone()]),
+                        hint
+                    )
+                };
+
+                let ah2 = ah.clone();
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(app) = ah2.upgrade() {
+                        app.set_wsl_mount_running(false);
+                        app.set_wsl_mount_is_error(!success);
+                        app.set_wsl_mount_output(msg.into());
+                    }
+                });
+
+                // Refresh mounted disks
+                refresh_mounted_disks(&ah, &as_ptr).await;
+            });
+        },
+    );
+
+    // Unmount disk
+    let ah = app_handle.clone();
+    let as_ptr = app_state.clone();
+    app.on_wsl_unmount_disk(move |disk| {
+        let ah = ah.clone();
+        let as_ptr = as_ptr.clone();
+        let disk_display = disk.to_string();
+        // Parse display string "path (filesystem)" → "path"
+        let disk_path = if let Some(pos) = disk_display.find(" (") {
+            disk_display[..pos].to_string()
+        } else {
+            disk_display.clone()
+        };
+        tokio::spawn(async move {
+            let executor = {
+                let state = as_ptr.lock().await;
+                state.wsl_dashboard.executor().clone()
+            };
+
+            let result = executor.unmount_disk(&disk_path).await;
+
+            let success = result.success;
+            let error_msg = result.error.unwrap_or_default();
+
+            // Remove from tracked state on success
+            if success {
+                let mut state = as_ptr.lock().await;
+                state.mounted_disks.retain(|d| d.disk != disk_path);
+            }
+
+            let msg = if success {
+                i18n::t("wsl_manage.unmount_success")
+            } else {
+                i18n::tr("wsl_manage.unmount_failed", &[error_msg.clone()])
+            };
+
+            let ah2 = ah.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(app) = ah2.upgrade() {
+                    app.set_wsl_mount_output(msg.into());
+                    app.set_wsl_mount_is_error(!success);
+                }
+            });
+
+            refresh_mounted_disks(&ah, &as_ptr).await;
+        });
+    });
+
+    // Unmount all disks
+    let ah = app_handle.clone();
+    let as_ptr = app_state.clone();
+    app.on_wsl_unmount_all_disks(move || {
+        let ah = ah.clone();
+        let as_ptr = as_ptr.clone();
+        tokio::spawn(async move {
+            let executor = {
+                let state = as_ptr.lock().await;
+                state.wsl_dashboard.executor().clone()
+            };
+
+            let result = executor.unmount_disk("").await;
+
+            let success = result.success;
+            let error_msg = result.error.unwrap_or_default();
+
+            // Clear tracked state on success
+            if success {
+                let mut state = as_ptr.lock().await;
+                state.mounted_disks.clear();
+            }
+
+            let msg = if success {
+                i18n::t("wsl_manage.unmount_success")
+            } else {
+                i18n::tr("wsl_manage.unmount_failed", &[error_msg.clone()])
+            };
+
+            let ah2 = ah.clone();
+            let _ = slint::invoke_from_event_loop(move || {
+                if let Some(app) = ah2.upgrade() {
+                    app.set_wsl_mount_output(msg.into());
+                    app.set_wsl_mount_is_error(!success);
+                }
+            });
+
+            refresh_mounted_disks(&ah, &as_ptr).await;
+        });
+    });
+
+    // Refresh mounted disks
+    let ah = app_handle.clone();
+    let as_ptr = app_state.clone();
+    app.on_wsl_refresh_mounted_disks(move || {
+        let ah = ah.clone();
+        let as_ptr = as_ptr.clone();
+        tokio::spawn(async move {
+            refresh_mounted_disks(&ah, &as_ptr).await;
+        });
+    });
+
+    // Refresh physical disks
+    let ah = app_handle.clone();
+    let as_ptr = app_state.clone();
+    app.on_wsl_refresh_physical_disks(move || {
+        let ah = ah.clone();
+        let as_ptr = as_ptr.clone();
+        tokio::spawn(async move {
+            refresh_physical_disks_inner(&ah, &as_ptr).await;
+        });
+    });
+
+    // Browse VHD file
+    {
+        app.on_wsl_browse_vhd(move || {
+            if let Some(path) = rfd::FileDialog::new()
+                .set_title(i18n::t("wsl_manage.select_vhd_file"))
+                .add_filter("VHD(X)", &["vhd", "vhdx"])
+                .pick_file()
+            {
+                if let Some(app) = app_handle.upgrade() {
+                    let path_str = path.display().to_string();
+                    app.set_wsl_disk_path(path_str.into());
+                    if let Some(stem) = path.file_stem() {
+                        app.set_wsl_disk_mount_name(stem.to_string_lossy().to_string().into());
+                    }
+                }
+            }
+        });
+    }
+
     // Open WSL Settings (directly launch wslsettings.exe)
 }
 
@@ -652,6 +906,9 @@ pub async fn refresh_wsl_info(
             app.set_wsl_default_distro_name(default_distro_name.into());
         }
     });
+
+    // Also refresh mounted disks
+    refresh_mounted_disks(app_handle, app_state).await;
 }
 
 /// Load WSL manage strings into the UI (called during i18n refresh)
@@ -678,6 +935,34 @@ pub fn load_wsl_manage_strings(app: &AppWindow) {
         version_label_1: i18n::t("wsl_manage.version_label_1").into(),
         version_label_2: i18n::t("wsl_manage.version_label_2").into(),
         sparse_mode: i18n::t("wsl_manage.sparse_mode").into(),
+        // Disk mount
+        disk_management_title: i18n::t("wsl_manage.disk_management_title").into(),
+        physical_disk_label: i18n::t("wsl_manage.physical_disk_label").into(),
+        usb_mount_hint: i18n::t("wsl_manage.usb_mount_hint").into(),
+        disk_path_label: i18n::t("wsl_manage.disk_path_label").into(),
+        disk_path_placeholder: i18n::t("wsl_manage.disk_path_placeholder").into(),
+        is_vhd_label: i18n::t("wsl_manage.is_vhd_label").into(),
+        bare_mount_label: i18n::t("wsl_manage.bare_mount_label").into(),
+        mount_name_label: i18n::t("wsl_manage.mount_name_label").into(),
+        mount_name_placeholder: i18n::t("wsl_manage.mount_name_placeholder").into(),
+        filesystem_label: i18n::t("wsl_manage.filesystem_label").into(),
+        filesystem_placeholder: i18n::t("wsl_manage.filesystem_placeholder").into(),
+        partition_label: i18n::t("wsl_manage.partition_label").into(),
+        partition_placeholder: i18n::t("wsl_manage.partition_placeholder").into(),
+        mount_options_label: i18n::t("wsl_manage.mount_options_label").into(),
+        mount_options_placeholder: i18n::t("wsl_manage.mount_options_placeholder").into(),
+        mount_btn: i18n::t("wsl_manage.mount_btn").into(),
+        mounting_btn: i18n::t("wsl_manage.mounting_btn").into(),
+        mounted_disks_title: i18n::t("wsl_manage.mounted_disks_title").into(),
+        unmount_btn: i18n::t("wsl_manage.unmount_btn").into(),
+        unmount_all_btn: i18n::t("wsl_manage.unmount_all_btn").into(),
+        no_mounted_disks: i18n::t("wsl_manage.no_mounted_disks").into(),
+        refresh_disks_btn: i18n::t("wsl_manage.refresh_disks_btn").into(),
+        mount_success: i18n::t("wsl_manage.mount_success").into(),
+        mount_failed: i18n::t("wsl_manage.mount_failed").into(),
+        unmount_success: i18n::t("wsl_manage.unmount_success").into(),
+        unmount_failed: i18n::t("wsl_manage.unmount_failed").into(),
+        disk_label: i18n::t("wsl_manage.disk_label").into(),
     });
 }
 
@@ -686,5 +971,76 @@ fn extract_version_number(raw: &str) -> String {
         raw[pos + 1..].trim().to_string()
     } else {
         raw.to_string()
+    }
+}
+
+/// Refresh mounted disks list and update UI
+async fn refresh_mounted_disks(
+    app_handle: &slint::Weak<AppWindow>,
+    app_state: &Arc<Mutex<AppState>>,
+) {
+    let mounted = {
+        let state = app_state.lock().await;
+        state.mounted_disks.clone()
+    };
+
+    let mounted_strs: Vec<slint::SharedString> = mounted
+        .iter()
+        .map(|d| {
+            if d.filesystem.is_empty() {
+                d.disk.clone().into()
+            } else {
+                format!("{} ({})", d.disk, d.filesystem).into()
+            }
+        })
+        .collect();
+
+    let ah = app_handle.clone();
+    let _ = slint::invoke_from_event_loop(move || {
+        if let Some(app) = ah.upgrade() {
+            let model = slint::ModelRc::new(slint::VecModel::from(mounted_strs));
+            app.set_wsl_mounted_disks(model);
+        }
+    });
+}
+
+pub async fn refresh_physical_disks_inner(
+    app_handle: &slint::Weak<AppWindow>,
+    app_state: &Arc<Mutex<AppState>>,
+) {
+    let executor = {
+        let state = app_state.lock().await;
+        state.wsl_dashboard.executor().clone()
+    };
+
+    let result = executor.list_physical_disks().await;
+    if let Some(mut disks) = result.data {
+        // Exclude USB disks (USB bus type cannot be mounted by WSL2)
+        disks.retain(|d| d.bus_type.to_lowercase() != "usb");
+        // Sort by disk number ascending
+        disks.sort_by_key(|d| d.number);
+        let disk_strs: Vec<slint::SharedString> = disks
+            .iter()
+            .map(|d| format!("\\\\.\\PHYSICALDRIVE{} — {}", d.number, d.friendly_name).into())
+            .collect();
+        let path_strs: Vec<slint::SharedString> = disks
+            .iter()
+            .map(|d| format!("\\\\.\\PHYSICALDRIVE{}", d.number).into())
+            .collect();
+        let name_strs: Vec<slint::SharedString> = disks
+            .iter()
+            .map(|d| d.friendly_name.clone().into())
+            .collect();
+        let ah = app_handle.clone();
+        let _ = slint::invoke_from_event_loop(move || {
+            if let Some(app) = ah.upgrade() {
+                let display_model = slint::ModelRc::new(slint::VecModel::from(disk_strs));
+                let path_model = slint::ModelRc::new(slint::VecModel::from(path_strs));
+                let name_model = slint::ModelRc::new(slint::VecModel::from(name_strs));
+                app.set_wsl_physical_disks(display_model);
+                app.set_wsl_physical_disks_paths(path_model);
+                app.set_wsl_physical_disks_names(name_model);
+            }
+        });
     }
 }

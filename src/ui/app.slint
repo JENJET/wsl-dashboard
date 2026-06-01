@@ -305,6 +305,23 @@ export component AppWindow inherits Window {
     in property <bool> vhdx_compact_is_error: false;
     in-out property <bool> vhdx_compact_compacted: false;
 
+    // --- Disk Mount Properties ---
+    in-out property <string> wsl_disk_path: "";
+    in-out property <bool> wsl_disk_is_vhd: false;
+    in-out property <bool> wsl_disk_is_bare: false;
+    in-out property <string> wsl_disk_mount_name: "";
+    in-out property <string> wsl_disk_fs_type: "ext4";
+    in-out property <string> wsl_disk_partition: "";
+    in-out property <string> wsl_disk_options: "";
+    in property <bool> wsl_mount_running: false;
+    in property <string> wsl_mount_output: "";
+    in property <bool> wsl_mount_is_error: false;
+    in property <[string]> wsl_mounted_disks: [];
+    in property <[string]> wsl_physical_disks: [];
+    in property <[string]> wsl_physical_disks_paths: [];
+    in property <[string]> wsl_physical_disks_names: [];
+    in property <string> wsl_vhd_browse_path: "";
+
     // --- Terminal Emulator Properties ---
     in property <[string]> terminal_emulator_options: [];
     in property <[bool]> terminal_emulator_disabled: [];
@@ -456,6 +473,14 @@ export component AppWindow inherits Window {
     callback reboot_system();
     callback cancel_reboot();
     callback vhdx_sparse_mode_toggled();
+
+    // Disk mount callbacks
+    callback wsl_mount_disk(string, bool, bool, string, string, string, string);
+    callback wsl_unmount_disk(string);
+    callback wsl_unmount_all_disks();
+    callback wsl_refresh_mounted_disks();
+    callback wsl_refresh_physical_disks();
+    callback wsl_browse_vhd();
 
     // Set default distro callback
     callback set_default_distro(string);
@@ -858,6 +883,20 @@ export component AppWindow inherits Window {
                                 is_updating: root.wsl_is_updating;
                                 default_distro_name: root.wsl_default_distro_name;
                                 vhdx_sparse_mode <=> root.vhdx_sparse_mode;
+                                disk_path <=> root.wsl_disk_path;
+                                disk_is_vhd <=> root.wsl_disk_is_vhd;
+                                disk_is_bare <=> root.wsl_disk_is_bare;
+                                disk_mount_name <=> root.wsl_disk_mount_name;
+                                disk_fs_type <=> root.wsl_disk_fs_type;
+                                disk_partition <=> root.wsl_disk_partition;
+                                disk_options <=> root.wsl_disk_options;
+                                mount_running: root.wsl_mount_running;
+                                mount_output: root.wsl_mount_output;
+                                mount_is_error: root.wsl_mount_is_error;
+                                mounted_disks: root.wsl_mounted_disks;
+                                physical_disks: root.wsl_physical_disks;
+                                physical_disks_paths: root.wsl_physical_disks_paths;
+                                physical_disks_names: root.wsl_physical_disks_names;
                                 install_wsl => {
                                     root.wsl_manage_install();
                                 }
@@ -882,6 +921,24 @@ export component AppWindow inherits Window {
                                 }
                                 sparse_mode_toggled => {
                                     root.vhdx_sparse_mode_toggled();
+                                }
+                                mount_disk => {
+                                    root.wsl_mount_disk(root.wsl_disk_path, root.wsl_disk_is_vhd, root.wsl_disk_is_bare, root.wsl_disk_mount_name, root.wsl_disk_fs_type, root.wsl_disk_partition, root.wsl_disk_options);
+                                }
+                                unmount_disk(disk) => {
+                                    root.wsl_unmount_disk(disk);
+                                }
+                                unmount_all_disks => {
+                                    root.wsl_unmount_all_disks();
+                                }
+                                refresh_mounted_disks => {
+                                    root.wsl_refresh_mounted_disks();
+                                }
+                                refresh_physical_disks => {
+                                    root.wsl_refresh_physical_disks();
+                                }
+                                browse_vhd => {
+                                    root.wsl_browse_vhd();
                                 }
                             }
 

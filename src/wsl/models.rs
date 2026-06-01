@@ -62,6 +62,7 @@ pub struct WslInformation {
     pub vhdx_is_sparse: bool,
     pub actual_unused: String,
     pub drive_total: String,
+    pub drive_free: String,
 }
 
 impl WslDistro {
@@ -72,6 +73,25 @@ impl WslDistro {
             && self.version == other.version
             && self.is_default == other.is_default
     }
+}
+
+// Physical disk information (from PowerShell Get-Disk)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PhysicalDisk {
+    pub number: u32,
+    pub friendly_name: String,
+    pub size: String,
+    pub size_bytes: u64,
+    pub bus_type: String,
+    pub partition_style: String,
+}
+
+// Mounted disk in WSL
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MountedDisk {
+    pub disk: String,
+    pub mount_name: String,
+    pub filesystem: String,
 }
 
 // WSL command execution result

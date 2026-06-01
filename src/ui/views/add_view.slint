@@ -5,12 +5,9 @@ import {
     CustomComboBox,
     CustomCheckBox,
 } from "../components/form_widgets.slint";
+import { CustomScrollbar } from "../components/scrollbar.slint";
 
-export component AddInstanceView inherits VerticalLayout {
-    padding-left: AppI18n.is-rtl ? 16px : 4px;
-    padding-right: AppI18n.is-rtl ? 4px : 16px;
-    padding-top: 8px;
-    padding-bottom: 8px;
+export component AddInstanceView inherits Rectangle {
 
     // Properties passed from AppWindow
     in-out property <string> new_instance_name;
@@ -62,607 +59,722 @@ export component AddInstanceView inherits VerticalLayout {
     callback is_local_url(string) -> bool;
     callback url_distro_selected(string);
 
-    // Page-level scroll
-    outer-flick := Flickable {
-        vertical-stretch: 1;
-        viewport-y <=> root.page_vp_y;
+    VerticalLayout {        
+        padding-left: AppI18n.is-rtl ? 16px : 4px;
+        padding-right: AppI18n.is-rtl ? 4px : 16px;
+        padding-top: 8px;
+        padding-bottom: 8px;
+        Rectangle {
+            clip: true;
+            vertical-stretch: 1;
+            
+            // Page-level scroll
+            outer-flick := Flickable {
+                vertical-stretch: 1;
+                viewport-y <=> root.page_vp_y;
 
-        VerticalLayout {
-            spacing: 12px;
+                VerticalLayout {
+                    spacing: 12px;
 
-            // Source type
-            VerticalLayout {
-                z: 100;
-                spacing: 0px;
-                Text {
-                    text: AppI18n.t("add.source_type", [AppI18n.version]);
-                    font-size: 13px * LayoutConstants.font-scale;
-                    font-family: Theme.default_font;
-                    color: Theme.text_secondary;
-                    height: 18px;
-                    horizontal-alignment: AppI18n.is-rtl ? right : left;
-                }
-                CustomComboBox {
-                    model: root.install_sources;
-                    current-index <=> root.selected_source_idx;
-                    height: 32px;
-                    enabled: !root.is_installing;
-                    selected(idx) => {
-                        root.install_file_path = "";
-                        root.new_instance_name = "";
-                        root.new_instance_path = root.distro_location;
-                        root.selected_install_distro = "";
-                        root.source_selected(root.selected_source_idx);
-                    }
-                }
-            }
-
-            // Dynamic rendering
-            if (root.selected_source_idx == 2): VerticalLayout {
-                z: 90;
-                spacing: 0px;
-                Text {
-                    text: AppI18n.t("add.select_distro", [AppI18n.version]);
-                    font-size: 13px * LayoutConstants.font-scale;
-                    font-family: Theme.default_font;
-                    color: Theme.text_secondary;
-                    height: 18px;
-                    horizontal-alignment: AppI18n.is-rtl ? right : left;
-                }
-                CustomComboBox {
-                    model: root.installable_distro_names;
-                    current-index: 0;
-                    height: 32px;
-                    enabled: !root.is_installing;
-                    selected(idx) => {
-                        root.selected_install_distro = root.installable_distro_names[idx];
-                        root.distro_selected(root.selected_install_distro);
-                    }
-                }
-            }
-            if (root.selected_source_idx == 3): VerticalLayout {
-                z: 90;
-                spacing: 0px;
-                // URL Source selector
-                Text {
-                    text: AppI18n.t("add.url.select_source_url", [AppI18n.version]);
-                    font-size: 13px * LayoutConstants.font-scale;
-                    font-family: Theme.default_font;
-                    color: Theme.text_secondary;
-                    height: 18px;
-                    horizontal-alignment: AppI18n.is-rtl ? right : left;
-                }
-                CustomComboBox {
-                    model: root.install_url_sources;
-                    current-index <=> root.selected_install_url_idx;
-                    height: 32px;
-                    enabled: !root.is_installing;
-                    selected(idx) => {
-                        if (idx != 2 || root.is_local_url(root.custom_install_url)) {
-                            root.fetch_url_distros();
-                        }
-                    }
-                }
-                // Custom URL input (only when Custom selected)
-                if (root.selected_install_url_idx == 2): VerticalLayout {
-                    spacing: 0px;
-                    Rectangle { height: 4px; }
-                    Text {
-                        text: AppI18n.t("add.url.custom_url", [AppI18n.version]);
-                        font-size: 13px * LayoutConstants.font-scale;
-                        font-family: Theme.default_font;
-                        color: Theme.text_secondary;
-                        height: 18px;
-                        horizontal-alignment: AppI18n.is-rtl ? right : left;
-                    }
-                    HorizontalLayout {
-                        spacing: 4px;
-                        CustomLineEdit {
-                            placeholder-text: AppI18n.t("add.url.custom_placeholder", [AppI18n.version]);
-                            text <=> root.custom_install_url;
-                            height: 32px;
-                            horizontal-stretch: 1;
-                            enabled: !root.is_installing;
-                        }
-                        if (!AppI18n.is-rtl): CustomButton {
-                            text: AppI18n.t("add.url.browse", [AppI18n.version]);
-                            height: 32px;
-                            width: self.preferred-width;
-                            enabled: !root.is_installing;
-                            clicked => { root.select_install_file(3); }
-                        }
-                    }
-                    // RTL layout
-                    if (AppI18n.is-rtl): HorizontalLayout {
-                        spacing: 4px;
-                        CustomButton {
-                            text: AppI18n.t("add.url.browse", [AppI18n.version]);
-                            height: 32px;
-                            width: self.preferred-width;
-                            enabled: !root.is_installing;
-                            clicked => { root.select_install_file(3); }
-                        }
-                        CustomLineEdit {
-                            placeholder-text: AppI18n.t("add.url.custom_placeholder", [AppI18n.version]);
-                            text <=> root.custom_install_url;
-                            height: 32px;
-                            horizontal-stretch: 1;
-                            enabled: !root.is_installing;
-                        }
-                    }
-                }
-                Rectangle { height: 4px; }
-                // Fetch button
-                CustomButton {
-                    text: root.is_fetching_url_distros ? AppI18n.t("add.url.fetching", [AppI18n.version]) : AppI18n.t("add.url.fetch", [AppI18n.version]);
-                    height: 32px;
-                    width: self.preferred-width;
-                    enabled: !root.is_installing && !root.is_fetching_url_distros;
-                    clicked => { root.fetch_url_distros(); }
-                }
-                Rectangle { height: 4px; }
-                // Distro list from URL
-                Text {
-                    text: AppI18n.t("add.url.select_distro", [AppI18n.version]) + " (" + root.host_arch + ")";
-                    font-size: 13px * LayoutConstants.font-scale;
-                    font-family: Theme.default_font;
-                    color: Theme.text_secondary;
-                    height: 18px;
-                    horizontal-alignment: AppI18n.is-rtl ? right : left;
-                }
-                CustomComboBox {
-                    model: root.url_distro_names;
-                    current-index <=> root.selected_url_distro_idx;
-                    height: 32px;
-                    enabled: !root.is_installing && root.url_distro_names.length > 0;
-                    selected(idx) => {
-                        if (idx >= 0 && idx < root.url_distro_list.length) {
-                            root.selected_install_distro = root.url_distro_list[idx].friendly_name;
-                            root.new_instance_name = root.url_distro_list[idx].name;
-                            let base = root.distro_location;
-                            root.new_instance_path = base + "\\" + root.new_instance_name;
-                            root.url_distro_selected(root.url_distro_list[idx].name);
-                        }
-                    }
-                }
-                Rectangle { height: 4px; }
-                // Download threads
-                Text {
-                    text: AppI18n.t("add.url.download_threads", [AppI18n.version]);
-                    font-size: 13px * LayoutConstants.font-scale;
-                    font-family: Theme.default_font;
-                    color: Theme.text_secondary;
-                    height: 18px;
-                    horizontal-alignment: AppI18n.is-rtl ? right : left;
-                }
-                HorizontalLayout {
-                    spacing: 8px;
-                    Rectangle {
-                        width: 32px; height: 32px;
-                        border-radius: 4px;
-                        background: root.download_threads > 1 && !root.is_installing ? (ta-dec.has-hover ? Theme.hover_bg : Theme.input_bg) : Theme.input_bg;
-                        border-width: 1px;
-                        border-color: Theme.input_border;
-                        opacity: root.download_threads > 1 && !root.is_installing ? 1.0 : 0.6;
-                        ta-dec := TouchArea {
-                            enabled: root.download_threads > 1 && !root.is_installing;
-                            clicked => { root.download_threads = Math.max(1, root.download_threads - 1); }
-                        }
+                    // Source type
+                    VerticalLayout {
+                        z: 100;
+                        spacing: 0px;
                         Text {
-                            text: "-";
-                            font-size: 16px * LayoutConstants.font-scale;
-                            font-family: Theme.default_font;
-                            color: Theme.text_primary;
-                            vertical-alignment: center;
-                            horizontal-alignment: center;
-                            width: 100%; height: 100%;
-                        }
-                    }
-                    Rectangle {
-                        width: 40px; height: 32px;
-                        background: Theme.input_bg;
-                        border-radius: 4px;
-                        border-width: 1px;
-                        border-color: Theme.input_border;
-                        Text {
-                            text: root.download_threads;
-                            font-size: 13px * LayoutConstants.font-scale;
-                            font-family: Theme.default_font;
-                            color: Theme.text_primary;
-                            vertical-alignment: center;
-                            horizontal-alignment: center;
-                            width: 100%; height: 100%;
-                        }
-                    }
-                    Rectangle {
-                        width: 32px; height: 32px;
-                        border-radius: 4px;
-                        background: root.download_threads < 8 && !root.is_installing ? (ta-inc.has-hover ? Theme.hover_bg : Theme.input_bg) : Theme.input_bg;
-                        border-width: 1px;
-                        border-color: Theme.input_border;
-                        opacity: root.download_threads < 8 && !root.is_installing ? 1.0 : 0.6;
-                        ta-inc := TouchArea {
-                            enabled: root.download_threads < 8 && !root.is_installing;
-                            clicked => { root.download_threads = Math.min(8, root.download_threads + 1); }
-                        }
-                        Text {
-                            text: "+";
-                            font-size: 16px * LayoutConstants.font-scale;
-                            font-family: Theme.default_font;
-                            color: Theme.text_primary;
-                            vertical-alignment: center;
-                            horizontal-alignment: center;
-                            width: 100%; height: 100%;
-                        }
-                    }
-                }
-            }
-            if (root.selected_source_idx != 2 && root.selected_source_idx != 3): VerticalLayout {
-                spacing: 0px;
-                HorizontalLayout {
-                    spacing: 4px;
-                    alignment: AppI18n.is-rtl ? end : start;
-                    if (!AppI18n.is-rtl): Rectangle {
-                        horizontal-stretch: 1;
-                        min-width: 0;
-                        Text {
-                            text: root.selected_source_idx == 0 ? AppI18n.t("add.select_rootfs", [AppI18n.version]) : AppI18n.t("add.select_vhdx", [AppI18n.version]);
+                            text: AppI18n.t("add.source_type", [AppI18n.version]);
                             font-size: 13px * LayoutConstants.font-scale;
                             font-family: Theme.default_font;
                             color: Theme.text_secondary;
                             height: 18px;
-                            overflow: elide;
-                            min-width: 0;
+                            horizontal-alignment: AppI18n.is-rtl ? right : left;
                         }
-                    }
-                    if (AppI18n.is-rtl): Rectangle {
-                        width: 16px;
-                        height: 16px;
-                        Text {
-                            text: "\u{E897}";
-                            font-family: Theme.icon_font;
-                            font-size: 12px * LayoutConstants.font-scale;
-                            color: ta-help-rtl.has-hover ? Theme.accent : Theme.text_secondary;
-                            vertical-alignment: center;
-                            horizontal-alignment: center;
-                        }
-                        ta-help-rtl := TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => { root.show_rootfs_help_clicked(); }
-                        }
-                    }
-                    if (AppI18n.is-rtl): Rectangle {
-                        horizontal-stretch: 1;
-                        min-width: 0;
-                        Text {
-                            text: root.selected_source_idx == 0 ? AppI18n.t("add.select_rootfs", [AppI18n.version]) : AppI18n.t("add.select_vhdx", [AppI18n.version]);
-                            font-size: 13px * LayoutConstants.font-scale;
-                            font-family: Theme.default_font;
-                            color: Theme.text_secondary;
-                            height: 18px;
-                            overflow: elide;
-                            min-width: 0;
-                        }
-                    }
-                    if (root.selected_source_idx == 0 && !AppI18n.is-rtl): Rectangle {
-                        width: 16px;
-                        height: 18px;
-                        Text {
-                            text: "\u{E897}";
-                            font-family: Theme.icon_font;
-                            font-size: 12px * LayoutConstants.font-scale;
-                            color: ta-help.has-hover ? Theme.accent : Theme.text_secondary;
-                            vertical-alignment: center;
-                            horizontal-alignment: center;
-                        }
-                        ta-help := TouchArea {
-                            mouse-cursor: pointer;
-                            clicked => { root.show_rootfs_help_clicked(); }
-                        }
-                    }
-                }
-                Rectangle {
-                    height: 32px;
-                    touch-file := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => { root.select_install_file(root.selected_source_idx); }
-                    }
-                    HorizontalLayout {
-                        spacing: 8px;
-                        if (!AppI18n.is-rtl): CustomLineEdit {
-                            placeholder-text: AppI18n.t("add.no_file", [AppI18n.version]);
-                            text <=> root.install_file_path;
+
+                        CustomComboBox {
+                            model: root.install_sources;
+                            current-index <=> root.selected_source_idx;
                             height: 32px;
-                            horizontal-stretch: 1;
-                            enabled: false;
-                        }
-                        if (AppI18n.is-rtl): CustomButton {
-                            text: AppI18n.t("add.select_file", [AppI18n.version]);
-                            height: 32px;
-                            width: self.preferred-width;
                             enabled: !root.is_installing;
-                            clicked => { root.select_install_file(root.selected_source_idx); }
-                        }
-                        if (AppI18n.is-rtl): CustomLineEdit {
-                            placeholder-text: AppI18n.t("add.no_file", [AppI18n.version]);
-                            text <=> root.install_file_path;
-                            height: 32px;
-                            horizontal-stretch: 1;
-                            enabled: false;
-                        }
-                        if (!AppI18n.is-rtl): CustomButton {
-                            text: AppI18n.t("add.select_file", [AppI18n.version]);
-                            height: 32px;
-                            width: self.preferred-width;
-                            enabled: !root.is_installing;
-                            clicked => { root.select_install_file(root.selected_source_idx); }
-                        }
-                    }
-                }
-            }
-            VerticalLayout {
-                spacing: 0px;
-                Text {
-                    text: AppI18n.t("add.instance_name", [AppI18n.version]);
-                    font-size: 13px * LayoutConstants.font-scale;
-                    font-family: Theme.default_font;
-                    color: Theme.text_secondary;
-                    height: 18px;
-                    horizontal-alignment: AppI18n.is-rtl ? right : left;
-                }
-                CustomLineEdit {
-                    placeholder-text: AppI18n.t("add.placeholder_instance_name", [AppI18n.version]);
-                    text <=> root.new_instance_name;
-                    height: 32px;
-                    enabled: !root.is_installing;
-                    edited(val) => {
-                        if (val != "") {
-                            root.new_instance_path = root.distro_location + "\\" + val;
-                        } else {
-                            root.new_instance_path = root.distro_location;
-                        }
-                    }
-                }
-                if (name_error != ""): Text {
-                    text: name_error;
-                    font-size: 11px * LayoutConstants.font-scale;
-                    font-family: Theme.default_font;
-                    color: #ff4d4f;
-                    height: 16px;
-                    horizontal-alignment: AppI18n.is-rtl ? right : left;
-                }
-            }
-
-            // Installation Directory
-            VerticalLayout {
-                spacing: 0px;
-                Text {
-                    text: AppI18n.t("add.install_dir", [AppI18n.version]);
-                    font-size: 13px * LayoutConstants.font-scale;
-                    font-family: Theme.default_font;
-                    color: Theme.text_secondary;
-                    height: 18px;
-                    horizontal-alignment: AppI18n.is-rtl ? right : left;
-                }
-                Rectangle {
-                    height: 32px;
-                    touch-folder := TouchArea {
-                        mouse-cursor: pointer;
-                        clicked => { root.select_folder(); }
-                    }
-                    HorizontalLayout {
-                        spacing: 8px;
-                        if (!AppI18n.is-rtl): CustomLineEdit {
-                            text <=> root.new_instance_path;
-                            height: 32px;
-                            horizontal-stretch: 1;
-                            enabled: false;
-                            edited(text) => { root.check_install_path(text); }
-                        }
-                        if (AppI18n.is-rtl): CustomButton {
-                            text: AppI18n.t("add.select_folder", [AppI18n.version]);
-                            height: 32px;
-                            width: self.preferred-width;
-                            enabled: !root.is_installing;
-                            clicked => { root.select_folder(); }
-                        }
-                        if (AppI18n.is-rtl): CustomLineEdit {
-                            text <=> root.new_instance_path;
-                            height: 32px;
-                            horizontal-stretch: 1;
-                            enabled: false;
-                            edited(text) => { root.check_install_path(text); }
-                        }
-                        if (!AppI18n.is-rtl): CustomButton {
-                            text: AppI18n.t("add.select_folder", [AppI18n.version]);
-                            height: 32px;
-                            width: self.preferred-width;
-                            enabled: !root.is_installing;
-                            clicked => { root.select_folder(); }
-                        }
-                    }
-                }
-                if (path_error != ""): Text {
-                    text: path_error;
-                    font-size: 11px * LayoutConstants.font-scale;
-                    font-family: Theme.default_font;
-                    color: #ff4d4f;
-                    height: 16px;
-                    horizontal-alignment: AppI18n.is-rtl ? right : left;
-                }
-            }
-
-            // Root Password (Optional)
-            VerticalLayout {
-                spacing: 0px;
-                CustomCheckBox {
-                    text: AppI18n.t("add.set_root_password", [AppI18n.version]);
-                    checked <=> root.set_root_password;
-                    enabled: !root.is_installing;
-                }
-                if (root.set_root_password): VerticalLayout {
-                    spacing: 0px;
-                    Rectangle { height: 4px; }
-                    Text {
-                        text: AppI18n.t("add.root_password", [AppI18n.version]);
-                        font-size: 13px * LayoutConstants.font-scale;
-                        font-family: Theme.default_font;
-                        color: Theme.text_secondary;
-                        height: 18px;
-                        horizontal-alignment: AppI18n.is-rtl ? right : left;
-                    }
-                    CustomLineEdit {
-                        placeholder-text: AppI18n.t("add.root_password_placeholder", [AppI18n.version]);
-                        text <=> root.root_password;
-                        height: 32px;
-                        enabled: !root.is_installing;
-                        input-type: password;
-                    }
-                }
-            }
-
-            // New User (Optional)
-            VerticalLayout {
-                spacing: 0px;
-                CustomCheckBox {
-                    text: AppI18n.t("add.add_new_user", [AppI18n.version]);
-                    checked <=> root.add_new_user;
-                    enabled: !root.is_installing;
-                }
-                if (root.add_new_user): VerticalLayout {
-                    Rectangle { height: 8px; }
-                    Text {
-                        text: AppI18n.t("add.new_username", [AppI18n.version]);
-                        font-size: 13px * LayoutConstants.font-scale;
-                        font-family: Theme.default_font;
-                        color: Theme.text_secondary;
-                        height: 18px;
-                        horizontal-alignment: AppI18n.is-rtl ? right : left;
-                    }
-                    CustomLineEdit {
-                        placeholder-text: AppI18n.t("add.new_username_placeholder", [AppI18n.version]);
-                        text <=> root.new_username;
-                        height: 32px;
-                        enabled: !root.is_installing;
-                        edited(val) => { root.check_new_username(val); }
-                    }
-
-                    Rectangle { height: 8px; }
-                    Text {
-                        text: AppI18n.t("add.new_user_password", [AppI18n.version]);
-                        font-size: 13px * LayoutConstants.font-scale;
-                        font-family: Theme.default_font;
-                        color: Theme.text_secondary;
-                        height: 18px;
-                        horizontal-alignment: AppI18n.is-rtl ? right : left;
-                    }
-                    CustomLineEdit {
-                        placeholder-text: AppI18n.t("add.new_user_password_placeholder", [AppI18n.version]);
-                        text <=> root.new_user_password;
-                        height: 32px;
-                        enabled: !root.is_installing;
-                        input-type: password;
-                    }
-                    Rectangle { height: 4px; }
-                    if (root.new_username_is_numeric): Text {
-                        text: AppI18n.t("add.username_pure_numeric_warning", [AppI18n.version]);
-                        font-size: 11px * LayoutConstants.font-scale;
-                        font-family: Theme.default_font;
-                        color: #ff0000;
-                        wrap: word-wrap;
-                        horizontal-alignment: AppI18n.is-rtl ? right : left;
-                    }
-                    if (!root.new_username_is_numeric && root.new_username != ""): CustomCheckBox {
-                        text: AppI18n.t("add.set_default_user", [AppI18n.version]);
-                        checked <=> root.set_default_user;
-                        enabled: !root.is_installing;
-                    }
-                }
-            }
-
-            Rectangle { height: 8px; }
-
-            // Create button
-            CustomButton {
-                text: root.is_installing ? AppI18n.t("add.installing", [AppI18n.version]) : AppI18n.t("add.create", [AppI18n.version]);
-                enabled: !root.is_installing && root.new_instance_name != "" && path_error == "" && (root.selected_source_idx == 2 ? root.selected_install_distro != "" : root.selected_source_idx == 3 ? root.selected_url_distro_idx >= 0 : root.install_file_path != "") && (!root.set_root_password || root.root_password != "") && (!root.add_new_user || (root.new_username != "" && root.new_user_password != ""));
-                primary: true;
-                height: 36px;
-                clicked => {
-                    if (root.selected_source_idx == 2 || root.selected_source_idx == 3) {
-                        root.show_install_warn_dialog = true;
-                    } else {
-                        root.install_distro(root.selected_source_idx, root.new_instance_name, root.selected_install_distro, root.new_instance_path, root.install_file_path);
-                    }
-                }
-            }
-
-            // Status
-            if (root.install_status != ""): Text {
-                text: root.install_status;
-                color: root.install_success ? #4CAF50 : Theme.accent;
-                font-size: 12px * LayoutConstants.font-scale;
-                font-family: Theme.default_font;
-                wrap: word-wrap;
-                horizontal-alignment: AppI18n.is-rtl ? right : left;
-            }
-
-            // Terminal output
-            if (terminal_output != ""): VerticalLayout {
-                term-rect := Rectangle {
-                    height: 130px;
-                    background: Theme.dark_mode ? #1e1e1e : #f5f5f5;
-                    border-radius: 4px;
-                    border-width: 1px;
-                    border-color: Theme.border_color;
-                    clip: true;    
-                    term-flick := Flickable {
-                        VerticalLayout {
-                            padding-left: 8px;
-                            padding-right: 8px;
-                            padding-top: 4px;
-                            padding-bottom: 4px;
-                            Text {
-                                text: terminal_output;
-                                font-family: Theme.default_font;
-                                font-size: 11px * LayoutConstants.font-scale;
-                                color: Theme.text_primary;
-                                wrap: word-wrap;
-                                horizontal-alignment: AppI18n.is-rtl ? right : left;
+                            selected(idx) => {
+                                root.install_file_path = "";
+                                root.new_instance_name = "";
+                                root.new_instance_path = root.distro_location;
+                                root.selected_install_distro = "";
+                                root.source_selected(root.selected_source_idx);
                             }
                         }
                     }
-                    term_scroll_timer := Timer {
-                        interval: 100ms;
-                        running: root.is_installing;
-                        triggered => {
-                            term-flick.viewport-y = term-flick.height - term-flick.viewport-height;
+
+                    // Dynamic rendering
+                    if (root.selected_source_idx == 2): VerticalLayout {
+                        z: 90;
+                        spacing: 0px;
+                        Text {
+                            text: AppI18n.t("add.select_distro", [AppI18n.version]);
+                            font-size: 13px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            color: Theme.text_secondary;
+                            height: 18px;
+                            horizontal-alignment: AppI18n.is-rtl ? right : left;
                         }
+
+                        CustomComboBox {
+                            model: root.installable_distro_names;
+                            current-index: 0;
+                            height: 32px;
+                            enabled: !root.is_installing;
+                            selected(idx) => {
+                                root.selected_install_distro = root.installable_distro_names[idx];
+                                root.distro_selected(root.selected_install_distro);
+                            }
+                        }
+                    }
+                    if (root.selected_source_idx == 3): VerticalLayout {
+                        z: 90;
+                        spacing: 0px;
+                        // URL Source selector
+                        Text {
+                            text: AppI18n.t("add.url.select_source_url", [AppI18n.version]);
+                            font-size: 13px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            color: Theme.text_secondary;
+                            height: 18px;
+                            horizontal-alignment: AppI18n.is-rtl ? right : left;
+                        }
+
+                        CustomComboBox {
+                            model: root.install_url_sources;
+                            current-index <=> root.selected_install_url_idx;
+                            height: 32px;
+                            enabled: !root.is_installing;
+                            selected(idx) => {
+                                if (idx != 2 || root.is_local_url(root.custom_install_url)) {
+                                    root.fetch_url_distros();
+                                }
+                            }
+                        }
+                        // Custom URL input (only when Custom selected)
+                        if (root.selected_install_url_idx == 2): VerticalLayout {
+                            spacing: 0px;
+                            Rectangle {
+                                height: 4px;
+                            }
+
+                            Text {
+                                text: AppI18n.t("add.url.custom_url", [AppI18n.version]);
+                                font-size: 13px * LayoutConstants.font-scale;
+                                font-family: Theme.default_font;
+                                color: Theme.text_secondary;
+                                height: 18px;
+                                horizontal-alignment: AppI18n.is-rtl ? right : left;
+                            }
+
+                            HorizontalLayout {
+                                spacing: 4px;
+                                CustomLineEdit {
+                                    placeholder-text: AppI18n.t("add.url.custom_placeholder", [AppI18n.version]);
+                                    text <=> root.custom_install_url;
+                                    height: 32px;
+                                    horizontal-stretch: 1;
+                                    enabled: !root.is_installing;
+                                }
+
+                                if (!AppI18n.is-rtl): CustomButton {
+                                    text: AppI18n.t("add.url.browse", [AppI18n.version]);
+                                    height: 32px;
+                                    width: self.preferred-width;
+                                    enabled: !root.is_installing;
+                                    clicked => {
+                                        root.select_install_file(3);
+                                    }
+                                }
+                            }
+                            // RTL layout
+                            if (AppI18n.is-rtl): HorizontalLayout {
+                                spacing: 4px;
+                                CustomButton {
+                                    text: AppI18n.t("add.url.browse", [AppI18n.version]);
+                                    height: 32px;
+                                    width: self.preferred-width;
+                                    enabled: !root.is_installing;
+                                    clicked => {
+                                        root.select_install_file(3);
+                                    }
+                                }
+
+                                CustomLineEdit {
+                                    placeholder-text: AppI18n.t("add.url.custom_placeholder", [AppI18n.version]);
+                                    text <=> root.custom_install_url;
+                                    height: 32px;
+                                    horizontal-stretch: 1;
+                                    enabled: !root.is_installing;
+                                }
+                            }
+                        }
+                        Rectangle {
+                            height: 4px;
+                        }
+                        // Fetch button
+                        CustomButton {
+                            text: root.is_fetching_url_distros ? AppI18n.t("add.url.fetching", [AppI18n.version]) : AppI18n.t("add.url.fetch", [AppI18n.version]);
+                            height: 32px;
+                            width: self.preferred-width;
+                            enabled: !root.is_installing && !root.is_fetching_url_distros;
+                            clicked => {
+                                root.fetch_url_distros();
+                            }
+                        }
+
+                        Rectangle {
+                            height: 4px;
+                        }
+                        // Distro list from URL
+                        Text {
+                            text: AppI18n.t("add.url.select_distro", [AppI18n.version]) + " (" + root.host_arch + ")";
+                            font-size: 13px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            color: Theme.text_secondary;
+                            height: 18px;
+                            horizontal-alignment: AppI18n.is-rtl ? right : left;
+                        }
+
+                        CustomComboBox {
+                            model: root.url_distro_names;
+                            current-index <=> root.selected_url_distro_idx;
+                            height: 32px;
+                            enabled: !root.is_installing && root.url_distro_names.length > 0;
+                            selected(idx) => {
+                                if (idx >= 0 && idx < root.url_distro_list.length) {
+                                    root.selected_install_distro = root.url_distro_list[idx].friendly_name;
+                                    root.new_instance_name = root.url_distro_list[idx].name;
+                                    let base = root.distro_location;
+                                    root.new_instance_path = base + "\\" + root.new_instance_name;
+                                    root.url_distro_selected(root.url_distro_list[idx].name);
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            height: 4px;
+                        }
+                        // Download threads
+                        Text {
+                            text: AppI18n.t("add.url.download_threads", [AppI18n.version]);
+                            font-size: 13px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            color: Theme.text_secondary;
+                            height: 18px;
+                            horizontal-alignment: AppI18n.is-rtl ? right : left;
+                        }
+
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Rectangle {
+                                width: 32px;
+                                height: 32px;
+                                border-radius: 4px;
+                                background: root.download_threads > 1 && !root.is_installing ? (ta-dec.has-hover ? Theme.hover_bg : Theme.input_bg) : Theme.input_bg;
+                                border-width: 1px;
+                                border-color: Theme.input_border;
+                                opacity: root.download_threads > 1 && !root.is_installing ? 1.0 : 0.6;
+                                ta-dec := TouchArea {
+                                    enabled: root.download_threads > 1 && !root.is_installing;
+                                    clicked => {
+                                        root.download_threads = Math.max(1, root.download_threads - 1);
+                                    }
+                                }
+
+                                Text {
+                                    text: "-";
+                                    font-size: 16px * LayoutConstants.font-scale;
+                                    font-family: Theme.default_font;
+                                    color: Theme.text_primary;
+                                    vertical-alignment: center;
+                                    horizontal-alignment: center;
+                                    width: 100%;
+                                    height: 100%;
+                                }
+                            }
+
+                            Rectangle {
+                                width: 40px;
+                                height: 32px;
+                                background: Theme.input_bg;
+                                border-radius: 4px;
+                                border-width: 1px;
+                                border-color: Theme.input_border;
+                                Text {
+                                    text: root.download_threads;
+                                    font-size: 13px * LayoutConstants.font-scale;
+                                    font-family: Theme.default_font;
+                                    color: Theme.text_primary;
+                                    vertical-alignment: center;
+                                    horizontal-alignment: center;
+                                    width: 100%;
+                                    height: 100%;
+                                }
+                            }
+
+                            Rectangle {
+                                width: 32px;
+                                height: 32px;
+                                border-radius: 4px;
+                                background: root.download_threads < 8 && !root.is_installing ? (ta-inc.has-hover ? Theme.hover_bg : Theme.input_bg) : Theme.input_bg;
+                                border-width: 1px;
+                                border-color: Theme.input_border;
+                                opacity: root.download_threads < 8 && !root.is_installing ? 1.0 : 0.6;
+                                ta-inc := TouchArea {
+                                    enabled: root.download_threads < 8 && !root.is_installing;
+                                    clicked => {
+                                        root.download_threads = Math.min(8, root.download_threads + 1);
+                                    }
+                                }
+
+                                Text {
+                                    text: "+";
+                                    font-size: 16px * LayoutConstants.font-scale;
+                                    font-family: Theme.default_font;
+                                    color: Theme.text_primary;
+                                    vertical-alignment: center;
+                                    horizontal-alignment: center;
+                                    width: 100%;
+                                    height: 100%;
+                                }
+                            }
+                        }
+                    }
+                    if (root.selected_source_idx != 2 && root.selected_source_idx != 3): VerticalLayout {
+                        spacing: 0px;
+                        HorizontalLayout {
+                            spacing: 4px;
+                            alignment: AppI18n.is-rtl ? end : start;
+                            if (!AppI18n.is-rtl): Rectangle {
+                                horizontal-stretch: 1;
+                                min-width: 0;
+                                Text {
+                                    text: root.selected_source_idx == 0 ? AppI18n.t("add.select_rootfs", [AppI18n.version]) : AppI18n.t("add.select_vhdx", [AppI18n.version]);
+                                    font-size: 13px * LayoutConstants.font-scale;
+                                    font-family: Theme.default_font;
+                                    color: Theme.text_secondary;
+                                    height: 18px;
+                                    overflow: elide;
+                                    min-width: 0;
+                                }
+                            }
+                            if (AppI18n.is-rtl): Rectangle {
+                                width: 16px;
+                                height: 16px;
+                                Text {
+                                    text: "\u{E897}";
+                                    font-family: Theme.icon_font;
+                                    font-size: 12px * LayoutConstants.font-scale;
+                                    color: ta-help-rtl.has-hover ? Theme.accent : Theme.text_secondary;
+                                    vertical-alignment: center;
+                                    horizontal-alignment: center;
+                                }
+
+                                ta-help-rtl := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        root.show_rootfs_help_clicked();
+                                    }
+                                }
+                            }
+                            if (AppI18n.is-rtl): Rectangle {
+                                horizontal-stretch: 1;
+                                min-width: 0;
+                                Text {
+                                    text: root.selected_source_idx == 0 ? AppI18n.t("add.select_rootfs", [AppI18n.version]) : AppI18n.t("add.select_vhdx", [AppI18n.version]);
+                                    font-size: 13px * LayoutConstants.font-scale;
+                                    font-family: Theme.default_font;
+                                    color: Theme.text_secondary;
+                                    height: 18px;
+                                    overflow: elide;
+                                    min-width: 0;
+                                }
+                            }
+                            if (root.selected_source_idx == 0 && !AppI18n.is-rtl): Rectangle {
+                                width: 16px;
+                                height: 18px;
+                                Text {
+                                    text: "\u{E897}";
+                                    font-family: Theme.icon_font;
+                                    font-size: 12px * LayoutConstants.font-scale;
+                                    color: ta-help.has-hover ? Theme.accent : Theme.text_secondary;
+                                    vertical-alignment: center;
+                                    horizontal-alignment: center;
+                                }
+
+                                ta-help := TouchArea {
+                                    mouse-cursor: pointer;
+                                    clicked => {
+                                        root.show_rootfs_help_clicked();
+                                    }
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            height: 32px;
+                            touch-file := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    root.select_install_file(root.selected_source_idx);
+                                }
+                            }
+
+                            HorizontalLayout {
+                                spacing: 8px;
+                                if (!AppI18n.is-rtl): CustomLineEdit {
+                                    placeholder-text: AppI18n.t("add.no_file", [AppI18n.version]);
+                                    text <=> root.install_file_path;
+                                    height: 32px;
+                                    horizontal-stretch: 1;
+                                    enabled: false;
+                                }
+                                if (AppI18n.is-rtl): CustomButton {
+                                    text: AppI18n.t("add.select_file", [AppI18n.version]);
+                                    height: 32px;
+                                    width: self.preferred-width;
+                                    enabled: !root.is_installing;
+                                    clicked => {
+                                        root.select_install_file(root.selected_source_idx);
+                                    }
+                                }
+                                if (AppI18n.is-rtl): CustomLineEdit {
+                                    placeholder-text: AppI18n.t("add.no_file", [AppI18n.version]);
+                                    text <=> root.install_file_path;
+                                    height: 32px;
+                                    horizontal-stretch: 1;
+                                    enabled: false;
+                                }
+                                if (!AppI18n.is-rtl): CustomButton {
+                                    text: AppI18n.t("add.select_file", [AppI18n.version]);
+                                    height: 32px;
+                                    width: self.preferred-width;
+                                    enabled: !root.is_installing;
+                                    clicked => {
+                                        root.select_install_file(root.selected_source_idx);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    VerticalLayout {
+                        spacing: 0px;
+                        Text {
+                            text: AppI18n.t("add.instance_name", [AppI18n.version]);
+                            font-size: 13px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            color: Theme.text_secondary;
+                            height: 18px;
+                            horizontal-alignment: AppI18n.is-rtl ? right : left;
+                        }
+
+                        CustomLineEdit {
+                            placeholder-text: AppI18n.t("add.placeholder_instance_name", [AppI18n.version]);
+                            text <=> root.new_instance_name;
+                            height: 32px;
+                            enabled: !root.is_installing;
+                            edited(val) => {
+                                if (val != "") {
+                                    root.new_instance_path = root.distro_location + "\\" + val;
+                                } else {
+                                    root.new_instance_path = root.distro_location;
+                                }
+                            }
+                        }
+
+                        if (name_error != ""): Text {
+                            text: name_error;
+                            font-size: 11px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            color: #ff4d4f;
+                            height: 16px;
+                            horizontal-alignment: AppI18n.is-rtl ? right : left;
+                        }
+                    }
+
+                    // Installation Directory
+                    VerticalLayout {
+                        spacing: 0px;
+                        Text {
+                            text: AppI18n.t("add.install_dir", [AppI18n.version]);
+                            font-size: 13px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            color: Theme.text_secondary;
+                            height: 18px;
+                            horizontal-alignment: AppI18n.is-rtl ? right : left;
+                        }
+
+                        Rectangle {
+                            height: 32px;
+                            touch-folder := TouchArea {
+                                mouse-cursor: pointer;
+                                clicked => {
+                                    root.select_folder();
+                                }
+                            }
+
+                            HorizontalLayout {
+                                spacing: 8px;
+                                if (!AppI18n.is-rtl): CustomLineEdit {
+                                    text <=> root.new_instance_path;
+                                    height: 32px;
+                                    horizontal-stretch: 1;
+                                    enabled: false;
+                                    edited(text) => {
+                                        root.check_install_path(text);
+                                    }
+                                }
+                                if (AppI18n.is-rtl): CustomButton {
+                                    text: AppI18n.t("add.select_folder", [AppI18n.version]);
+                                    height: 32px;
+                                    width: self.preferred-width;
+                                    enabled: !root.is_installing;
+                                    clicked => {
+                                        root.select_folder();
+                                    }
+                                }
+                                if (AppI18n.is-rtl): CustomLineEdit {
+                                    text <=> root.new_instance_path;
+                                    height: 32px;
+                                    horizontal-stretch: 1;
+                                    enabled: false;
+                                    edited(text) => {
+                                        root.check_install_path(text);
+                                    }
+                                }
+                                if (!AppI18n.is-rtl): CustomButton {
+                                    text: AppI18n.t("add.select_folder", [AppI18n.version]);
+                                    height: 32px;
+                                    width: self.preferred-width;
+                                    enabled: !root.is_installing;
+                                    clicked => {
+                                        root.select_folder();
+                                    }
+                                }
+                            }
+                        }
+
+                        if (path_error != ""): Text {
+                            text: path_error;
+                            font-size: 11px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            color: #ff4d4f;
+                            height: 16px;
+                            horizontal-alignment: AppI18n.is-rtl ? right : left;
+                        }
+                    }
+
+                    // Root Password (Optional)
+                    VerticalLayout {
+                        spacing: 0px;
+                        CustomCheckBox {
+                            text: AppI18n.t("add.set_root_password", [AppI18n.version]);
+                            checked <=> root.set_root_password;
+                            enabled: !root.is_installing;
+                        }
+
+                        if (root.set_root_password): VerticalLayout {
+                            spacing: 0px;
+                            Rectangle {
+                                height: 4px;
+                            }
+
+                            Text {
+                                text: AppI18n.t("add.root_password", [AppI18n.version]);
+                                font-size: 13px * LayoutConstants.font-scale;
+                                font-family: Theme.default_font;
+                                color: Theme.text_secondary;
+                                height: 18px;
+                                horizontal-alignment: AppI18n.is-rtl ? right : left;
+                            }
+
+                            CustomLineEdit {
+                                placeholder-text: AppI18n.t("add.root_password_placeholder", [AppI18n.version]);
+                                text <=> root.root_password;
+                                height: 32px;
+                                enabled: !root.is_installing;
+                                input-type: password;
+                            }
+                        }
+                    }
+
+                    // New User (Optional)
+                    VerticalLayout {
+                        spacing: 0px;
+                        CustomCheckBox {
+                            text: AppI18n.t("add.add_new_user", [AppI18n.version]);
+                            checked <=> root.add_new_user;
+                            enabled: !root.is_installing;
+                        }
+
+                        if (root.add_new_user): VerticalLayout {
+                            Rectangle {
+                                height: 8px;
+                            }
+
+                            Text {
+                                text: AppI18n.t("add.new_username", [AppI18n.version]);
+                                font-size: 13px * LayoutConstants.font-scale;
+                                font-family: Theme.default_font;
+                                color: Theme.text_secondary;
+                                height: 18px;
+                                horizontal-alignment: AppI18n.is-rtl ? right : left;
+                            }
+
+                            CustomLineEdit {
+                                placeholder-text: AppI18n.t("add.new_username_placeholder", [AppI18n.version]);
+                                text <=> root.new_username;
+                                height: 32px;
+                                enabled: !root.is_installing;
+                                edited(val) => {
+                                    root.check_new_username(val);
+                                }
+                            }
+
+                            Rectangle {
+                                height: 8px;
+                            }
+
+                            Text {
+                                text: AppI18n.t("add.new_user_password", [AppI18n.version]);
+                                font-size: 13px * LayoutConstants.font-scale;
+                                font-family: Theme.default_font;
+                                color: Theme.text_secondary;
+                                height: 18px;
+                                horizontal-alignment: AppI18n.is-rtl ? right : left;
+                            }
+
+                            CustomLineEdit {
+                                placeholder-text: AppI18n.t("add.new_user_password_placeholder", [AppI18n.version]);
+                                text <=> root.new_user_password;
+                                height: 32px;
+                                enabled: !root.is_installing;
+                                input-type: password;
+                            }
+
+                            Rectangle {
+                                height: 4px;
+                            }
+
+                            if (root.new_username_is_numeric): Text {
+                                text: AppI18n.t("add.username_pure_numeric_warning", [AppI18n.version]);
+                                font-size: 11px * LayoutConstants.font-scale;
+                                font-family: Theme.default_font;
+                                color: #ff0000;
+                                wrap: word-wrap;
+                                horizontal-alignment: AppI18n.is-rtl ? right : left;
+                            }
+                            if (!root.new_username_is_numeric && root.new_username != ""): CustomCheckBox {
+                                text: AppI18n.t("add.set_default_user", [AppI18n.version]);
+                                checked <=> root.set_default_user;
+                                enabled: !root.is_installing;
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        height: 8px;
+                    }
+
+                    // Create button
+                    CustomButton {
+                        text: root.is_installing ? AppI18n.t("add.installing", [AppI18n.version]) : AppI18n.t("add.create", [AppI18n.version]);
+                        enabled: !root.is_installing && root.new_instance_name != "" && path_error == "" && (root.selected_source_idx == 2 ? root.selected_install_distro != "" : root.selected_source_idx == 3 ? root.selected_url_distro_idx >= 0 : root.install_file_path != "") && (!root.set_root_password || root.root_password != "") && (!root.add_new_user || (root.new_username != "" && root.new_user_password != ""));
+                        primary: true;
+                        height: 36px;
+                        clicked => {
+                            if (root.selected_source_idx == 2 || root.selected_source_idx == 3) {
+                                root.show_install_warn_dialog = true;
+                            } else {
+                                root.install_distro(root.selected_source_idx, root.new_instance_name, root.selected_install_distro, root.new_instance_path, root.install_file_path);
+                            }
+                        }
+                    }
+
+                    // Status
+                    if (root.install_status != ""): Text {
+                        text: root.install_status;
+                        color: root.install_success ? #4CAF50 : Theme.accent;
+                        font-size: 12px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        wrap: word-wrap;
+                        horizontal-alignment: AppI18n.is-rtl ? right : left;
+                    }
+
+                    // Terminal output
+                    if (terminal_output != ""): VerticalLayout {
+                        term-rect := Rectangle {
+                            height: 130px;
+                            background: Theme.dark_mode ? #1e1e1e : #f5f5f5;
+                            border-radius: 4px;
+                            border-width: 1px;
+                            border-color: Theme.border_color;
+                            clip: true;
+                            term-flick := Flickable {
+                                VerticalLayout {
+                                    padding-left: 8px;
+                                    padding-right: 8px;
+                                    padding-top: 4px;
+                                    padding-bottom: 4px;
+                                    Text {
+                                        text: terminal_output;
+                                        font-family: Theme.default_font;
+                                        font-size: 11px * LayoutConstants.font-scale;
+                                        color: Theme.text_primary;
+                                        wrap: word-wrap;
+                                        horizontal-alignment: AppI18n.is-rtl ? right : left;
+                                    }
+                                }
+                            }
+
+                            term_scroll_timer := Timer {
+                                interval: 100ms;
+                                running: root.is_installing;
+                                triggered => {
+                                    term-flick.viewport-y = term-flick.height - term-flick.viewport-height;
+                                }
+                            }
+                        }
+                    }
+
+                    // Loading bar
+                    if (root.is_installing && terminal_output == ""): Rectangle {
+                        height: 4px;
+                        background: Theme.hover_bg;
+                        Rectangle {
+                            width: parent.width * 0.3;
+                            height: parent.height;
+                            background: Theme.accent;
+                            x: (parent.width - self.width) * (Math.mod(animation-tick(), 1s) / 1s);
+                        }
+                    }
+
+                    // Note
+                    Text {
+                        text: AppI18n.t("add.note", [AppI18n.version]);
+                        font-size: 11px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        color: Theme.text_secondary;
+                        wrap: word-wrap;
+                        horizontal-alignment: AppI18n.is-rtl ? right : left;
                     }
                 }
             }
+        }
+    }
 
-            // Loading bar
-            if (root.is_installing && terminal_output == ""): Rectangle {
-                height: 4px;
-                background: Theme.hover_bg;
-                Rectangle {
-                    width: parent.width * 0.3;
-                    height: parent.height;
-                    background: Theme.accent;
-                    x: (parent.width - self.width) * (Math.mod(animation-tick(), 1s) / 1s);
-                }
-            }
-
-            // Note
-            Text {
-                text: AppI18n.t("add.note", [AppI18n.version]);
-                font-size: 11px * LayoutConstants.font-scale;
-                font-family: Theme.default_font;
-                color: Theme.text_secondary;
-                wrap: word-wrap;
-                horizontal-alignment: AppI18n.is-rtl ? right : left;
-            }
+    if (outer-flick.viewport-height > outer-flick.height): CustomScrollbar {
+        x: AppI18n.is-rtl ? 2px : parent.width - 8px;
+        y: 0;
+        width: 8px;
+        height: 100%;
+        maximum: outer-flick.viewport-height - outer-flick.height;
+        page_size: outer-flick.height;
+        value: -outer-flick.viewport-y;
+        scroll_to(v) => {
+            outer-flick.viewport-y = -v;
         }
     }
 }

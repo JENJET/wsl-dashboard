@@ -135,7 +135,9 @@ pub async fn get_distro_information(
                 };
                 let disk_info = get_disk_space(&drive_root);
                 let total_gb = disk_info.total_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
+                let free_gb = disk_info.unused_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
                 information.drive_total = format!("{:.2} GB", total_gb);
+                information.drive_free = format!("{:.2} GB", free_gb);
             }
             if information.vhdx_path.is_empty() {
                 information.wsl_version = "WSL1".to_string();

@@ -132,4 +132,33 @@ impl WslCommandExecutor {
     pub async fn get_distro_install_location(&self, distro_name: &str) -> WslCommandResult<String> {
         crate::wsl::ops::info::get_distro_install_location(self, distro_name).await
     }
+
+    // List physical disks on the system
+    pub async fn list_physical_disks(
+        &self,
+    ) -> WslCommandResult<Vec<crate::wsl::models::PhysicalDisk>> {
+        crate::wsl::ops::disk_mount::list_physical_disks().await
+    }
+
+    // Mount a disk into WSL2
+    pub async fn mount_disk(
+        &self,
+        disk: &str,
+        is_vhd: bool,
+        is_bare: bool,
+        name: &str,
+        fs_type: &str,
+        partition: &str,
+        options: &str,
+    ) -> WslCommandResult<String> {
+        crate::wsl::ops::disk_mount::mount_disk(
+            self, disk, is_vhd, is_bare, name, fs_type, partition, options,
+        )
+        .await
+    }
+
+    // Unmount a disk from WSL2
+    pub async fn unmount_disk(&self, disk: &str) -> WslCommandResult<String> {
+        crate::wsl::ops::disk_mount::unmount_disk(self, disk).await
+    }
 }
