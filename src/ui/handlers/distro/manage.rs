@@ -63,6 +63,11 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 {
                     crate::ui::handlers::resolve_and_open_terminal(&as_ptr, &name, &ah).await;
                 }
+                let n = name.to_string();
+                let m = manager.clone();
+                tokio::spawn(async move {
+                    super::maybe_setup_fstrim(m.executor(), &n).await;
+                });
                 refresh_distros_ui(ah, as_ptr).await;
             });
         });
@@ -186,6 +191,11 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     };
 
                     let _ = executor.open_distro_vscode(&name, &working_dir).await;
+                    let n = name.to_string();
+                    let m = manager.clone();
+                    tokio::spawn(async move {
+                        super::maybe_setup_fstrim(m.executor(), &n).await;
+                    });
                     refresh_distros_ui(ah, as_ptr).await;
 
                     slint::Timer::single_shot(std::time::Duration::from_secs(6), move || {
@@ -1142,16 +1152,23 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
             };
 
             tokio::spawn(async move {
-                let executor = {
+                let (executor, dashboard) = {
                     let state = as_ptr.lock().await;
-                    state.wsl_dashboard.executor().clone()
+                    (
+                        state.wsl_dashboard.executor().clone(),
+                        state.wsl_dashboard.clone(),
+                    )
                 };
+
                 let result =
                     crate::wsl::ops::vhdx::set_sparse_file(&executor, &distro_name, true).await;
 
                 match result {
                     Ok(()) => {
-                        let msg = i18n::tr("dialog.vhdx_set_sparse_success", &[distro_name]);
+                        super::maybe_setup_fstrim(&executor, &distro_name).await;
+                        dashboard.stop_distro(&distro_name).await;
+                        let msg =
+                            i18n::tr("dialog.vhdx_set_sparse_success", &[distro_name.clone()]);
                         let ah3 = ah.clone();
                         let _ = slint::invoke_from_event_loop(move || {
                             if let Some(app) = ah3.upgrade() {

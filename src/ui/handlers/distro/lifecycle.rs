@@ -38,7 +38,14 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     }
                 });
 
-                manager.start_distro(&name).await;
+                let result = manager.start_distro(&name).await;
+                if result.success {
+                    let n = name.to_string();
+                    let d = manager.clone();
+                    tokio::spawn(async move {
+                        super::maybe_setup_fstrim(d.executor(), &n).await;
+                    });
+                }
                 let ah_res = ah.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(app) = ah_res.upgrade() {

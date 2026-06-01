@@ -123,6 +123,35 @@ pub fn spawn_file_size_monitor(
     done_signal
 }
 
+/// Check if distro has sparse VHDX and set up periodic fstrim if not already done.
+/// Runs once immediately after setup.
+pub async fn maybe_setup_fstrim(
+    executor: &crate::wsl::executor::WslCommandExecutor,
+    distro_name: &str,
+) {
+    let info = executor.get_distro_information(distro_name).await;
+    if let Some(data) = info.data {
+        if data.vhdx_is_sparse {
+            tracing::info!(
+                "Distro '{}' has sparse VHDX, adding periodic fstrim",
+                distro_name
+            );
+            let cmd = "command -v crontab >/dev/null 2>&1 && crontab -l 2>/dev/null | grep -q 'fstrim' || (crontab -l 2>/dev/null; echo '*/10 * * * * fstrim -av') | crontab -";
+            let r = executor
+                .execute_command(&["-d", distro_name, "-u", "root", "--", "sh", "-c", cmd])
+                .await;
+            if r.success {
+                tracing::info!("fstrim cron added for '{}'", distro_name);
+            } else {
+                tracing::warn!("fstrim cron failed for '{}': {:?}", distro_name, r.error);
+            }
+            executor
+                .execute_command(&["-d", distro_name, "-u", "root", "--", "fstrim", "-av"])
+                .await;
+        }
+    }
+}
+
 pub async fn resolve_temp_path(
     as_ptr: Arc<Mutex<AppState>>,
     distro_name: &str,
