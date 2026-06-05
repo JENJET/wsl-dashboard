@@ -4,13 +4,14 @@ import {
     WslManageStrings,
     LayoutConstants,
 } from "../theme.slint";
-import { CustomButton, CustomCheckBox, CustomComboBox, CustomLineEdit } from "../components/form_widgets.slint";
+import { CustomButton, CustomCheckBox, CustomComboBox, CustomLineEdit, ToggleButton } from "../components/form_widgets.slint";
 import { CustomScrollbar } from "../components/scrollbar.slint";
+import { EmptyState } from "../components/common.slint";
 
 // Status badge component
 component StatusBadge inherits Rectangle {
     in property <string> text: "";
-    in property <color> bg-color: #10b981;
+    in property <color> bg-color: Theme.status_success;
     height: 24px;
     border-radius: 12px;
     background: root.bg-color.with-alpha(20%);
@@ -21,12 +22,11 @@ component StatusBadge inherits Rectangle {
         height: 100%;
         alignment: center;
         // Dot indicator
-        Rectangle {
-            width: 6px;
-            height: 6px;
-            border-radius: 3px;
-            background: root.bg-color;
-            y: (24px - 6px) / 2;
+        Text {
+            text: "\u{25CF}";
+            font-size: 10px;
+            color: root.bg-color;
+            vertical-alignment: center;
         }
         Text {
             text: root.text;
@@ -43,7 +43,7 @@ component StatusBadge inherits Rectangle {
 component CodeBlock inherits Rectangle {
     in property <string> text: "";
     min-width: 0;
-    background: Theme.dark_mode ? #1e1e2e : #f6f8fa;
+    background: Theme.code_bg;
     border-radius: 6px;
     border-width: 1px;
     border-color: Theme.border_color;
@@ -58,11 +58,146 @@ component CodeBlock inherits Rectangle {
             min-width: 0;
             text: root.text;
             font-size: 12.5px * LayoutConstants.font-scale;
-            font-family: Theme.default_font;
-            color: Theme.dark_mode ? #cdd6f4 : #24292f;
+            font-family: Theme.mono_font;
+            color: Theme.code_fg;
             horizontal-alignment: AppI18n.is-rtl ? right : left;
         }
     }
+}
+
+// Action pill button (icon + text in one row, color-tinted)
+component ActionPill inherits Rectangle {
+    in property <string> icon: "";
+    in property <string> text: "";
+    in property <color> accent-color: Theme.accent;
+    callback clicked;
+    height: 32px;
+    border-radius: 4px;
+    background: touch.has-hover ? accent-color.with-alpha(15%) : accent-color.with-alpha(8%);
+    border-width: 1px;
+    border-color: accent-color.with-alpha(25%);
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        spacing: 6px;
+        alignment: center;
+        Text {
+            text: root.icon;
+            font-family: Theme.icon_font;
+            font-size: 14px;
+            color: root.accent-color;
+            vertical-alignment: center;
+            horizontal-alignment: center;
+        }
+        Text {
+            text: root.text;
+            font-size: 13px * LayoutConstants.font-scale;
+            font-family: Theme.default_font;
+            font-weight: 500;
+            color: root.accent-color;
+            vertical-alignment: center;
+            horizontal-alignment: center;
+        }
+    }
+    touch := TouchArea {
+        clicked => { root.clicked(); }
+    }
+}
+
+// One-row action layout: icon + title/description on left, button on right
+component ActionRow inherits Rectangle {
+    in property <string> icon: "";
+    in property <string> title: "";
+    in property <string> description: "";
+    in property <string> button-text: "";
+    in property <string> button-style: "default";   // "default" | "primary" | "danger"
+    in property <bool> show-shield: false;
+    in property <bool> enabled: true;
+    callback clicked;
+    height: 72px;
+    HorizontalLayout {
+        padding-left: 0px;
+        padding-right: 0px;
+        spacing: 12px;
+
+        // Left: icon + text
+        HorizontalLayout {
+            spacing: 12px;
+            horizontal-stretch: 1;
+            alignment: AppI18n.is-rtl ? end : start;
+
+            // Vertical centering
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: AppI18n.is-rtl ? end : start;
+
+                    // Icon
+                    Rectangle {
+                        width: 36px;
+                        height: 36px;
+                        border-radius: 6px;
+                        background: Theme.surface_subtle;
+                        Text {
+                            text: root.icon;
+                            font-family: Theme.icon_font;
+                            font-size: 16px;
+                            color: root.button-style == "danger" ? Theme.status_danger : (root.button-style == "primary" ? Theme.accent : Theme.text_secondary);
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
+                    // Title + description
+                    VerticalLayout {
+                        spacing: 4px;
+                        horizontal-stretch: 1;
+                        Text {
+                            text: root.title;
+                            font-size: 14px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            font-weight: 500;
+                            color: Theme.text_primary;
+                            horizontal-alignment: AppI18n.is-rtl ? right : left;
+                            overflow: elide;
+                        }
+                        Text {
+                            text: root.description;
+                            font-size: 12px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            color: Theme.text_secondary;
+                            wrap: word-wrap;
+                            horizontal-alignment: AppI18n.is-rtl ? right : left;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Right: button
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                height: 32px;
+                CustomButton {
+                    text: root.button-text;
+                    primary: root.button-style == "primary";
+                    danger: root.button-style == "danger";
+                    show_shield: root.show-shield;
+                    enabled: root.enabled;
+                    height: 32px;
+                    clicked => { root.clicked(); }
+                }
+            }
+        }
+    }
+}
+
+component Divider inherits Rectangle {
+    height: 1px;
+    background: Theme.border_color;
 }
 
 export component WslManageView inherits Rectangle {
@@ -136,20 +271,21 @@ export component WslManageView inherits Rectangle {
                     // === Status Header Card ===
                     Rectangle {
                         horizontal-stretch: 1;
+                        height: 52px;
                         background: Theme.card_bg;
                         border-radius: 8px;
                         border-width: 1px;
                         border-color: Theme.border_color;
-                        VerticalLayout {
-                            padding: 12px;
-                            spacing: 10px;
+                        HorizontalLayout {
+                            padding-left: 12px;
+                            padding-right: 12px;
+                            spacing: 12px;
+                            alignment: center;
 
-                            // Title row with equidistant spacing between the 3 components
+                            // Left: title + status badge
                             HorizontalLayout {
                                 spacing: 10px;
-                                alignment: center;
                                 horizontal-stretch: 1;
-                                Rectangle { horizontal-stretch: 1; }
                                 Text {
                                     text: root.strings.status_title;
                                     font-size: 14px * LayoutConstants.font-scale;
@@ -157,119 +293,43 @@ export component WslManageView inherits Rectangle {
                                     font-weight: 500;
                                     color: Theme.text_primary;
                                     vertical-alignment: center;
-                                    horizontal-alignment: center;
                                 }
-                                Rectangle { horizontal-stretch: 1; }
-                                if (root.wsl_installed): Rectangle {
-                                    height: 28px;
-                                    VerticalLayout {
-                                        alignment: center;
-                                        StatusBadge {
-                                            text: root.has_running_instances ? root.strings.status_running : root.strings.status_stopped;
-                                            bg-color: root.has_running_instances ? #10b981 : #f59e0b;
-                                        }
+                                if (root.wsl_installed): VerticalLayout {
+                                    alignment: center;
+                                    StatusBadge {
+                                        text: root.has_running_instances ? root.strings.status_running : root.strings.status_stopped;
+                                        bg-color: root.has_running_instances ? Theme.status_success : Theme.status_warning;
                                     }
                                 }
-                                if (!root.wsl_installed): Rectangle {
-                                    height: 28px;
-                                    VerticalLayout {
-                                        alignment: center;
-                                        StatusBadge {
-                                            text: root.strings.status_not_installed;
-                                            bg-color: #ef4444;
-                                        }
+                                if (!root.wsl_installed): VerticalLayout {
+                                    alignment: center;
+                                    StatusBadge {
+                                        text: root.strings.status_not_installed;
+                                        bg-color: Theme.status_danger;
                                     }
                                 }
-                                Rectangle { horizontal-stretch: 1; }
-                                // Not installed → install icon
-                                if (!root.wsl_installed): Rectangle {
-                                    width: 28px;
-                                    height: 28px;
-                                    border-radius: 6px;
-                                    background: touch_install.has-hover ? Theme.accent.with-alpha(25%) : Theme.accent.with-alpha(12%);
-                                    Text {
-                                        text: "\u{E945}"; // Shield/Download
-                                        font-size: 14px;
-                                        font-family: Theme.icon_font;
-                                        color: Theme.accent;
-                                        horizontal-alignment: center;
-                                        vertical-alignment: center;
-                                    }
-                                    touch_install := TouchArea { clicked => { root.install_wsl(); } }
+                            }
+
+                            // Right: action pill
+                            VerticalLayout {
+                                alignment: center;
+                                if (!root.wsl_installed): ActionPill {
+                                    icon: "\u{E945}";
+                                    text: root.strings.install_btn;
+                                    accent-color: Theme.accent;
+                                    clicked => { root.install_wsl(); }
                                 }
-                                // Running → stop icon
-                                if (root.wsl_installed && root.has_running_instances): Rectangle {
-                                    width: 28px;
-                                    height: 28px;
-                                    border-radius: 6px;
-                                    background: touch_stop.has-hover ? #ef4444.with-alpha(25%) : #ef4444.with-alpha(12%);
-                                    Text {
-                                        text: "\u{E769}"; // Stop
-                                        font-size: 12px;
-                                        font-family: Theme.icon_font;
-                                        color: #ef4444;
-                                        horizontal-alignment: center;
-                                        vertical-alignment: center;
-                                    }
-                                    touch_stop := TouchArea { clicked => { root.shutdown_all(); } }
-                                    // Tooltip
-                                    Rectangle {
-                                        visible: touch_stop.has-hover;
-                                        background: Theme.dark_mode ? #2D2D30 : #FFFFFF;
-                                        border-color: Theme.border_color;
-                                        border-width: 1px;
-                                        border-radius: 4px;
-                                        z: 100;
-                                        x: parent.width + 4px;
-                                        y: (parent.height - self.height) / 2;
-                                        width: tt_text.width + 12px;
-                                        height: tt_text.height + 6px;
-                                        tt_text := Text {
-                                            text: root.strings.shutdown_btn_tooltip;
-                                            color: Theme.text_primary;
-                                            font-size: 11px * LayoutConstants.font-scale;
-                                            font-family: Theme.default_font;
-                                            horizontal-alignment: center;
-                                            vertical-alignment: center;
-                                        }
-                                    }
+                                if (root.wsl_installed && root.has_running_instances): ActionPill {
+                                    icon: "\u{E769}";
+                                    text: root.strings.shutdown_btn;
+                                    accent-color: Theme.status_danger;
+                                    clicked => { root.shutdown_all(); }
                                 }
-                                // Installed but stopped → play icon
-                                if (root.wsl_installed && !root.has_running_instances && root.has_instances): Rectangle {
-                                    width: 28px;
-                                    height: 28px;
-                                    border-radius: 6px;
-                                    background: touch_start.has-hover ? #10b981.with-alpha(25%) : #10b981.with-alpha(12%);
-                                    Text {
-                                        text: "\u{E768}"; // Play
-                                        font-size: 14px;
-                                        font-family: Theme.icon_font;
-                                        color: #10b981;
-                                        horizontal-alignment: center;
-                                        vertical-alignment: center;
-                                    }
-                                    touch_start := TouchArea { clicked => { root.start_wsl(); } }
-                                    // Tooltip
-                                    Rectangle {
-                                        visible: touch_start.has-hover;
-                                        background: Theme.dark_mode ? #2D2D30 : #FFFFFF;
-                                        border-color: Theme.border_color;
-                                        border-width: 1px;
-                                        border-radius: 4px;
-                                        z: 100;
-                                        x: parent.width + 4px;
-                                        y: (parent.height - self.height) / 2;
-                                        width: tt_start_text.width + 12px;
-                                        height: tt_start_text.height + 6px;
-                                        tt_start_text := Text {
-                                            text: AppI18n.t("wsl_manage.start_btn_tooltip", [root.default_distro_name]);
-                                            color: Theme.text_primary;
-                                            font-size: 11px * LayoutConstants.font-scale;
-                                            font-family: Theme.default_font;
-                                            horizontal-alignment: center;
-                                            vertical-alignment: center;
-                                        }
-                                    }
+                                if (root.wsl_installed && !root.has_running_instances && root.has_instances): ActionPill {
+                                    icon: "\u{E768}";
+                                    text: AppI18n.t("wsl_manage.start_btn", [AppI18n.version]);
+                                    accent-color: Theme.status_success;
+                                    clicked => { root.start_wsl(); }
                                 }
                             }
                         }
@@ -359,10 +419,7 @@ export component WslManageView inherits Rectangle {
                                 horizontal-alignment: AppI18n.is-rtl ? right : left;
                             }
 
-                            Rectangle {
-                                height: 1px;
-                                background: Theme.border_color;
-                            }
+                            Divider { }
 
                             Text {
                                 text: root.strings.default_version_desc;
@@ -377,67 +434,30 @@ export component WslManageView inherits Rectangle {
                                 spacing: 8px;
                                 alignment: AppI18n.is-rtl ? end : start;
 
-                                Rectangle {
-                                    width: 80px;
+                                ToggleButton {
+                                    text: root.strings.version_label_1;
+                                    selected: root.default_version == 1;
+                                    min-width: 96px;
                                     height: 32px;
-                                    border-radius: 4px;
-                                    border-width: 1px;
-                                    border-color: root.default_version == 1 ? Theme.accent : Theme.input_border;
-                                    background: root.default_version == 1 ? Theme.accent.with-alpha(15%) : Theme.input_bg;
-                                    HorizontalLayout {
-                                        alignment: center;
-                                        Text {
-                                            text: root.strings.version_label_1;
-                                            font-size: 13px * LayoutConstants.font-scale;
-                                            font-family: Theme.default_font;
-                                            font-weight: root.default_version == 1 ? 700 : 400;
-                                            color: root.default_version == 1 ? Theme.accent : Theme.text_secondary;
-                                            vertical-alignment: center;
-                                        }
-                                    }
-                                    TouchArea {
-                                        clicked => {
-                                            root.set_default_version(1);
-                                        }
-                                    }
+                                    clicked => { root.set_default_version(1); }
                                 }
 
-                                Rectangle {
-                                    width: 80px;
+                                ToggleButton {
+                                    text: root.strings.version_label_2;
+                                    selected: root.default_version == 2;
+                                    min-width: 96px;
                                     height: 32px;
-                                    border-radius: 4px;
-                                    border-width: 1px;
-                                    border-color: root.default_version == 2 ? Theme.accent : Theme.input_border;
-                                    background: root.default_version == 2 ? Theme.accent.with-alpha(15%) : Theme.input_bg;
-                                    HorizontalLayout {
-                                        alignment: center;
-                                        Text {
-                                            text: root.strings.version_label_2;
-                                            font-size: 13px * LayoutConstants.font-scale;
-                                            font-family: Theme.default_font;
-                                            font-weight: root.default_version == 2 ? 700 : 400;
-                                            color: root.default_version == 2 ? Theme.accent : Theme.text_secondary;
-                                            vertical-alignment: center;
-                                        }
-                                    }
-                                    TouchArea {
-                                        clicked => {
-                                            root.set_default_version(2);
-                                        }
-                                    }
+                                    clicked => { root.set_default_version(2); }
                                 }
                             }
 
-                            Rectangle {
-                                height: 1px;
-                                background: Theme.border_color;
-                            }
+                            Divider { }
 
                             CustomCheckBox { checked <=> root.vhdx_sparse_mode; text: root.strings.sparse_mode; toggled => { root.sparse_mode_toggled(); } }
                         }
                     }
 
-                    // === Actions Card ===
+                    // === Actions Card (one row per action) ===
                     if (root.wsl_installed): Rectangle {
                         horizontal-stretch: 1;
                         background: Theme.card_bg;
@@ -445,8 +465,11 @@ export component WslManageView inherits Rectangle {
                         border-width: 1px;
                         border-color: Theme.border_color;
                         VerticalLayout {
-                            padding: 16px;
-                            spacing: 14px;
+                            padding-left: 16px;
+                            padding-right: 16px;
+                            padding-top: 8px;
+                            padding-bottom: 8px;
+                            spacing: 0px;
 
                             Text {
                                 text: root.strings.actions_title;
@@ -457,48 +480,263 @@ export component WslManageView inherits Rectangle {
                                 horizontal-alignment: AppI18n.is-rtl ? right : left;
                             }
 
-                            Rectangle {
-                                height: 1px;
-                                background: Theme.border_color;
+                            Divider { }
+
+                            ActionRow {
+                                icon: "\u{E895}";   // Refresh
+                                title: root.strings.update_btn;
+                                description: root.strings.update_desc;
+                                button-text: root.is_updating ? root.strings.updating_btn : root.strings.update_btn;
+                                button-style: "primary";
+                                enabled: !root.is_updating;
+                                clicked => { root.update_wsl(); }
                             }
 
-                            HorizontalLayout {
-                                spacing: 8px;
-                                alignment: AppI18n.is-rtl ? end : start;
+                            Divider { }
 
-                                CustomButton {
-                                    text: root.strings.settings_btn;
-                                    height: 32px;
-                                    clicked => {
-                                        root.open_wsl_settings();
-                                    }
-                                }
+                            ActionRow {
+                                icon: "\u{E713}";   // Settings
+                                title: root.strings.settings_btn;
+                                description: root.strings.settings_desc;
+                                button-text: root.strings.settings_btn;
+                                button-style: "default";
+                                clicked => { root.open_wsl_settings(); }
+                            }
 
-                                CustomButton {
-                                    text: root.is_updating ? root.strings.updating_btn : root.strings.update_btn;
-                                    primary: true;
-                                    enabled: !root.is_updating;
-                                    height: 32px;
-                                    clicked => {
-                                        root.update_wsl();
-                                    }
-                                }
+                            Divider { }
 
-                                CustomButton {
-                                    text: root.strings.uninstall_btn;
-                                    danger: true;
-                                    show-shield: true;
-                                    enabled: !root.is_updating;
-                                    height: 32px;
-                                    clicked => {
-                                        root.uninstall_wsl();
-                                    }
-                                }
+                            ActionRow {
+                                icon: "\u{E74D}";   // Trash
+                                title: root.strings.uninstall_btn;
+                                description: root.strings.uninstall_desc;
+                                button-text: root.strings.uninstall_btn;
+                                button-style: "danger";
+                                show-shield: true;
+                                enabled: !root.is_updating;
+                                clicked => { root.uninstall_wsl(); }
                             }
                         }
                     }
 
-                    // === Disk Management Card ===
+                    // === Mount Disk Card ===
+                    if (root.wsl_installed): Rectangle {
+                        horizontal-stretch: 1;
+                        background: Theme.card_bg;
+                        border-radius: 8px;
+                        border-width: 1px;
+                        border-color: Theme.border_color;
+                        opacity: root.mount_running ? 0.7 : 1.0;
+                        VerticalLayout {
+                            padding: 16px;
+                            spacing: 12px;
+
+                            Text {
+                                text: root.strings.mount_disk_title;
+                                font-size: 14px * LayoutConstants.font-scale;
+                                font-family: Theme.default_font;
+                                font-weight: 500;
+                                color: Theme.text_primary;
+                                horizontal-alignment: AppI18n.is-rtl ? right : left;
+                            }
+
+                            Divider { }
+
+                            // Physical disks selector
+                            HorizontalLayout {
+                                spacing: 8px;
+                                alignment: start;
+                                Text {
+                                    text: root.strings.physical_disk_label;
+                                    font-size: 13px * LayoutConstants.font-scale;
+                                    font-family: Theme.default_font;
+                                    color: Theme.text_secondary;
+                                    vertical-alignment: center;
+                                }
+                                Rectangle {
+                                    border-radius: 4px;
+                                    background: Theme.hover_bg;
+                                    HorizontalLayout {
+                                        padding-left: 6px;
+                                        padding-right: 6px;
+                                        padding-top: 2px;
+                                        padding-bottom: 2px;
+                                        spacing: 4px;
+                                        alignment: center;
+                                        Text {
+                                            text: "\u{E946}";
+                                            font-size: 11px;
+                                            font-family: Theme.icon_font;
+                                            color: Theme.text_secondary;
+                                            vertical-alignment: center;
+                                        }
+                                        Text {
+                                            text: root.strings.usb_mount_hint;
+                                            font-size: 11px * LayoutConstants.font-scale;
+                                            font-family: Theme.default_font;
+                                            color: Theme.text_secondary;
+                                            vertical-alignment: center;
+                                        }
+                                    }
+                                }
+                            }
+                            HorizontalLayout {
+                                spacing: 8px;
+                                CustomComboBox {
+                                    horizontal-stretch: 1;
+                                    min-width: 200px;
+                                    model: root.physical_disks;
+                                    current-index: 0;
+                                    enabled: !root.mount_running;
+                                    selected(index) => {
+                                        if (index >= 0 && index < root.physical_disks_paths.length) {
+                                            root.disk_path = root.physical_disks_paths[index];
+                                            root.disk_mount_name = root.physical_disks_names[index];
+                                        }
+                                    }
+                                }
+                                CustomButton {
+                                    text: root.strings.refresh_disks_btn;
+                                    icon: "\u{E72C}";
+                                    height: 32px;
+                                    enabled: !root.mount_running;
+                                    clicked => { root.refresh_physical_disks(); }
+                                }
+                            }
+
+                            // Checkboxes row
+                            HorizontalLayout {
+                                spacing: 16px;
+                                alignment: AppI18n.is-rtl ? end : start;
+                                CustomCheckBox {
+                                    checked <=> root.disk_is_bare;
+                                    text: root.strings.bare_mount_label;
+                                    enabled: !root.mount_running;
+                                }
+                            }
+
+                            // Disk path label
+                            Text {
+                                text: root.strings.disk_path_label;
+                                font-size: 13px * LayoutConstants.font-scale;
+                                font-family: Theme.default_font;
+                                color: Theme.text_secondary;
+                                horizontal-alignment: AppI18n.is-rtl ? right : left;
+                            }
+
+                            // Disk path input + Browse button
+                            HorizontalLayout {
+                                spacing: 8px;
+                                CustomLineEdit {
+                                    horizontal-stretch: 1;
+                                    text <=> root.disk_path;
+                                    placeholder-text: root.strings.disk_path_placeholder;
+                                    enabled: !root.mount_running;
+                                }
+                                CustomButton {
+                                    icon: "\u{E8B7}";
+                                    icon-only: true;
+                                    height: 32px;
+                                    enabled: !root.mount_running;
+                                    clicked => { root.browse_vhd(); }
+                                }
+                            }
+
+                            // Optional fields: Name, Type (2 columns)
+                            HorizontalLayout {
+                                spacing: 10px;
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    spacing: 6px;
+                                    Text {
+                                        text: root.strings.mount_name_label;
+                                        font-size: 13px * LayoutConstants.font-scale;
+                                        font-family: Theme.default_font;
+                                        color: Theme.text_secondary;
+                                        horizontal-alignment: AppI18n.is-rtl ? right : left;
+                                    }
+                                    CustomLineEdit {
+                                        horizontal-stretch: 1;
+                                        text <=> root.disk_mount_name;
+                                        enabled: !root.mount_running;
+                                    }
+                                }
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    spacing: 6px;
+                                    Text {
+                                        text: root.strings.filesystem_label;
+                                        font-size: 13px * LayoutConstants.font-scale;
+                                        font-family: Theme.default_font;
+                                        color: Theme.text_secondary;
+                                        horizontal-alignment: AppI18n.is-rtl ? right : left;
+                                    }
+                                    CustomLineEdit {
+                                        horizontal-stretch: 1;
+                                        text <=> root.disk_fs_type;
+                                        enabled: !root.mount_running;
+                                    }
+                                }
+                            }
+
+                            // Optional fields: Partition, Options (2 columns)
+                            HorizontalLayout {
+                                spacing: 10px;
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    spacing: 6px;
+                                    Text {
+                                        text: root.strings.partition_label;
+                                        font-size: 13px * LayoutConstants.font-scale;
+                                        font-family: Theme.default_font;
+                                        color: Theme.text_secondary;
+                                        horizontal-alignment: AppI18n.is-rtl ? right : left;
+                                    }
+                                    CustomLineEdit {
+                                        horizontal-stretch: 1;
+                                        text <=> root.disk_partition;
+                                        placeholder-text: "1";
+                                        enabled: !root.mount_running;
+                                    }
+                                }
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    spacing: 6px;
+                                    Text {
+                                        text: root.strings.mount_options_label;
+                                        font-size: 13px * LayoutConstants.font-scale;
+                                        font-family: Theme.default_font;
+                                        color: Theme.text_secondary;
+                                        horizontal-alignment: AppI18n.is-rtl ? right : left;
+                                    }
+                                    CustomLineEdit {
+                                        horizontal-stretch: 1;
+                                        text <=> root.disk_options;
+                                        enabled: !root.mount_running;
+                                    }
+                                }
+                            }
+
+                            // Mount button (full-width row, right-aligned in LTR)
+                            HorizontalLayout {
+                                spacing: 8px;
+                                alignment: AppI18n.is-rtl ? start : end;
+                                CustomButton {
+                                    text: root.mount_running ? root.strings.mounting_btn : root.strings.mount_btn;
+                                    primary: true;
+                                    enabled: !root.mount_running && root.disk_path != "";
+                                    height: 32px;
+                                    clicked => { root.mount_disk(); }
+                                }
+                            }
+
+                            // Mount output (if any)
+                            if (root.mount_output != ""): CodeBlock {
+                                text: root.mount_output;
+                            }
+                        }
+                    }
+
+                    // === Mounted Disks Card ===
                     if (root.wsl_installed): Rectangle {
                         horizontal-stretch: 1;
                         background: Theme.card_bg;
@@ -507,234 +745,8 @@ export component WslManageView inherits Rectangle {
                         border-color: Theme.border_color;
                         VerticalLayout {
                             padding: 16px;
-                            spacing: 14px;
+                            spacing: 12px;
 
-                            Text {
-                                text: root.strings.disk_management_title;
-                                font-size: 14px * LayoutConstants.font-scale;
-                                font-family: Theme.default_font;
-                                font-weight: 500;
-                                color: Theme.text_primary;
-                                horizontal-alignment: AppI18n.is-rtl ? right : left;
-                            }
-
-                            Rectangle {
-                                height: 1px;
-                                background: Theme.border_color;
-                            }
-
-                            // === Mount Form ===
-                            VerticalLayout {
-                                spacing: 10px;
-
-                                // Physical disks selector
-                                HorizontalLayout {
-                                    spacing: 4px;
-                                    alignment: AppI18n.is-rtl ? end : start;
-                                    Text {
-                                        text: root.strings.physical_disk_label;
-                                        font-size: 12px * LayoutConstants.font-scale;
-                                        font-family: Theme.default_font;
-                                        color: Theme.text_secondary;
-                                        vertical-alignment: center;
-                                    }
-                                    Rectangle {
-                                        border-radius: 4px;
-                                        background: Theme.hover_bg;
-                                        HorizontalLayout {
-                                            padding-left: 6px;
-                                            padding-right: 6px;
-                                            padding-top: 2px;
-                                            padding-bottom: 2px;
-                                            spacing: 4px;
-                                            Text {
-                                                text: "\u{E946}";
-                                                font-size: 11px;
-                                                font-family: Theme.icon_font;
-                                                color: Theme.text_secondary;
-                                                vertical-alignment: center;
-                                            }
-                                            Text {
-                                                text: root.strings.usb_mount_hint;
-                                                font-size: 11px * LayoutConstants.font-scale;
-                                                font-family: Theme.default_font;
-                                                color: Theme.text_secondary;
-                                                vertical-alignment: center;
-                                            }
-                                        }
-                                    }
-                                }
-                                HorizontalLayout {
-                                    spacing: 8px;
-                                    CustomComboBox {
-                                        horizontal-stretch: 1;
-                                        model: root.physical_disks;
-                                        current-index: 0;
-                                        enabled: !root.mount_running;
-                                        selected(index) => {
-                                            if (index >= 0 && index < root.physical_disks_paths.length) {
-                                                root.disk_path = root.physical_disks_paths[index];
-                                                root.disk_mount_name = root.physical_disks_names[index];
-                                            }
-                                        }
-                                    }
-                                    CustomButton {
-                                        text: root.strings.refresh_disks_btn;
-                                        width: 70px;
-                                        enabled: !root.mount_running;
-                                        clicked => { root.refresh_physical_disks(); }
-                                    }
-                                }
-
-                                // Checkboxes row
-                                HorizontalLayout {
-                                    spacing: 16px;
-                                    alignment: AppI18n.is-rtl ? end : start;
-                                    CustomCheckBox {
-                                        checked <=> root.disk_is_bare;
-                                        text: root.strings.bare_mount_label;
-                                        enabled: !root.mount_running;
-                                    }
-                                }
-
-                                // Disk path label
-                                Text {
-                                    text: root.strings.disk_path_label;
-                                    font-size: 12px * LayoutConstants.font-scale;
-                                    font-family: Theme.default_font;
-                                    color: Theme.text_secondary;
-                                    horizontal-alignment: AppI18n.is-rtl ? right : left;
-                                }
-
-                                // Disk path input + Browse button
-                                HorizontalLayout {
-                                    spacing: 8px;
-                                    CustomLineEdit {
-                                        horizontal-stretch: 1;
-                                        text <=> root.disk_path;
-                                        placeholder-text: root.strings.disk_path_placeholder;
-                                        enabled: !root.mount_running;
-                                    }
-                                    Rectangle {
-                                        width: 32px;
-                                        height: 32px;
-                                        border-radius: 4px;
-                                        background: browse_touch.has-hover ? Theme.hover_bg : Theme.input_bg;
-                                        border-width: 1px;
-                                        border-color: Theme.input_border;
-                                        Text {
-                                            text: "\u{E8B7}"; // FolderOpen icon
-                                            font-size: 14px;
-                                            font-family: Theme.icon_font;
-                                            color: Theme.text_secondary;
-                                            horizontal-alignment: center;
-                                            vertical-alignment: center;
-                                        }
-                                        browse_touch := TouchArea {
-                                            enabled: !root.mount_running;
-                                            clicked => { root.browse_vhd(); }
-                                        }
-                                    }
-                                }
-
-                                // Optional fields: Name, Type, Partition, Options (2 columns)
-                                HorizontalLayout {
-                                    spacing: 10px;
-                                    VerticalLayout {
-                                        width: 50%;
-                                        spacing: 4px;
-                                        Text {
-                                            text: root.strings.mount_name_label;
-                                            font-size: 12px * LayoutConstants.font-scale;
-                                            font-family: Theme.default_font;
-                                            color: Theme.text_secondary;
-                                            horizontal-alignment: AppI18n.is-rtl ? right : left;
-                                        }
-                                        CustomLineEdit {
-                                            text <=> root.disk_mount_name;
-                                            enabled: !root.mount_running;
-                                        }
-                                    }
-                                    VerticalLayout {
-                                        width: 50%;
-                                        spacing: 4px;
-                                        Text {
-                                            text: root.strings.filesystem_label;
-                                            font-size: 12px * LayoutConstants.font-scale;
-                                            font-family: Theme.default_font;
-                                            color: Theme.text_secondary;
-                                            horizontal-alignment: AppI18n.is-rtl ? right : left;
-                                        }
-                                        CustomLineEdit {
-                                            text <=> root.disk_fs_type;
-                                            enabled: !root.mount_running;
-                                        }
-                                    }
-                                }
-
-                                HorizontalLayout {
-                                    spacing: 10px;
-                                    VerticalLayout {
-                                        width: 50%;
-                                        spacing: 4px;
-                                        Text {
-                                            text: root.strings.partition_label;
-                                            font-size: 12px * LayoutConstants.font-scale;
-                                            font-family: Theme.default_font;
-                                            color: Theme.text_secondary;
-                                            horizontal-alignment: AppI18n.is-rtl ? right : left;
-                                        }
-                                        CustomLineEdit {
-                                            text <=> root.disk_partition;
-                                            placeholder-text: "1";
-                                            enabled: !root.mount_running;
-                                        }
-                                    }
-                                    VerticalLayout {
-                                        width: 50%;
-                                        spacing: 4px;
-                                        Text {
-                                            text: root.strings.mount_options_label;
-                                            font-size: 12px * LayoutConstants.font-scale;
-                                            font-family: Theme.default_font;
-                                            color: Theme.text_secondary;
-                                            horizontal-alignment: AppI18n.is-rtl ? right : left;
-                                        }
-                                        CustomLineEdit {
-                                            text <=> root.disk_options;
-                                            enabled: !root.mount_running;
-                                        }
-                                    }
-                                }
-
-                                // Mount button
-                                HorizontalLayout {
-                                    alignment: AppI18n.is-rtl ? end : start;
-                                    CustomButton {
-                                        text: root.mount_running ? root.strings.mounting_btn : root.strings.mount_btn;
-                                        primary: true;
-                                        enabled: !root.mount_running && root.disk_path != "";
-                                        height: 32px;
-                                        clicked => { root.mount_disk(); }
-                                    }
-                                }
-                            }
-
-                            // Mount output
-                            if (root.mount_output != ""): Rectangle {
-                                height: 1px;
-                                background: Theme.border_color;
-                            }
-                            if (root.mount_output != ""): CodeBlock {
-                                text: root.mount_output;
-                            }
-
-                            Rectangle {
-                                height: 1px;
-                                background: Theme.border_color;
-                            }
-
-                            // === Mounted Disks Section ===
                             HorizontalLayout {
                                 spacing: 8px;
                                 alignment: space-between;
@@ -751,36 +763,35 @@ export component WslManageView inherits Rectangle {
 
                                 HorizontalLayout {
                                     spacing: 6px;
-                                    alignment: AppI18n.is-rtl ? start : end;
                                     CustomButton {
                                         text: root.strings.refresh_disks_btn;
+                                        icon: "\u{E72C}";
                                         height: 28px;
                                         clicked => { root.refresh_mounted_disks(); }
                                     }
                                     CustomButton {
                                         text: root.strings.unmount_all_btn;
                                         danger: true;
+                                        ghost: true;
                                         height: 28px;
                                         clicked => { root.unmount_all_disks(); }
                                     }
                                 }
                             }
 
-                            if (root.mounted_disks.length == 0): Text {
+                            if (root.mounted_disks.length == 0): EmptyState {
+                                icon: "\u{E7C3}";
                                 text: root.strings.no_mounted_disks;
-                                font-size: 13px * LayoutConstants.font-scale;
-                                font-family: Theme.default_font;
-                                color: Theme.text_secondary;
-                                horizontal-alignment: AppI18n.is-rtl ? right : left;
+                                hint: root.strings.no_mounted_disks_hint;
                             }
 
                             // Mounted disk list
                             VerticalLayout {
                                 spacing: 6px;
                                 for disk in root.mounted_disks: Rectangle {
-                                    height: 36px;
+                                    height: 40px;
                                     border-radius: 4px;
-                                    background: Theme.dark_mode ? #252526 : #F8F8F8;
+                                    background: Theme.surface_subtle;
                                     border-width: 1px;
                                     border-color: Theme.border_color;
                                     HorizontalLayout {
@@ -797,26 +808,17 @@ export component WslManageView inherits Rectangle {
                                             vertical-alignment: center;
                                             horizontal-alignment: AppI18n.is-rtl ? right : left;
                                             overflow: elide;
+                                            horizontal-stretch: 1;
                                         }
 
                                         VerticalLayout {
                                             alignment: center;
-                                            Rectangle {
-                                                width: 60px;
-                                                height: 24px;
-                                                border-radius: 4px;
-                                                background: unmount_touch.has-hover ? #ef4444.with-alpha(25%) : #ef4444.with-alpha(10%);
-                                                Text {
-                                                    text: root.strings.unmount_btn;
-                                                    font-size: 11px * LayoutConstants.font-scale;
-                                                    font-family: Theme.default_font;
-                                                    color: #ef4444;
-                                                    horizontal-alignment: center;
-                                                    vertical-alignment: center;
-                                                }
-                                                unmount_touch := TouchArea {
-                                                    clicked => { root.unmount_disk(disk); }
-                                                }
+                                            CustomButton {
+                                                text: root.strings.unmount_btn;
+                                                ghost: true;
+                                                danger: true;
+                                                height: 28px;
+                                                clicked => { root.unmount_disk(disk); }
                                             }
                                         }
                                     }
@@ -829,7 +831,7 @@ export component WslManageView inherits Rectangle {
                 }
             }
         }
-    }  
+    }
 
     if (flick.viewport-height > flick.height): CustomScrollbar {
         x: AppI18n.is-rtl ? 2px : parent.width - 8px;

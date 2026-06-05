@@ -225,3 +225,44 @@ export component WindowControlButton inherits Rectangle {
         }
     }
 }
+
+export component EmptyState inherits Rectangle {
+    in property <string> icon: "\u{E7C3}";
+    in property <string> text: "";
+    in property <string> hint: "";
+    height: 88px;
+    VerticalLayout {
+        alignment: center;
+        spacing: 6px;
+        Rectangle {
+            width: 36px;
+            height: 36px;
+            border-radius: 18px;
+            background: Theme.surface_subtle;
+            Text {
+                text: root.icon;
+                font-family: Theme.icon_font;
+                font-size: 18px;
+                color: Theme.text_secondary;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+        Text {
+            text: root.text;
+            color: Theme.text_secondary;
+            font-size: 13px * LayoutConstants.font-scale;
+            font-family: Theme.default_font;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+        if (root.hint != ""): Text {
+            text: root.hint;
+            color: Theme.text_secondary;
+            font-size: 11px * LayoutConstants.font-scale;
+            font-family: Theme.default_font;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+        }
+    }
+}

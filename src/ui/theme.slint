@@ -127,22 +127,28 @@ export struct WslManageStrings {
     default_version_title: string,
     default_version_desc: string,
     actions_title: string,
+    install_btn: string,
     update_btn: string,
     updating_btn: string,
+    update_desc: string,
     shutdown_btn: string,
     shutdown_btn_tooltip: string,
     shutdown_confirm_title: string,
     shutdown_confirm_message: string,
+    start_btn: string,
     start_btn_tooltip: string,
     version_output_title: string,
     status_output_title: string,
     uninstall_btn: string,
+    uninstall_desc: string,
     settings_btn: string,
+    settings_desc: string,
     version_label_1: string,
     version_label_2: string,
     sparse_mode: string,
     // Disk mount
     disk_management_title: string,
+    mount_disk_title: string,
     physical_disk_label: string,
     usb_mount_hint: string,
     disk_path_label: string,
@@ -163,6 +169,7 @@ export struct WslManageStrings {
     unmount_btn: string,
     unmount_all_btn: string,
     no_mounted_disks: string,
+    no_mounted_disks_hint: string,
     refresh_disks_btn: string,
     mount_success: string,
     mount_failed: string,
@@ -195,10 +202,25 @@ export global Theme {
     out property <color> input_bg: dark_mode ? #252526 : #FFFFFF;
     out property <color> input_border: dark_mode ? #3E3E42 : #D9D9D9;
 
+    // Status semantic colors (used by WSL Management page)
+    out property <color> status_success: #10b981;
+    out property <color> status_warning: dark_mode ? #f59e0b : #d97706;
+    out property <color> status_danger: dark_mode ? #f87171 : #dc2626;
+    out property <color> danger_bg: dark_mode ? #2d1a1a : #fdeaea;
+    out property <color> danger_border: dark_mode ? #ff6666 : #c62828;
+
+    // Code block colors
+    out property <color> code_bg: dark_mode ? #1e1e2e : #f6f8fa;
+    out property <color> code_fg: dark_mode ? #cdd6f4 : #24292f;
+
+    // Subtle surface (for inline icons, list rows)
+    out property <color> surface_subtle: dark_mode ? #252526 : #F8F8F8;
+
     // Compatibility of Chinese and Japanese character display on Western language operating systems
     // Font style
     in-out property <string> default_font: "Microsoft YaHei UI";
     out property <string> icon_font: "Segoe Fluent Icons";
+    out property <string> mono_font: "Cascadia Code, Consolas, Microsoft YaHei UI";
 }
 
 export global AppInfo {

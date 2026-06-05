@@ -17,6 +17,7 @@ export component CustomLineEdit inherits Rectangle {
     HorizontalLayout {
         padding-left: 15px;
         padding-right: 15px;
+        horizontal-stretch: 1;
         input-focus := TextInput {
             text <=> root.text;
             color: Theme.text_primary;
@@ -26,6 +27,8 @@ export component CustomLineEdit inherits Rectangle {
             horizontal-alignment: AppI18n.is-rtl ? right : left;
             single-line: true;
             min-width: 0;
+            preferred-width: 0;
+            horizontal-stretch: 1;
             input-type: root.input-type;
             enabled: root.enabled;
             accepted => {
@@ -362,22 +365,42 @@ export component CustomRadioButton inherits Rectangle {
 
 export component CustomButton inherits Rectangle {
     in property <string> text;
+    in property <string> icon: "";            // Optional font icon glyph
     in property <bool> primary: false;
     in property <bool> danger: false;
+    in property <bool> ghost: false;          // Transparent bg with danger text (batch-style)
+    in property <bool> icon-only: false;      // Square button sized to height
     in property <bool> enabled: true;
     in property <bool> show_shield: false;
     callback clicked;
+    height: 32px;                              // Default md; callers can override (e.g. height: 24px for sm)
     border-radius: 4px;
-    background: root.primary ? Theme.accent : (root.danger ? (Theme.dark_mode ? #2d1a1a : #fdeaea) : (touch.pressed ? Theme.selected_bg : (touch.has-hover ? Theme.hover_bg : Theme.input_bg)));
-    border-width: root.primary ? 0 : 1px;
-    border-color: root.danger ? (Theme.dark_mode ? #ff6666 : #c62828) : Theme.input_border;
-    opacity: root.enabled ? 1.0 : 0.6;
+    background: root.primary
+        ? Theme.accent
+        : (root.danger
+            ? (root.ghost ? transparent : Theme.danger_bg)
+            : (root.ghost ? transparent : (touch.pressed ? Theme.selected_bg : (touch.has-hover ? Theme.hover_bg : Theme.input_bg))));
+    border-width: (root.primary || root.ghost) ? (root.ghost ? 1px : 0) : 1px;
+    border-color: root.danger ? Theme.danger_border : Theme.input_border;
+    opacity: root.enabled ? 1.0 : 0.5;
     HorizontalLayout {
-        padding-left: 15px;
-        padding-right: 15px;
-        Text {
+        padding-left: root.icon-only ? (parent.height - 8px) / 2 : 15px;
+        padding-right: root.icon-only ? (parent.height - 8px) / 2 : 15px;
+        spacing: 6px;
+        alignment: center;
+
+        if (root.icon != ""): Text {
+            text: root.icon;
+            font-family: Theme.icon_font;
+            font-size: (parent.height - 18px);
+            color: root.primary ? #FFFFFF : (root.danger ? Theme.status_danger : Theme.text_secondary);
+            vertical-alignment: center;
+            horizontal-alignment: center;
+        }
+
+        if (root.text != ""): Text {
             text: root.text;
-            color: root.primary ? #FFFFFF : (root.danger ? (Theme.dark_mode ? #ff6666 : #c62828) : Theme.text_primary);
+            color: root.primary ? #FFFFFF : (root.danger ? (root.ghost ? Theme.status_danger : Theme.danger_border) : Theme.text_primary);
             font-family: Theme.default_font;
             font-size: 13px * LayoutConstants.font-scale;
             vertical-alignment: center;
@@ -401,6 +424,37 @@ export component CustomButton inherits Rectangle {
 
     touch := TouchArea {
         enabled: root.enabled;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+export component ToggleButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> selected: false;
+    callback clicked;
+    height: 32px;
+    min-width: 80px;
+    border-radius: 4px;
+    border-width: 1px;
+    border-color: root.selected ? Theme.accent : Theme.input_border;
+    background: root.selected ? Theme.accent.with-alpha(15%) : Theme.input_bg;
+    HorizontalLayout {
+        padding-left: 14px;
+        padding-right: 14px;
+        alignment: center;
+        Text {
+            text: root.text;
+            color: root.selected ? Theme.accent : Theme.text_secondary;
+            font-weight: root.selected ? 700 : 400;
+            font-size: 13px * LayoutConstants.font-scale;
+            font-family: Theme.default_font;
+            vertical-alignment: center;
+            horizontal-alignment: center;
+        }
+    }
+    touch := TouchArea {
         clicked => {
             root.clicked();
         }
