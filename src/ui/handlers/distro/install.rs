@@ -51,7 +51,9 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
         .collect();
     let mirror_model = slint::VecModel::from(mirror_names);
     app.set_url_mirror_sources(slint::ModelRc::from(Rc::new(mirror_model)));
-    app.set_show_mirror_section(crate::app::constants::is_chinese_lang(&i18n::current_lang()));
+    app.set_show_mirror_section(crate::app::constants::is_simplified_chinese(
+        &i18n::current_lang(),
+    ));
 
     // Callback: check if a path is local (used by UI to decide auto-fetch)
     app.on_is_local_url(|path| is_local_path(path.as_str()));
@@ -340,7 +342,12 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                             slint::VecModel::from(mirror_names),
                         )));
                         app.set_mirror_has_custom(is_gh);
-                        app.set_selected_url_mirror_idx(if has_mirrors { 1 } else { 0 });
+                        let show_mirror = app.get_show_mirror_section();
+                        app.set_selected_url_mirror_idx(if show_mirror && has_mirrors {
+                            1
+                        } else {
+                            0
+                        });
                         app.set_custom_mirror_url(Default::default());
                     }
                 } else {
@@ -400,9 +407,10 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                             .collect();
                         let saved = app.get_saved_domain_mirror_idx();
                         let max = names.len() as i32 - 1;
+                        let show_mirror = app.get_show_mirror_section();
                         app.set_selected_url_mirror_idx(if saved > 0 && saved <= max {
                             saved
-                        } else if names.len() > 1 {
+                        } else if show_mirror && names.len() > 1 {
                             1
                         } else {
                             0
@@ -413,10 +421,13 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     } else if is_gh {
                         let saved = app.get_saved_url_mirror_idx();
                         let max = crate::app::constants::MIRROR_NAMES.len() as i32 - 1;
+                        let show_mirror = app.get_show_mirror_section();
                         app.set_selected_url_mirror_idx(if saved > 0 && saved <= max {
                             saved
-                        } else {
+                        } else if show_mirror {
                             1
+                        } else {
+                            0
                         });
                         app.set_mirror_has_custom(true);
                         app.set_custom_mirror_url(

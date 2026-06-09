@@ -53,6 +53,12 @@ pub fn is_chinese_lang(lang: &str) -> bool {
     lang.to_lowercase().starts_with("zh")
 }
 
+/// Check if a language code represents Simplified Chinese (zh-CN only)
+#[allow(dead_code)]
+pub fn is_simplified_chinese(lang: &str) -> bool {
+    lang.eq_ignore_ascii_case("zh-cn")
+}
+
 /// WSL distribution initialization script path
 #[allow(dead_code)]
 pub const WSL_INIT_SCRIPT: &str = "/etc/init.wsl-dashboard";
@@ -207,7 +213,10 @@ const ALIYUN_RULES: &[(&str, &str)] = &[
 /// Check if a distro category supports domain-based mirrors
 #[allow(dead_code)]
 pub fn supports_domain_mirror(category: &str) -> bool {
-    matches!(category, "Ubuntu" | "Fedora" | "archlinux")
+    matches!(
+        category.to_lowercase().as_str(),
+        "ubuntu" | "fedora" | "archlinux"
+    )
 }
 
 /// Return i18n keys for domain mirrors that have at least one matching rule for the given URL.

@@ -82,6 +82,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     &ui_language
                 };
                 i18n::load_resources(lang_to_load);
+                app.set_show_mirror_section(crate::app::constants::is_simplified_chinese(lang_to_load));
                 app.global::<AppI18n>().set_is_rtl(i18n::is_rtl(lang_to_load));
                 app.global::<AppI18n>().set_locale_code(i18n::current_lang().into());
                 app.global::<AppI18n>().set_version(app.global::<AppI18n>().get_version() + 1);
