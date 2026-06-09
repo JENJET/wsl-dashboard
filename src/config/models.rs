@@ -78,6 +78,8 @@ pub struct UserSettings {
         skip_serializing_if = "HashMap::is_empty"
     )]
     pub terminal_user_presets: HashMap<String, TerminalPreset>,
+    #[serde(rename = "custom-mirror-url", default)]
+    pub custom_mirror_url: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -180,6 +182,7 @@ impl Config {
                 terminal_emulator: default_terminal_emulator(),
                 terminal_presets: HashMap::new(),
                 terminal_user_presets: HashMap::new(),
+                custom_mirror_url: String::new(),
             },
 
             tray: TraySettings::default(),

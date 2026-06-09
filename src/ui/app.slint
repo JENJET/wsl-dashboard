@@ -135,6 +135,17 @@ export component AppWindow inherits Window {
     in-out property <int> selected_url_distro_idx: -1;
     in-out property <bool> is_fetching_url_distros: false;
     in property <string> host_arch: "";
+    // Mirror source properties (zh-CN only)
+    in property <[string]> url_mirror_sources: [];
+    in-out property <int> selected_url_mirror_idx: 0;
+    in-out property <string> custom_mirror_url: "";
+    in property <bool> is_url_github: false;
+    in property <bool> mirror_has_custom: true;
+    in property <bool> is_custom_mirror_selected: mirror_has_custom && selected_url_mirror_idx == url_mirror_sources.length - 1 && url_mirror_sources.length > 1;
+    in property <bool> show_mirror_section: false;
+    in-out property <int> saved_url_mirror_idx: 0;
+    in-out property <string> saved_custom_mirror_url: "";
+    in-out property <int> saved_domain_mirror_idx: 0;
     in-out property <bool> set_root_password: false;
     in-out property <string> root_password: "";
     in-out property <bool> add_new_user: false;
@@ -825,6 +836,16 @@ export component AppWindow inherits Window {
                                 selected_url_distro_idx <=> root.selected_url_distro_idx;
                                 is_fetching_url_distros: root.is_fetching_url_distros;
                                 host_arch: root.host_arch;
+                                url_mirror_sources: root.url_mirror_sources;
+                                selected_url_mirror_idx <=> root.selected_url_mirror_idx;
+                                custom_mirror_url <=> root.custom_mirror_url;
+                                is_url_github: root.is_url_github;
+                                mirror_has_custom: root.mirror_has_custom;
+                                is_custom_mirror_selected: root.is_custom_mirror_selected;
+                                show_mirror_section: root.show_mirror_section;
+                                saved_url_mirror_idx <=> root.saved_url_mirror_idx;
+                                saved_custom_mirror_url <=> root.saved_custom_mirror_url;
+                                saved_domain_mirror_idx <=> root.saved_domain_mirror_idx;
                                 set_root_password <=> root.set_root_password;
                                 root_password <=> root.root_password;
                                 add_new_user <=> root.add_new_user;

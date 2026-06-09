@@ -36,6 +36,17 @@ export component AddInstanceView inherits Rectangle {
     in-out property <int> selected_url_distro_idx: -1;
     in-out property <bool> is_fetching_url_distros: false;
     in property <string> host_arch: "";
+    // Mirror source properties (zh-CN only)
+    in property <[string]> url_mirror_sources: [];
+    in-out property <int> selected_url_mirror_idx: 0;
+    in-out property <string> custom_mirror_url: "";
+    in property <bool> is_url_github: false;
+    in property <bool> mirror_has_custom: true;
+    in property <bool> is_custom_mirror_selected: false;
+    in property <bool> show_mirror_section: false;
+    in-out property <int> saved_url_mirror_idx: 0;
+    in-out property <string> saved_custom_mirror_url: "";
+    in-out property <int> saved_domain_mirror_idx: 0;
     in-out property <bool> set_root_password: false;
     in-out property <string> root_password: "";
     in-out property <bool> add_new_user: false;
@@ -227,28 +238,81 @@ export component AddInstanceView inherits Rectangle {
                         Rectangle {
                             height: 4px;
                         }
-                        // Distro list from URL
-                        Text {
-                            text: AppI18n.t("add.url.select_distro", [AppI18n.version]) + " (" + root.host_arch + ")";
-                            font-size: 13px * LayoutConstants.font-scale;
-                            font-family: Theme.default_font;
-                            color: Theme.text_secondary;
-                            height: 18px;
-                            horizontal-alignment: AppI18n.is-rtl ? right : left;
-                        }
+                        // Distro list + Mirror source (zh-CN only)
+                        HorizontalLayout {
+                            spacing: 8px;
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                spacing: 0px;
+                                Text {
+                                    text: AppI18n.t("add.url.select_distro", [AppI18n.version]) + " (" + root.host_arch + ")";
+                                    font-size: 13px * LayoutConstants.font-scale;
+                                    font-family: Theme.default_font;
+                                    color: Theme.text_secondary;
+                                    height: 18px;
+                                    horizontal-alignment: AppI18n.is-rtl ? right : left;
+                                }
 
-                        CustomComboBox {
-                            model: root.url_distro_names;
-                            current-index <=> root.selected_url_distro_idx;
-                            height: 32px;
-                            enabled: !root.is_installing && root.url_distro_names.length > 0;
-                            selected(idx) => {
-                                if (idx >= 0 && idx < root.url_distro_list.length) {
-                                    root.selected_install_distro = root.url_distro_list[idx].friendly_name;
-                                    root.new_instance_name = root.url_distro_list[idx].name;
-                                    let base = root.distro_location;
-                                    root.new_instance_path = base + "\\" + root.new_instance_name;
-                                    root.url_distro_selected(root.url_distro_list[idx].name);
+                                CustomComboBox {
+                                    model: root.url_distro_names;
+                                    current-index <=> root.selected_url_distro_idx;
+                                    height: 32px;
+                                    enabled: !root.is_installing && root.url_distro_names.length > 0;
+                                    selected(idx) => {
+                                        if (idx >= 0 && idx < root.url_distro_list.length) {
+                                            root.selected_install_distro = root.url_distro_list[idx].friendly_name;
+                                            root.new_instance_name = root.url_distro_list[idx].name;
+                                            let base = root.distro_location;
+                                            root.new_instance_path = base + "\\" + root.new_instance_name;
+                                            root.url_distro_selected(root.url_distro_list[idx].name);
+                                        }
+                                    }
+                                }
+                            }
+
+                            if (root.show_mirror_section): VerticalLayout {
+                                horizontal-stretch: 1;
+                                spacing: 0px;
+                                Text {
+                                    text: "选择镜像源";
+                                    font-size: 13px * LayoutConstants.font-scale;
+                                    font-family: Theme.default_font;
+                                    color: Theme.text_secondary;
+                                    height: 18px;
+                                    horizontal-alignment: AppI18n.is-rtl ? right : left;
+                                }
+
+                                CustomComboBox {
+                                    model: root.url_mirror_sources;
+                                    current-index <=> root.selected_url_mirror_idx;
+                                    height: 32px;
+                                    enabled: !root.is_installing && root.url_mirror_sources.length > 1;
+                                    selected(idx) => {
+                                        if (!root.is_custom_mirror_selected) {
+                                            root.custom_mirror_url = "";
+                                        }
+                                    }
+                                }
+
+                                if (root.is_custom_mirror_selected): VerticalLayout {
+                                    spacing: 2px;
+                                    Rectangle { height: 2px; }
+
+                                    CustomLineEdit {
+                                        placeholder-text: "输入自定义镜像前缀地址，例如 https://example.com/";
+                                        text <=> root.custom_mirror_url;
+                                        height: 28px;
+                                        enabled: !root.is_installing;
+                                    }
+
+                                    Text {
+                                        text: "仅支持前缀方式加速";
+                                        font-size: 11px * LayoutConstants.font-scale;
+                                        font-family: Theme.default_font;
+                                        color: Theme.text_secondary;
+                                        height: 14px;
+                                        horizontal-alignment: AppI18n.is-rtl ? right : left;
+                                    }
                                 }
                             }
                         }

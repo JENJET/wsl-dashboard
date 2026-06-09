@@ -771,6 +771,9 @@ pub async fn load_settings_to_ui(
         check_update = 7;
     }
     app.set_check_update_interval(check_update as i32);
+    let mirror_url = settings.custom_mirror_url.clone();
+    app.set_custom_mirror_url(mirror_url.clone().into());
+    app.set_saved_custom_mirror_url(mirror_url.into());
 
     // Update settings if any were invalid
     if log_days != settings.log_days || check_update != settings.check_update {

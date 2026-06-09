@@ -117,16 +117,16 @@ pub fn spawn_state_monitor(app_handle: slint::Weak<AppWindow>, app_state: Arc<Mu
                                                 .iter()
                                                 .find(|(n, _, _)| distro.name == *n)
                                             {
-                                                let cpu_str = format!("{:.1}%", cpu);
+                                                let cpu_str = format!("{:.2}%", cpu);
                                                 if distro.cpu_usage != cpu_str.as_str() {
                                                     distro.cpu_usage = cpu_str.into();
                                                     updated = true;
                                                 }
                                                 let mem_kib = *mem;
                                                 let mem_str = if mem_kib >= 1024.0 * 1024.0 {
-                                                    format!("{:.1} GB", mem_kib / (1024.0 * 1024.0))
+                                                    format!("{:.2} GB", mem_kib / (1024.0 * 1024.0))
                                                 } else {
-                                                    format!("{:.1} MB", mem_kib / 1024.0)
+                                                    format!("{:.2} MB", mem_kib / 1024.0)
                                                 };
                                                 if distro.memory_usage != mem_str.as_str() {
                                                     distro.memory_usage = mem_str.into();

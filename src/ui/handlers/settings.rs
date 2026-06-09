@@ -175,6 +175,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     terminal_emulator,
                     terminal_presets,
                     terminal_user_presets,
+                    custom_mirror_url: app.get_custom_mirror_url().to_string(),
                 };
 
                 // Dynamic ThemeWatcher switching

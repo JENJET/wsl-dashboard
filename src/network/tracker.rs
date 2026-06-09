@@ -225,8 +225,22 @@ fn get_distro_num_cores(distro_name: &str) -> usize {
     count
 }
 
-/// Calculate CPU & memory usage using top -bn2
+/// Calculate CPU & memory usage using top -bn2, with ps fallback for minimal distros
+/// (e.g. docker-desktop) that may not have top installed.
 fn get_cpu_and_mem(distro_name: &str) -> Result<(f64, f64), String> {
+    let result = get_cpu_and_mem_via_top(distro_name);
+    if result.is_ok() {
+        return result;
+    }
+    tracing::debug!(
+        "[{}] top failed, falling back to ps: {}",
+        distro_name,
+        result.unwrap_err()
+    );
+    get_cpu_and_mem_via_ps(distro_name)
+}
+
+fn get_cpu_and_mem_via_top(distro_name: &str) -> Result<(f64, f64), String> {
     let output = Command::new("wsl")
         .env("WSL_UTF8", "1")
         .args(&["-d", distro_name, "--", "top", "-bn2", "-d", "0.2", "-b"])
@@ -237,14 +251,18 @@ fn get_cpu_and_mem(distro_name: &str) -> Result<(f64, f64), String> {
         Ok(out) if out.status.success() => {
             let stdout = crate::wsl::decoder::decode_output(&out.stdout);
             let trimmed = stdout.trim();
-            //tracing::debug!("[{}] Output:\n{}", distro_name, trimmed);
+
+            // Detect BusyBox vs GNU top format.
+            // GNU: "%Cpu(s): ..."   BusyBox: "CPU: ..."
+            let is_busybox = trimmed.lines().any(|l| l.starts_with("CPU:"));
 
             let mut cpu_sum = 0.0f64;
-            let mut mem_sum = 0.0f64;
+            let mut mem_sum_kib = 0.0f64;
             let mut iteration = 0u32;
 
             for line in trimmed.lines() {
-                if line.contains("%Cpu") {
+                // Count iteration boundaries
+                if line.contains("%Cpu") || line.starts_with("CPU:") {
                     iteration += 1;
                     continue;
                 }
@@ -254,35 +272,139 @@ fn get_cpu_and_mem(distro_name: &str) -> Result<(f64, f64), String> {
                 }
 
                 let fields: Vec<&str> = line.split_whitespace().collect();
-                if fields.len() >= 10
-                    && fields[0].chars().all(|c| c.is_ascii_digit())
-                    && !fields[0].is_empty()
-                {
-                    if let Ok(cpu) = fields[8].parse::<f64>() {
-                        cpu_sum += cpu;
+                if fields.is_empty() || !fields[0].chars().all(|c| c.is_ascii_digit()) {
+                    continue;
+                }
+
+                if is_busybox {
+                    // BusyBox: PID PPID USER STAT VSZ %VSZ CPU %CPU COMMAND
+                    //          [0]  [1]   [2]  [3]  [4] [5]  [6] [7]  [8]
+                    if fields.len() >= 8 {
+                        let cpu_str = fields[7].trim_end_matches('%');
+                        if let Ok(cpu) = cpu_str.parse::<f64>() {
+                            cpu_sum += cpu;
+                        }
                     }
-                    if let Ok(res) = fields[5].parse::<f64>() {
-                        mem_sum += res;
+                } else {
+                    // GNU: PID USER PR NI VIRT RES SHR S %CPU %MEM TIME+ COMMAND
+                    //       [0]  [1]  [2][3] [4] [5] [6][7] [8]  [9] [10]  [11]
+                    if fields.len() >= 10 {
+                        if let Ok(cpu) = fields[8].parse::<f64>() {
+                            cpu_sum += cpu;
+                        }
+                        if let Ok(res) = fields[5].parse::<f64>() {
+                            mem_sum_kib += res;
+                        }
                     }
                 }
             }
 
-            let total_mem_kib = mem_sum;
+            // BusyBox: sum VmRSS from /proc (same as GNU top RES, no top dependency)
+            if is_busybox {
+                mem_sum_kib = get_busybox_proc_mem(distro_name).unwrap_or(0.0);
+            }
+
             let num_cores = get_distro_num_cores(distro_name);
             let cpu_percent = (cpu_sum / num_cores as f64).min(100.0);
             tracing::debug!(
-                "[{}] cpu={} mem_kib={}",
+                "[{}] top(busybox={}): cpu={} mem_kib={}",
                 distro_name,
+                is_busybox,
                 cpu_percent,
-                total_mem_kib
+                mem_sum_kib
             );
-            Ok((cpu_percent, total_mem_kib))
+            Ok((cpu_percent, mem_sum_kib))
         }
         Ok(out) => {
             let stderr = crate::wsl::decoder::decode_output(&out.stderr);
-            tracing::warn!("[{}] stderr: {}", distro_name, stderr.trim());
             Err(format!("top command failed: {}", stderr.trim()))
         }
         Err(e) => Err(format!("Failed to execute top command: {}", e)),
+    }
+}
+
+/// Read memory from /proc/*/status VmRSS for BusyBox distros.
+/// Sums all processes' VmRSS (same as GNU top RES), returns KiB.
+fn get_busybox_proc_mem(distro_name: &str) -> Option<f64> {
+    let output = Command::new("wsl")
+        .env("WSL_UTF8", "1")
+        .args(&[
+            "-d",
+            distro_name,
+            "--",
+            "grep",
+            "-h",
+            "VmRSS:",
+            "/proc/[0-9]*/status",
+        ])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let stdout = crate::wsl::decoder::decode_output(&output.stdout);
+    let mut total_kib = 0.0f64;
+    for line in stdout.lines() {
+        // Format: "VmRSS:    875020 kB"
+        if let Some(val_part) = line.split_whitespace().nth(1) {
+            if let Ok(kib) = val_part.parse::<f64>() {
+                total_kib += kib;
+            }
+        }
+    }
+    Some(total_kib)
+}
+
+fn get_cpu_and_mem_via_ps(distro_name: &str) -> Result<(f64, f64), String> {
+    let output = Command::new("wsl")
+        .env("WSL_UTF8", "1")
+        .args(&["-d", distro_name, "--", "ps", "-eo", "pid,%cpu,rss"])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output();
+
+    match output {
+        Ok(out) if out.status.success() => {
+            let stdout = crate::wsl::decoder::decode_output(&out.stdout);
+            let trimmed = stdout.trim();
+
+            let mut cpu_sum = 0.0f64;
+            let mut mem_sum = 0.0f64;
+            let mut header_skipped = false;
+
+            for line in trimmed.lines() {
+                if !header_skipped {
+                    header_skipped = true;
+                    continue;
+                }
+                let fields: Vec<&str> = line.split_whitespace().collect();
+                // GNU ps: PID %CPU RSS
+                if fields.len() >= 3 {
+                    if let Ok(cpu) = fields[1].parse::<f64>() {
+                        cpu_sum += cpu;
+                    }
+                    if let Ok(rss) = fields[2].parse::<f64>() {
+                        mem_sum += rss;
+                    }
+                }
+            }
+
+            let num_cores = get_distro_num_cores(distro_name);
+            let cpu_percent = (cpu_sum / num_cores as f64).min(100.0);
+            tracing::debug!(
+                "[{}] ps: cpu={} mem_kib={}",
+                distro_name,
+                cpu_percent,
+                mem_sum
+            );
+            Ok((cpu_percent, mem_sum))
+        }
+        Ok(out) => {
+            let stderr = crate::wsl::decoder::decode_output(&out.stderr);
+            Err(format!("ps command failed: {}", stderr.trim()))
+        }
+        Err(e) => Err(format!("Failed to execute ps command: {}", e)),
     }
 }

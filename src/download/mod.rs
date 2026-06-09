@@ -10,6 +10,7 @@ use tracing::{error, info, warn};
 pub struct FlatDistroEntry {
     pub name: String,
     pub friendly_name: String,
+    pub category: String,
     pub amd64_url: String,
     pub amd64_sha256: String,
     pub arm64_url: String,
@@ -64,6 +65,7 @@ pub fn parse_distribution_info(
                 entries.push(FlatDistroEntry {
                     name: name.to_string(),
                     friendly_name: friendly_name.to_string(),
+                    category: category_name.to_string(),
                     amd64_url: amd64.as_ref().map(|u| u.0.clone()).unwrap_or_default(),
                     amd64_sha256: amd64.as_ref().map(|u| u.1.clone()).unwrap_or_default(),
                     arm64_url: arm64.as_ref().map(|u| u.0.clone()).unwrap_or_default(),

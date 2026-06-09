@@ -44,6 +44,15 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
     // Set host architecture (auto-detected, read-only)
     app.set_host_arch(host_arch_display().into());
 
+    // Initialize mirror source model with full list (Rust side manages dynamic filtering)
+    let mirror_names: Vec<slint::SharedString> = crate::app::constants::MIRROR_NAMES
+        .iter()
+        .map(|s| slint::SharedString::from(*s))
+        .collect();
+    let mirror_model = slint::VecModel::from(mirror_names);
+    app.set_url_mirror_sources(slint::ModelRc::from(Rc::new(mirror_model)));
+    app.set_show_mirror_section(crate::app::constants::is_chinese_lang(&i18n::current_lang()));
+
     // Callback: check if a path is local (used by UI to decide auto-fetch)
     app.on_is_local_url(|path| is_local_path(path.as_str()));
 
@@ -264,6 +273,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 slint_entries.push(UrlDistroInfo {
                     name: e.name.clone().into(),
                     friendly_name: e.friendly_name.clone().into(),
+                    category: e.category.clone().into(),
                     url: url.clone().into(),
                     sha256: sha256.clone().into(),
                     arm64_url: e.arm64_url.clone().into(),
@@ -303,9 +313,45 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                         app.set_new_instance_name(instance_name.clone().into());
                         let base = app.get_distro_location().to_string();
                         app.set_new_instance_path((base + "\\" + &instance_name).into());
+                        // Initialize mirror source based on distro category
+                        let category = d.category.to_string();
+                        let is_gh = crate::app::constants::is_github_url(&d.url);
+                        app.set_is_url_github(is_gh);
+                        let url_cn = d.url.to_string();
+                        let mirror_names: Vec<slint::SharedString> =
+                            if crate::app::constants::supports_domain_mirror(&category) {
+                                let names = crate::app::constants::get_domain_mirror_names(&url_cn);
+                                names
+                                    .iter()
+                                    .map(|s| slint::SharedString::from(*s))
+                                    .collect()
+                            } else if is_gh {
+                                crate::app::constants::MIRROR_NAMES
+                                    .iter()
+                                    .map(|s| slint::SharedString::from(*s))
+                                    .collect()
+                            } else {
+                                vec![slint::SharedString::from(
+                                    crate::app::constants::MIRROR_NAMES[0],
+                                )]
+                            };
+                        let has_mirrors = mirror_names.len() > 1;
+                        app.set_url_mirror_sources(slint::ModelRc::from(Rc::new(
+                            slint::VecModel::from(mirror_names),
+                        )));
+                        app.set_mirror_has_custom(is_gh);
+                        app.set_selected_url_mirror_idx(if has_mirrors { 1 } else { 0 });
+                        app.set_custom_mirror_url(Default::default());
                     }
                 } else {
                     app.set_selected_url_distro_idx(-1);
+                    app.set_is_url_github(false);
+                    let only_source: Vec<slint::SharedString> = vec![slint::SharedString::from(
+                        crate::app::constants::MIRROR_NAMES[0],
+                    )];
+                    app.set_url_mirror_sources(slint::ModelRc::from(Rc::new(
+                        slint::VecModel::from(only_source),
+                    )));
                 }
             }
         });
@@ -314,12 +360,103 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
     // Remember last selected URL distro name (in-memory only)
     let last_url_distro: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
     let last_url_distro_sel = last_url_distro.clone();
+    let ah_urd = app_handle.clone();
+    // Track previous mirror mode for save/restore across distro switches
+    let prev_is_gh: std::sync::Mutex<bool> = std::sync::Mutex::new(false);
+    let prev_is_domain: std::sync::Mutex<bool> = std::sync::Mutex::new(false);
     app.on_url_distro_selected(move |name| {
         let store = last_url_distro_sel.clone();
         let distro_name = name.to_string();
-        // Use try_lock since we're in a slint callback (not async)
         if let Ok(mut g) = store.try_lock() {
             *g = Some(distro_name);
+        }
+        if let Some(app) = ah_urd.upgrade() {
+            // Save mirror state when leaving a GitHub distro (preserve custom prefix)
+            if *prev_is_gh.lock().unwrap() {
+                app.set_saved_url_mirror_idx(app.get_selected_url_mirror_idx());
+                app.set_saved_custom_mirror_url(app.get_custom_mirror_url().to_string().into());
+            }
+            // Save mirror idx when leaving a domain mirror distro (separate from GitHub state)
+            if *prev_is_domain.lock().unwrap() {
+                app.set_saved_domain_mirror_idx(app.get_selected_url_mirror_idx());
+            }
+
+            let list = app.get_url_distro_list();
+            let idx = app.get_selected_url_distro_idx();
+            if idx >= 0 && (idx as usize) < list.row_count() {
+                if let Some(d) = list.row_data(idx as usize) {
+                    let category = d.category.to_string();
+                    let is_gh = crate::app::constants::is_github_url(&d.url);
+                    let is_domain = crate::app::constants::supports_domain_mirror(&category);
+                    app.set_is_url_github(is_gh);
+                    *prev_is_gh.lock().unwrap() = is_gh;
+                    *prev_is_domain.lock().unwrap() = is_domain;
+                    if is_domain {
+                        app.set_mirror_has_custom(false);
+                        let names = crate::app::constants::get_domain_mirror_names(&d.url);
+                        let mirror_names: Vec<slint::SharedString> = names
+                            .iter()
+                            .map(|s| slint::SharedString::from(*s))
+                            .collect();
+                        let saved = app.get_saved_domain_mirror_idx();
+                        let max = names.len() as i32 - 1;
+                        app.set_selected_url_mirror_idx(if saved > 0 && saved <= max {
+                            saved
+                        } else if names.len() > 1 {
+                            1
+                        } else {
+                            0
+                        });
+                        app.set_url_mirror_sources(slint::ModelRc::from(Rc::new(
+                            slint::VecModel::from(mirror_names),
+                        )));
+                    } else if is_gh {
+                        let saved = app.get_saved_url_mirror_idx();
+                        let max = crate::app::constants::MIRROR_NAMES.len() as i32 - 1;
+                        app.set_selected_url_mirror_idx(if saved > 0 && saved <= max {
+                            saved
+                        } else {
+                            1
+                        });
+                        app.set_mirror_has_custom(true);
+                        app.set_custom_mirror_url(
+                            app.get_saved_custom_mirror_url().to_string().into(),
+                        );
+                        let mirror_names: Vec<slint::SharedString> =
+                            crate::app::constants::MIRROR_NAMES
+                                .iter()
+                                .map(|s| slint::SharedString::from(*s))
+                                .collect();
+                        app.set_url_mirror_sources(slint::ModelRc::from(Rc::new(
+                            slint::VecModel::from(mirror_names),
+                        )));
+                    } else {
+                        app.set_selected_url_mirror_idx(0);
+                        app.set_mirror_has_custom(false);
+                        app.set_custom_mirror_url(Default::default());
+                        let only_source: Vec<slint::SharedString> =
+                            vec![slint::SharedString::from(
+                                crate::app::constants::MIRROR_NAMES[0],
+                            )];
+                        app.set_url_mirror_sources(slint::ModelRc::from(Rc::new(
+                            slint::VecModel::from(only_source),
+                        )));
+                    }
+                    return;
+                }
+            }
+            app.set_is_url_github(false);
+            *prev_is_gh.lock().unwrap() = false;
+            *prev_is_domain.lock().unwrap() = false;
+            app.set_mirror_has_custom(false);
+            app.set_selected_url_mirror_idx(0);
+            app.set_custom_mirror_url(Default::default());
+            let only_source: Vec<slint::SharedString> = vec![slint::SharedString::from(
+                crate::app::constants::MIRROR_NAMES[0],
+            )];
+            app.set_url_mirror_sources(slint::ModelRc::from(Rc::new(slint::VecModel::from(
+                only_source,
+            ))));
         }
     });
 
@@ -385,6 +522,11 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                             // Set host architecture info
                             if let Some(app) = ah.upgrade() {
                                 app.set_host_arch(host_arch_display().into());
+                            }
+                            // Reset saved mirror state for new distro list
+                            if let Some(app) = ah.upgrade() {
+                                app.set_saved_url_mirror_idx(0);
+                                app.set_saved_domain_mirror_idx(0);
                             }
                             // Rebuild models for current architecture
                             rebuild_url_models_from(&ah, &cache, &last);
@@ -524,36 +666,52 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     } else {
                         4
                     };
-                    let url_distro_url = if source_idx == 3 {
+                    let (url_distro_url, url_distro_sha256) = if source_idx == 3 {
                         let list = app.get_url_distro_list();
                         let idx = app.get_selected_url_distro_idx();
                         if idx >= 0 && (idx as usize) < list.row_count() {
                             if let Some(d) = list.row_data(idx as usize) {
-                                d.url.to_string()
+                                let mirror_idx = app.get_selected_url_mirror_idx();
+                                let custom_prefix = app.get_custom_mirror_url().to_string();
+                                let category = d.category.to_string();
+                                let url = d.url.to_string();
+
+                                let final_url =
+                                    if crate::app::constants::supports_domain_mirror(&category) {
+                                        crate::app::constants::apply_domain_mirror(
+                                            &url,
+                                            mirror_idx as usize,
+                                        )
+                                    } else {
+                                        crate::app::constants::apply_mirror(
+                                            &url,
+                                            mirror_idx as usize,
+                                            &custom_prefix,
+                                        )
+                                    };
+                                (final_url, d.sha256.to_string())
                             } else {
-                                String::new()
+                                (String::new(), String::new())
                             }
                         } else {
-                            String::new()
+                            (String::new(), String::new())
                         }
                     } else {
-                        String::new()
+                        (String::new(), String::new())
                     };
-                    let url_distro_sha256 = if source_idx == 3 {
-                        let list = app.get_url_distro_list();
-                        let idx = app.get_selected_url_distro_idx();
-                        if idx >= 0 && (idx as usize) < list.row_count() {
-                            if let Some(d) = list.row_data(idx as usize) {
-                                d.sha256.to_string()
-                            } else {
-                                String::new()
+
+                    // Save custom mirror URL to persistent settings
+                    if source_idx == 3 {
+                        if let Some(app) = ah_weak.upgrade() {
+                            let prefix = app.get_custom_mirror_url().to_string();
+                            if !prefix.is_empty() {
+                                let mut save_state = as_ptr.lock().await;
+                                let mut settings = save_state.config_manager.get_settings().clone();
+                                settings.custom_mirror_url = prefix;
+                                let _ = save_state.config_manager.update_settings(settings);
                             }
-                        } else {
-                            String::new()
                         }
-                    } else {
-                        String::new()
-                    };
+                    }
 
                     let _ = tokio::spawn(async move {
                         super::install_logic::perform_install(

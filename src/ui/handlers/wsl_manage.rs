@@ -824,13 +824,13 @@ pub async fn refresh_wsl_info(
                             lines.push("\n---------------------\n".into());
                             if let Ok(cpu_val) = cpu.trim().parse::<f64>() {
                                 let cpu_label = i18n::t("distro.cpu_tooltip");
-                                lines.push(format!("{}: {:.1}%", cpu_label, cpu_val).into());
+                                lines.push(format!("{}: {:.2}%", cpu_label, cpu_val).into());
                             }
                             let mem_label = i18n::t("distro.memory_tooltip");
                             if mem_mb >= 1024.0 {
-                                lines.push(format!("{}: {:.1} GB", mem_label, mem_mb / 1024.0).into());
+                                lines.push(format!("{}: {:.2} GB", mem_label, mem_mb / 1024.0).into());
                             } else {
-                                lines.push(format!("{}: {:.0} MB", mem_label, mem_mb).into());
+                                lines.push(format!("{}: {:.2} MB", mem_label, mem_mb).into());
                             }
                         }
                     }
