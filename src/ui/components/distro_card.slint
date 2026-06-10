@@ -12,26 +12,44 @@ component DistroInfo inherits VerticalLayout {
     alignment: center;
 
     pure function status-key(s: string) -> string {
-        if (s == "Running") { return "distro.running"; }
-        if (s == "Installing") { return "install.installing"; }
-        if (s == "Converting") { return "operation.converting"; }
-        if (s == "Uninstalling") { return "operation.uninstalling"; }
-        if (s == "Deleting") { return "operation.deleting"; }
-        if (s == "Exporting") { return "operation.exporting"; }
-        if (s == "Importing") { return "install.importing"; }
-        if (s == "Cloning") { return "operation.cloning"; }
+        if (s == "Running") {
+            return "distro.running";
+        }
+        if (s == "Installing") {
+            return "install.installing";
+        }
+        if (s == "Converting") {
+            return "operation.converting";
+        }
+        if (s == "Uninstalling") {
+            return "operation.uninstalling";
+        }
+        if (s == "Deleting") {
+            return "operation.deleting";
+        }
+        if (s == "Exporting") {
+            return "operation.exporting";
+        }
+        if (s == "Importing") {
+            return "install.importing";
+        }
+        if (s == "Cloning") {
+            return "operation.cloning";
+        }
         return "distro.stopped";
     }
-    
-    HorizontalLayout {
+
+    if (!root.is-rtl): HorizontalLayout {
         spacing: 8px;
         alignment: start;
-        
+
         name_touch := TouchArea {
             horizontal-stretch: 1;
             mouse-cursor: root.batch_mode ? default : pointer;
             clicked => {
-                if (!root.batch_mode) { root.copy_distro_name(); }
+                if (!root.batch_mode) {
+                    root.copy_distro_name();
+                }
             }
             Text {
                 text: distro.name;
@@ -40,7 +58,7 @@ component DistroInfo inherits VerticalLayout {
                 font-family: Theme.default_font;
                 color: name_touch.has-hover && !root.batch_mode ? Theme.accent : Theme.text_primary;
                 overflow: elide;
-                horizontal-alignment: is-rtl ? right : left;
+                horizontal-alignment: left;
             }
         }
 
@@ -50,11 +68,13 @@ component DistroInfo inherits VerticalLayout {
             border-radius: 3px;
             width: ip_text.width + 8px;
             height: 16px;
-            
+
             ip_touch := TouchArea {
                 mouse-cursor: root.batch_mode ? default : pointer;
                 clicked => {
-                    if (!root.batch_mode) { root.copy_distro_ip(); }
+                    if (!root.batch_mode) {
+                        root.copy_distro_ip();
+                    }
                 }
 
                 ip_text := Text {
@@ -68,8 +88,57 @@ component DistroInfo inherits VerticalLayout {
             }
         }
     }
+    if (root.is-rtl): HorizontalLayout {
+        spacing: 8px;
+        alignment: end;
 
-    HorizontalLayout {
+        if (distro.status == "Running" && distro.show_ip && distro.ip != ""):
+        Rectangle {
+            background: Theme.dark_mode ? #2b3c4e : #e6f4ff98;
+            border-radius: 3px;
+            width: ip_text_rtl.width + 8px;
+            height: 16px;
+
+            ip_touch_rtl := TouchArea {
+                mouse-cursor: root.batch_mode ? default : pointer;
+                clicked => {
+                    if (!root.batch_mode) {
+                        root.copy_distro_ip();
+                    }
+                }
+
+                ip_text_rtl := Text {
+                    text: distro.ip;
+                    font-size: 10px * LayoutConstants.font-scale;
+                    font-family: Theme.default_font;
+                    color: ip_touch_rtl.has-hover && !root.batch_mode ? Theme.accent : Theme.text_secondary;
+                    horizontal-alignment: center;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        name_touch_rtl := TouchArea {
+            horizontal-stretch: 1;
+            mouse-cursor: root.batch_mode ? default : pointer;
+            clicked => {
+                if (!root.batch_mode) {
+                    root.copy_distro_name();
+                }
+            }
+            Text {
+                text: distro.name;
+                font-size: 14px * LayoutConstants.font-scale;
+                font-weight: 400;
+                font-family: Theme.default_font;
+                color: name_touch_rtl.has-hover && !root.batch_mode ? Theme.accent : Theme.text_primary;
+                overflow: elide;
+                horizontal-alignment: right;
+            }
+        }
+    }
+
+    if (!root.is-rtl): HorizontalLayout {
         spacing: 6px;
         alignment: start;
 
@@ -78,15 +147,14 @@ component DistroInfo inherits VerticalLayout {
             font-size: 12px * LayoutConstants.font-scale;
             font-family: Theme.default_font;
             color: distro.active_op != "" ? Theme.accent : (distro.status == "Running" ? #22c55e : Theme.text_secondary);
-            horizontal-alignment: is-rtl ? right : left;
+            horizontal-alignment: left;
         }
-        
+
         if (distro.version != ""): Rectangle {
             background: Theme.dark_mode ? #3E3E42 : #E0E0E0;
             border-radius: 3px;
             width: ver_text.width + 6px;
             height: 16px;
-            
             ver_text := Text {
                 text: AppI18n.t("distro.wsl_version_label", [distro.version, AppI18n.version]);
                 font-size: 10px * LayoutConstants.font-scale;
@@ -96,13 +164,12 @@ component DistroInfo inherits VerticalLayout {
                 vertical-alignment: center;
             }
         }
-        
+
         if (distro.is_default): Rectangle {
             background: Theme.accent;
             border-radius: 3px;
             width: def_text.width + 6px;
             height: 16px;
-            
             def_text := Text {
                 text: AppI18n.t("distro.is_default", [AppI18n.version]);
                 font-size: 10px * LayoutConstants.font-scale;
@@ -112,13 +179,12 @@ component DistroInfo inherits VerticalLayout {
                 vertical-alignment: center;
             }
         }
-        
+
         if (distro.status == "Running" && distro.cpu_usage != ""): Rectangle {
             background: Theme.dark_mode ? #3E3E42 : #E0E0E0;
             border-radius: 3px;
             width: cpu_text.width + 6px;
             height: 16px;
-            
             cpu_text := Text {
                 text: distro.cpu_usage;
                 font-size: 10px * LayoutConstants.font-scale;
@@ -127,6 +193,7 @@ component DistroInfo inherits VerticalLayout {
                 horizontal-alignment: center;
                 vertical-alignment: center;
             }
+
             cpu_tip := TouchArea {
                 Rectangle {
                     visible: cpu_tip.has-hover;
@@ -149,13 +216,12 @@ component DistroInfo inherits VerticalLayout {
                 }
             }
         }
-        
+
         if (distro.status == "Running" && distro.memory_usage != ""): Rectangle {
             background: Theme.dark_mode ? #3E3E42 : #E0E0E0;
             border-radius: 3px;
             width: mem_text.width + 6px;
             height: 16px;
-            
             mem_text := Text {
                 text: distro.memory_usage;
                 font-size: 10px * LayoutConstants.font-scale;
@@ -164,6 +230,7 @@ component DistroInfo inherits VerticalLayout {
                 horizontal-alignment: center;
                 vertical-alignment: center;
             }
+
             mem_tip := TouchArea {
                 Rectangle {
                     visible: mem_tip.has-hover;
@@ -187,6 +254,122 @@ component DistroInfo inherits VerticalLayout {
             }
         }
     }
+    if (root.is-rtl): HorizontalLayout {
+        spacing: 6px;
+        alignment: end;
+
+        if (distro.status == "Running" && distro.memory_usage != ""): Rectangle {
+            background: Theme.dark_mode ? #3E3E42 : #E0E0E0;
+            border-radius: 3px;
+            width: mem_text_rtl.width + 6px;
+            height: 16px;
+            mem_text_rtl := Text {
+                text: distro.memory_usage;
+                font-size: 10px * LayoutConstants.font-scale;
+                font-family: Theme.default_font;
+                color: Theme.text_secondary;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            mem_tip_rtl := TouchArea {
+                Rectangle {
+                    visible: mem_tip_rtl.has-hover;
+                    background: Theme.dark_mode ? #2D2D30 : #FFFFFF;
+                    border-color: Theme.border_color;
+                    border-width: 1px;
+                    border-radius: 4px;
+                    x: (parent.width - self.width) / 2;
+                    y: -20px;
+                    width: ttm_rtl.width + 12px;
+                    height: ttm_rtl.height + 6px;
+                    ttm_rtl := Text {
+                        text: AppI18n.t("distro.memory_tooltip", [AppI18n.version]) + ":" + distro.memory_usage;
+                        color: Theme.text_primary;
+                        font-size: 11px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+
+        if (distro.status == "Running" && distro.cpu_usage != ""): Rectangle {
+            background: Theme.dark_mode ? #3E3E42 : #E0E0E0;
+            border-radius: 3px;
+            width: cpu_text_rtl.width + 6px;
+            height: 16px;
+            cpu_text_rtl := Text {
+                text: distro.cpu_usage;
+                font-size: 10px * LayoutConstants.font-scale;
+                font-family: Theme.default_font;
+                color: Theme.text_secondary;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+
+            cpu_tip_rtl := TouchArea {
+                Rectangle {
+                    visible: cpu_tip_rtl.has-hover;
+                    background: Theme.dark_mode ? #2D2D30 : #FFFFFF;
+                    border-color: Theme.border_color;
+                    border-width: 1px;
+                    border-radius: 4px;
+                    x: (parent.width - self.width) / 2;
+                    y: -20px;
+                    width: ttc_rtl.width + 12px;
+                    height: ttc_rtl.height + 6px;
+                    ttc_rtl := Text {
+                        text: AppI18n.t("distro.cpu_tooltip", [AppI18n.version]) + ":" + distro.cpu_usage;
+                        color: Theme.text_primary;
+                        font-size: 11px * LayoutConstants.font-scale;
+                        font-family: Theme.default_font;
+                        horizontal-alignment: center;
+                        vertical-alignment: center;
+                    }
+                }
+            }
+        }
+
+        if (distro.is_default): Rectangle {
+            background: Theme.accent;
+            border-radius: 3px;
+            width: def_text_rtl.width + 6px;
+            height: 16px;
+            def_text_rtl := Text {
+                text: AppI18n.t("distro.is_default", [AppI18n.version]);
+                font-size: 10px * LayoutConstants.font-scale;
+                font-family: Theme.default_font;
+                color: #FFFFFF;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+
+        if (distro.version != ""): Rectangle {
+            background: Theme.dark_mode ? #3E3E42 : #E0E0E0;
+            border-radius: 3px;
+            width: ver_text_rtl.width + 6px;
+            height: 16px;
+            ver_text_rtl := Text {
+                text: AppI18n.t("distro.wsl_version_label", [distro.version, AppI18n.version]);
+                font-size: 10px * LayoutConstants.font-scale;
+                font-family: Theme.default_font;
+                color: Theme.text_secondary;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+
+        Text {
+            text: distro.active_op != "" ? AppI18n.t(distro.active_op, [AppI18n.version]) : AppI18n.t(status-key(distro.status), [AppI18n.version]);
+            font-size: 12px * LayoutConstants.font-scale;
+            font-family: Theme.default_font;
+            color: distro.active_op != "" ? Theme.accent : (distro.status == "Running" ? #22c55e : Theme.text_secondary);
+            horizontal-alignment: right;
+        }
+    }
 }
 
 // Badge component
@@ -198,7 +381,7 @@ component DistroBadge inherits VerticalLayout {
     Rectangle {
         width: 32px;
         height: 32px;
-        
+
         // Prefer displaying the icon (has_icon becomes true after successful backend detection)
         Image {
             visible: distro.has_icon;
@@ -240,8 +423,7 @@ component DistroBadge inherits VerticalLayout {
                 color: Theme.text_primary;
             }
         }
-        icon_touch := TouchArea {
-        }
+        icon_touch := TouchArea { }
     }
 }
 
@@ -279,7 +461,7 @@ component QuickActionIcons inherits VerticalLayout {
     
     HorizontalLayout {
         spacing: 12px;
-        
+
         // In RTL, the collapse icon is at the front (visually leftmost)
         if (AppI18n.is-rtl): ActionIcon {
             icon: expanded ? "\u{E70E}" : "\u{E70D}";
@@ -342,74 +524,106 @@ component ExpandedActionIcons inherits VerticalLayout {
     callback set_default();
     callback terminal_config();
     alignment: center;
-    
+
     if (!AppI18n.is-rtl): HorizontalLayout {
         spacing: 16px;
         ActionIcon {
             icon: "\u{E890}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.information", [AppI18n.version]);
-            clicked => { root.information(); }
+            clicked => {
+                root.information();
+            }
         }
+
         ActionIcon {
             icon: "\u{E8B7}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.open_install_folder", [AppI18n.version]);
-            clicked => { root.open_install_folder(); }
+            clicked => {
+                root.open_install_folder();
+            }
         }
+
         ActionIcon {
             icon: "\u{E777}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.restart", [AppI18n.version]);
-            clicked => { root.restart(); }
+            clicked => {
+                root.restart();
+            }
         }
+
         ActionIcon {
             icon: "\u{E78C}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.export", [AppI18n.version]);
-            clicked => { root.export_distro(); }
+            clicked => {
+                root.export_distro();
+            }
         }
+
         ActionIcon {
             icon: "\u{E8DE}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.move", [AppI18n.version]);
-            clicked => { root.move_distro(); }
+            clicked => {
+                root.move_distro();
+            }
         }
+
         ActionIcon {
             icon: "\u{E8C8}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.clone", [AppI18n.version]);
-            clicked => { root.clone(); }
+            clicked => {
+                root.clone();
+            }
         }
+
         ActionIcon {
             icon: "\u{E74D}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.delete", [AppI18n.version]);
-            clicked => { root.delete_distro(); }
+            clicked => {
+                root.delete_distro();
+            }
         }
+
         ActionIcon {
             icon: "\u{E734}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.set_as_default", [AppI18n.version]);
-            clicked => { root.set_default(); }
+            clicked => {
+                root.set_default();
+            }
         }
+
         ActionIcon {
             icon: "\u{E713}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.settings", [AppI18n.version]);
-            clicked => { root.settings(); }
+            clicked => {
+                root.settings();
+            }
         }
+
         ActionIcon {
             icon: "\u{E835}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.configs", [AppI18n.version]);
-            clicked => { root.configs(); }
+            clicked => {
+                root.configs();
+            }
         }
+
         ActionIcon {
             icon: "\u{E756}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.terminal_config", [AppI18n.version]);
-            clicked => { root.terminal_config(); }
+            clicked => {
+                root.terminal_config();
+            }
         }
     }
     if (AppI18n.is-rtl): HorizontalLayout {
@@ -418,67 +632,99 @@ component ExpandedActionIcons inherits VerticalLayout {
             icon: "\u{E756}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.terminal_config", [AppI18n.version]);
-            clicked => { root.terminal_config(); }
+            clicked => {
+                root.terminal_config();
+            }
         }
+
         ActionIcon {
             icon: "\u{E835}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.configs", [AppI18n.version]);
-            clicked => { root.configs(); }
+            clicked => {
+                root.configs();
+            }
         }
+
         ActionIcon {
             icon: "\u{E713}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.settings", [AppI18n.version]);
-            clicked => { root.settings(); }
+            clicked => {
+                root.settings();
+            }
         }
+
         ActionIcon {
             icon: "\u{E734}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.set_as_default", [AppI18n.version]);
-            clicked => { root.set_default(); }
+            clicked => {
+                root.set_default();
+            }
         }
+
         ActionIcon {
             icon: "\u{E74D}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.delete", [AppI18n.version]);
-            clicked => { root.delete_distro(); }
+            clicked => {
+                root.delete_distro();
+            }
         }
+
         ActionIcon {
             icon: "\u{E8C8}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.clone", [AppI18n.version]);
-            clicked => { root.clone(); }
+            clicked => {
+                root.clone();
+            }
         }
+
         ActionIcon {
             icon: "\u{E8DE}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.move", [AppI18n.version]);
-            clicked => { root.move_distro(); }
+            clicked => {
+                root.move_distro();
+            }
         }
+
         ActionIcon {
             icon: "\u{E78C}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.export", [AppI18n.version]);
-            clicked => { root.export_distro(); }
+            clicked => {
+                root.export_distro();
+            }
         }
+
         ActionIcon {
             icon: "\u{E777}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.restart", [AppI18n.version]);
-            clicked => { root.restart(); }
+            clicked => {
+                root.restart();
+            }
         }
+
         ActionIcon {
             icon: "\u{E8B7}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.open_install_folder", [AppI18n.version]);
-            clicked => { root.open_install_folder(); }
+            clicked => {
+                root.open_install_folder();
+            }
         }
+
         ActionIcon {
             icon: "\u{E890}";
             is_font_icon: true;
             tooltip: AppI18n.t("distro.information", [AppI18n.version]);
-            clicked => { root.information(); }
+            clicked => {
+                root.information();
+            }
         }
     }
 }
@@ -521,25 +767,26 @@ export component DistroCard inherits Rectangle {
     }
     VerticalLayout {
         padding: 0px;
-        
+
         // Main row: Revert to physical spring layout, avoid top-level centering
             Rectangle {
                 // Main row
                 height: 48px;
-                touch := TouchArea {
-                    mouse-cursor: root.batch_mode ? default : pointer;
-                    clicked => {
-                        if (root.batch_mode) {
-                            root.selection_toggled();
-                        } else {
-                            root.expand_clicked();
-                        }
+            touch := TouchArea {
+                mouse-cursor: root.batch_mode ? default : pointer;
+                clicked => {
+                    if (root.batch_mode) {
+                        root.selection_toggled();
+                    } else {
+                        root.expand_clicked();
                     }
                 }
-                HorizontalLayout {
-                    padding-left: 12px;
-                    padding-right: 12px;
-                    spacing: 0px; // Use Spacer to control spacing
+            }
+
+            HorizontalLayout {
+                padding-left: 12px;
+                padding-right: 12px;
+                spacing: 0px; // Use Spacer to control spacing
 
                     // --- RTL branch: Icons on left, text on right ---
                     if (!root.batch_mode && AppI18n.is-rtl): QuickActionIcons {
@@ -561,29 +808,6 @@ export component DistroCard inherits Rectangle {
                 if (AppI18n.is-rtl): Rectangle {
                     horizontal-stretch: 1;
                 } // Middle spring
-                if (root.batch_mode && AppI18n.is-rtl): Rectangle {
-                    width: 28px;
-                    height: 28px;
-                    Rectangle {
-                        width: 18px;
-                        height: 18px;
-                        x: (parent.width - self.width) / 2;
-                        y: (parent.height - self.height) / 2;
-                        border-width: 1px;
-                        border-color: root.selected ? Theme.accent : Theme.input_border;
-                        background: root.selected ? Theme.accent : Theme.input_bg;
-                        border-radius: 3px;
-                        Path {
-                            commands: "M 4 9 L 7 12 L 14 5";
-                            stroke: #FFFFFF;
-                            stroke-width: 1.5px;
-                            opacity: root.selected ? 1 : 0;
-                        }
-                        TouchArea {
-                            clicked => { root.selection_toggled(); }
-                        }
-                    }
-                }
                 if (AppI18n.is-rtl): HorizontalLayout {
                     spacing: 8px;
                     DistroInfo {
@@ -614,6 +838,34 @@ export component DistroCard inherits Rectangle {
                     }
                 }
 
+                if (root.batch_mode && AppI18n.is-rtl): Rectangle {
+                    width: 28px;
+                    height: 28px;
+                    y: (parent.height - self.height) / 2;
+                    Rectangle {
+                        width: 18px;
+                        height: 18px;
+                        x: (parent.width - self.width) / 2;
+                        y: (parent.height - self.height) / 2;
+                        border-width: 1px;
+                        border-color: root.selected ? Theme.accent : Theme.input_border;
+                        background: root.selected ? Theme.accent : Theme.input_bg;
+                        border-radius: 3px;
+                        Path {
+                            commands: "M 4 9 L 7 12 L 14 5";
+                            stroke: #FFFFFF;
+                            stroke-width: 1.5px;
+                            opacity: root.selected ? 1 : 0;
+                        }
+
+                        TouchArea {
+                            clicked => {
+                                root.selection_toggled();
+                            }
+                        }
+                    }
+                }
+
                 // --- LTR branch: Text on left, icons on right ---
                 if (!AppI18n.is-rtl): HorizontalLayout {
                     horizontal-stretch: 1;
@@ -637,8 +889,11 @@ export component DistroCard inherits Rectangle {
                                 stroke-width: 1.5px;
                                 opacity: root.selected ? 1 : 0;
                             }
+
                             TouchArea {
-                                clicked => { root.selection_toggled(); }
+                                clicked => {
+                                    root.selection_toggled();
+                                }
                             }
                         }
                     }
@@ -695,6 +950,7 @@ export component DistroCard inherits Rectangle {
                 width: 32px;
                 height: 100%;
             }
+
             Rectangle {
                 visible: badge_overlay.has-hover && root.distro.distro_display_name != "";
                 background: Theme.dark_mode ? #2D2D30 : #FFFFFF;
@@ -733,7 +989,7 @@ export component DistroCard inherits Rectangle {
                 HorizontalLayout {
                     padding-left: 12px;
                     padding-right: 12px;
-                    
+
                     // RTL icons aligned to the visual left
                     if (AppI18n.is-rtl): ExpandedActionIcons {
                         information => {
@@ -773,7 +1029,7 @@ export component DistroCard inherits Rectangle {
                     Rectangle {
                         horizontal-stretch: 1;
                     }
-                    
+
                     // LTR icons aligned to the visual right
                     if (!AppI18n.is-rtl): ExpandedActionIcons {
                         information => {

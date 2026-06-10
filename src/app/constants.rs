@@ -3,6 +3,7 @@
 pub const APP_NAME: &str = "WSL Dashboard";
 #[allow(dead_code)]
 pub const APP_ID: &str = "wsldashboard";
+
 #[allow(dead_code)]
 pub const COMPANY_NAME: &str = APP_NAME;
 #[allow(dead_code)]
@@ -18,8 +19,7 @@ pub const GITEE_URL: &str = "https://gitee.com/bye/wsl-dashboard";
 
 #[allow(dead_code)]
 pub const GITHUB_ISSUES: &str = "/issues";
-#[allow(dead_code)]
-pub const GITHUB_DISCUSSIONS: &str = "/discussions";
+
 #[allow(dead_code)]
 pub const GITHUB_RELEASES: &str = "/releases";
 

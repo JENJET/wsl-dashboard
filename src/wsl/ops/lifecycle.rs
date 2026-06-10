@@ -36,14 +36,8 @@ pub async fn start_distro(
         );
 
         // Start wsl.exe running sleep infinity with CREATE_NO_WINDOW flag to avoid console window popping up
-        let mut cmd = std::process::Command::new("wsl.exe");
-        cmd.args(&["-d", &distro_name_owned, "--", "sleep", "infinity"]);
-
-        #[cfg(windows)]
-        {
-            use std::os::windows::process::CommandExt;
-            cmd.creation_flags(CREATE_NO_WINDOW);
-        }
+        let mut cmd = crate::utils::system::new_wsl_command();
+        cmd.args(["-d", &distro_name_owned, "--", "sleep", "infinity"]);
 
         match cmd.spawn() {
             Ok(_child) => {

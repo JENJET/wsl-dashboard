@@ -1,27 +1,16 @@
-use crate::utils::system::CREATE_NO_WINDOW;
 use crate::wsl::executor::WslCommandExecutor;
 use crate::wsl::models::{PhysicalDisk, WslCommandResult};
-use std::os::windows::process::CommandExt;
 use tracing::info;
 
 /// List physical disks via PowerShell Get-Disk
 pub async fn list_physical_disks() -> WslCommandResult<Vec<PhysicalDisk>> {
-    let output = tokio::task::spawn_blocking(|| {
-        std::process::Command::new("powershell.exe")
-            .args([
-                "-NoProfile",
-                "-NonInteractive",
-                "-Command",
-                "Get-Disk | Select-Object Number, FriendlyName, Size, BusType, PartitionStyle | ForEach-Object { \"$($_.Number)|$($_.FriendlyName)|$($_.Size)|$($_.BusType)|$($_.PartitionStyle)\" }",
-            ])
-            .creation_flags(CREATE_NO_WINDOW)
-            .output()
-    })
-    .await
-    .unwrap_or(Err(std::io::Error::new(
-        std::io::ErrorKind::Other,
-        "spawn_blocking failed",
-    )));
+    let script = "Get-Disk | Select-Object Number, FriendlyName, Size, BusType, PartitionStyle | ForEach-Object { \"$($_.Number)|$($_.FriendlyName)|$($_.Size)|$($_.BusType)|$($_.PartitionStyle)\" }";
+    let output = tokio::task::spawn_blocking(move || crate::utils::system::run_powershell(script))
+        .await
+        .unwrap_or(Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "spawn_blocking failed",
+        )));
 
     match output {
         Ok(out) => {
@@ -63,26 +52,13 @@ fn parse_physical_disks(output: &str) -> Vec<PhysicalDisk> {
         disks.push(PhysicalDisk {
             number,
             friendly_name,
-            size: format_size(size_bytes),
+            size: crate::utils::format::format_size(size_bytes),
             size_bytes,
             bus_type,
             partition_style,
         });
     }
     disks
-}
-
-fn format_size(bytes: u64) -> String {
-    if bytes >= 1024 * 1024 * 1024 * 1024 {
-        format!(
-            "{:.2} TB",
-            bytes as f64 / (1024.0 * 1024.0 * 1024.0 * 1024.0)
-        )
-    } else if bytes >= 1024 * 1024 * 1024 {
-        format!("{:.2} GB", bytes as f64 / (1024.0 * 1024.0 * 1024.0))
-    } else {
-        format!("{:.2} MB", bytes as f64 / (1024.0 * 1024.0))
-    }
 }
 
 /// Build the wsl.exe command line for mounting (for elevated fallback)

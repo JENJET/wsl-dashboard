@@ -4,7 +4,6 @@
 #[global_allocator]
 static ALLOC: dhat::Alloc = dhat::Alloc;
 
-use crate::utils::system::CREATE_NO_WINDOW;
 use crate::wsl::models::WslVersion;
 use slint::{ComponentHandle, Model};
 use std::sync::Arc;
@@ -124,11 +123,8 @@ async fn main() {
                     );
                     #[cfg(windows)]
                     {
-                        use std::os::windows::process::CommandExt;
-                        use std::process::Command;
-                        let _ = Command::new("wsl")
-                            .args(&["-d", name, "-u", "root", "--", WSL_INIT_SCRIPT, "start"])
-                            .creation_flags(CREATE_NO_WINDOW)
+                        let _ = crate::utils::system::new_wsl_command()
+                            .args(["-d", name, "-u", "root", "--", WSL_INIT_SCRIPT, "start"])
                             .spawn();
                         distros_spawned += 1;
                     }
@@ -179,14 +175,8 @@ async fn main() {
         if !usb_config.auto_attach_list.is_empty() {
             // Check if any WSL 2 instance is running (required for usbipd attach)
             let is_any_running = {
-                let mut cmd = std::process::Command::new("wsl");
+                let mut cmd = crate::utils::system::new_wsl_command();
                 cmd.args(["-l", "-v"]);
-                #[cfg(windows)]
-                {
-                    use std::os::windows::process::CommandExt;
-                    cmd.creation_flags(CREATE_NO_WINDOW);
-                }
-                cmd.env("WSL_UTF8", "1");
 
                 match cmd.output() {
                     Ok(out) => {

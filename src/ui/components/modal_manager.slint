@@ -16,7 +16,13 @@
 } from "dialogs.slint";
 import { ProxyHelpDialog } from "./dialogs/proxy_help_dialog.slint";
 import { CheckProxyDialog } from "./dialogs/check_proxy_dialog.slint";
-import { AppInfo, Information, RootFSHelpItem, AppI18n, Theme } from "../theme.slint";
+import {
+    AppInfo,
+    Information,
+    RootFSHelpItem,
+    AppI18n,
+    Theme,
+} from "../theme.slint";
 
 export component ModalManager inherits Rectangle {
     // Controls
@@ -114,7 +120,7 @@ export component ModalManager inherits Rectangle {
     in-out property <bool> settings_terminal_proxy: true;
     in property <Information> information;
     in property <[RootFSHelpItem]> rootfs_help_list;
-    
+
     // Network properties
     in property <[string]> network_distro_names: [];
     in property <[string]> network_local_ips: [];
@@ -154,6 +160,9 @@ export component ModalManager inherits Rectangle {
     // Callbacks
     callback confirm_delete();
     callback cancel_delete();
+    in-out property <bool> show_batch_delete: false;
+    callback confirm_batch_delete();
+    callback cancel_batch_delete();
     callback confirm_export(string);
     callback cancel_export();
     callback browse_export();
@@ -224,6 +233,19 @@ export component ModalManager inherits Rectangle {
         }
         cancel => {
             root.cancel_delete();
+        }
+    }
+    if (show_batch_delete): ConfirmationDialog {
+        width: 100%;
+        height: 100%;
+        title_text: AppI18n.t("dialog.batch_delete_title", [AppI18n.version]);
+        message: AppI18n.t("dialog.batch_delete_msg", [AppI18n.version]);
+        is_warning: true;
+        confirm => {
+            root.confirm_batch_delete();
+        }
+        cancel => {
+            root.cancel_batch_delete();
         }
     }
     if (show_export): ExportDialog {
@@ -604,8 +626,11 @@ export component ModalManager inherits Rectangle {
         background: Theme.dark_mode ? #00000088 : #00000044;
         z: 11;
         TouchArea {
-            clicked => { root.show_check_proxy = false; }
+            clicked => {
+                root.show_check_proxy = false;
+            }
         }
+
         CheckProxyDialog {
             check_connection(url) => {
                 root.check_proxy_connection(url);
@@ -617,15 +642,16 @@ export component ModalManager inherits Rectangle {
         }
     }
 
-
     if (show_network_proxy_help): Rectangle {
         background: Theme.dark_mode ? #00000088 : #00000044;
         z: 12;
         TouchArea {
-            clicked => { root.show_network_proxy_help = false; }
+            clicked => {
+                root.show_network_proxy_help = false;
+            }
         }
-        ProxyHelpDialog {
-        }
+
+        ProxyHelpDialog { }
     }
 
     if (show_terminal_config): TerminalConfigDialog {

@@ -7,6 +7,8 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::debug;
 
+const POLL_INTERVAL_SECS: u64 = 5;
+
 // Adaptive WSL state + resource monitor.
 // Polls distro list (wsl -l -v) and fetches CPU/IP for running distros.
 // Skips entirely when not on Home tab; reduces to 30s when window is hidden.
@@ -15,7 +17,7 @@ pub fn spawn_state_monitor(app_handle: slint::Weak<AppWindow>, app_state: Arc<Mu
         loop {
             // Skip entirely if not on Home tab — avoids unnecessary event loop wakeups
             if crate::ui::data::CURRENT_TAB.load(std::sync::atomic::Ordering::Relaxed) != 0 {
-                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                tokio::time::sleep(std::time::Duration::from_secs(POLL_INTERVAL_SECS)).await;
                 continue;
             }
 
@@ -23,7 +25,7 @@ pub fn spawn_state_monitor(app_handle: slint::Weak<AppWindow>, app_state: Arc<Mu
             let visible =
                 crate::ui::data::WINDOW_VISIBLE.load(std::sync::atomic::Ordering::Relaxed);
             if visible {
-                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                tokio::time::sleep(std::time::Duration::from_secs(POLL_INTERVAL_SECS)).await;
             } else {
                 crate::ui::data::REFRESH_NOTIFY.notified().await;
             }
@@ -164,7 +166,7 @@ pub fn spawn_usb_monitor(app_handle: slint::Weak<AppWindow>) {
         loop {
             // Skip entirely if not on USB tab
             if crate::ui::data::CURRENT_TAB.load(std::sync::atomic::Ordering::Relaxed) != 2 {
-                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                tokio::time::sleep(std::time::Duration::from_secs(POLL_INTERVAL_SECS)).await;
                 continue;
             }
 
@@ -172,7 +174,7 @@ pub fn spawn_usb_monitor(app_handle: slint::Weak<AppWindow>) {
             let visible =
                 crate::ui::data::WINDOW_VISIBLE.load(std::sync::atomic::Ordering::Relaxed);
             if visible {
-                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                tokio::time::sleep(std::time::Duration::from_secs(POLL_INTERVAL_SECS)).await;
             } else {
                 crate::ui::data::REFRESH_NOTIFY.notified().await;
             }

@@ -1,10 +1,8 @@
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
-use std::os::windows::process::CommandExt;
 use std::path::Path;
 use tracing::{debug, info};
 
-use crate::utils::system::CREATE_NO_WINDOW;
 use crate::wsl::executor::WslCommandExecutor;
 
 /// VHDX metadata parsed directly from file headers
@@ -35,10 +33,7 @@ fn is_file_sparse(path: &Path) -> bool {
         "$a=(Get-Item '{}').Attributes;if($a-band[System.IO.FileAttributes]::SparseFile){{exit 0}}else{{exit 1}}",
         path.to_string_lossy().replace('\'', "''")
     );
-    let output = std::process::Command::new("powershell.exe")
-        .args(["-NoProfile", "-NonInteractive", "-Command", &ps_script])
-        .creation_flags(CREATE_NO_WINDOW)
-        .output();
+    let output = crate::utils::system::run_powershell(&ps_script);
 
     matches!(output, Ok(out) if out.status.success())
 }
@@ -151,7 +146,7 @@ pub fn get_vhdx_info(vhdx_path: &str) -> Option<VhdxInfo> {
     }
 
     let info = VhdxInfo {
-        virtual_size: format_size(virtual_size),
+        virtual_size: crate::utils::format::format_size(virtual_size),
         vhd_type: if has_bat {
             "VHDX (Dynamic)".to_string()
         } else {
@@ -186,7 +181,7 @@ fn parse_vhd_info(file: &mut File, _file_len: u64, path: &Path) -> Option<VhdxIn
     };
 
     Some(VhdxInfo {
-        virtual_size: format_size(current_size),
+        virtual_size: crate::utils::format::format_size(current_size),
         vhd_type,
         is_sparse: is_file_sparse(path), // Use actual filesystem sparse flag for VHD too
     })
@@ -197,19 +192,6 @@ fn read_exact_at(file: &mut File, offset: u64, len: usize) -> Option<Vec<u8>> {
     let mut buf = vec![0u8; len];
     file.read_exact(&mut buf).ok()?;
     Some(buf)
-}
-
-fn format_size(bytes: u64) -> String {
-    if bytes >= 1024 * 1024 * 1024 * 1024 {
-        format!(
-            "{:.2} TB",
-            bytes as f64 / (1024.0 * 1024.0 * 1024.0 * 1024.0)
-        )
-    } else if bytes >= 1024 * 1024 * 1024 {
-        format!("{:.2} GB", bytes as f64 / (1024.0 * 1024.0 * 1024.0))
-    } else {
-        format!("{:.2} MB", bytes as f64 / (1024.0 * 1024.0))
-    }
 }
 
 /// Run a wsl manage command via executor.

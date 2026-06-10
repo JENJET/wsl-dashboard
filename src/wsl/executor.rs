@@ -5,12 +5,28 @@ use tracing::{debug, error, info, warn};
 
 use crate::wsl::models::WslCommandResult;
 
-use crate::utils::system::{
-    CREATE_NEW_CONSOLE, CREATE_NO_WINDOW, run_command_with_elevation, run_elevated_and_wait,
-};
+use crate::utils::system::{run_command_with_elevation, run_elevated_and_wait};
 use crate::wsl::decoder::{WslOutputDecoder, decode_output};
 
 const MAX_CONCURRENT: usize = 30;
+
+/// Create a pre-configured async wsl.exe command with WSL_UTF8 and CREATE_NO_WINDOW.
+pub fn new_tokio_wsl_cmd() -> tokio::process::Command {
+    let mut cmd = tokio::process::Command::new("wsl.exe");
+    cmd.env("WSL_UTF8", "1");
+    #[cfg(windows)]
+    cmd.creation_flags(crate::utils::system::CREATE_NO_WINDOW);
+    cmd.kill_on_drop(true);
+    cmd
+}
+const HEAVY_OP_TIMEOUT_SECS: u64 = 1800;
+const WRITE_OP_TIMEOUT_SECS: u64 = 45;
+const READ_OP_TIMEOUT_SECS: u64 = 10;
+const SEMAPHORE_TIMEOUT_SECS: u64 = 10;
+const STREAMING_TIMEOUT_SECS: u64 = 1800;
+const MAX_OUTPUT_SIZE: usize = 1024 * 1024;
+const READ_BUF_SIZE: usize = 8192;
+const STREAM_BUF_SIZE: usize = 1024;
 
 // WSL command executor, responsible for executing various WSL commands
 #[derive(Clone)]
@@ -103,11 +119,11 @@ impl WslCommandExecutor {
             )
         });
         let timeout_duration = if is_heavy_op {
-            std::time::Duration::from_secs(1800)
+            std::time::Duration::from_secs(HEAVY_OP_TIMEOUT_SECS)
         } else if is_write_op {
-            std::time::Duration::from_secs(45)
+            std::time::Duration::from_secs(WRITE_OP_TIMEOUT_SECS)
         } else {
-            std::time::Duration::from_secs(10)
+            std::time::Duration::from_secs(READ_OP_TIMEOUT_SECS)
         };
         if is_heavy_op {
             info!(
@@ -117,7 +133,7 @@ impl WslCommandExecutor {
         }
 
         // Shared: semaphore acquire
-        let permit_timeout = std::time::Duration::from_secs(10);
+        let permit_timeout = std::time::Duration::from_secs(SEMAPHORE_TIMEOUT_SECS);
         debug!(
             "Acquiring WSL semaphore permit (Available: {}/{MAX_CONCURRENT}) for: {}",
             self.semaphore.available_permits(),
@@ -160,16 +176,10 @@ impl WslCommandExecutor {
             }
         } else {
             let future = async {
-                let mut cmd = tokio::process::Command::new(program);
+                let mut cmd = crate::wsl::executor::new_tokio_wsl_cmd();
                 cmd.args(&args_owned);
-                cmd.env("WSL_UTF8", "1");
                 cmd.stdout(Stdio::piped());
                 cmd.stderr(Stdio::piped());
-                #[cfg(windows)]
-                {
-                    cmd.creation_flags(CREATE_NO_WINDOW);
-                }
-                cmd.kill_on_drop(true);
 
                 debug!("Spawning wsl process for: {}", command_str);
                 let mut child = cmd
@@ -188,8 +198,7 @@ impl WslCommandExecutor {
 
                 let mut stdout_data = Vec::new();
                 let mut stderr_data = Vec::new();
-                const MAX_OUTPUT_SIZE: usize = 1024 * 1024;
-                let mut buf = [0u8; 8192];
+                let mut buf = [0u8; READ_BUF_SIZE];
                 loop {
                     let n = stdout
                         .read(&mut buf)
@@ -300,20 +309,11 @@ impl WslCommandExecutor {
         info!("Executing Streaming WSL command: {}", command_str);
 
         let future = async {
-            let mut cmd = tokio::process::Command::new("wsl.exe");
+            let mut cmd = crate::wsl::executor::new_tokio_wsl_cmd();
             cmd.args(&args_owned)
-                .env("WSL_UTF8", "1")
                 .stdin(Stdio::null())
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped());
-
-            #[cfg(windows)]
-            {
-                cmd.creation_flags(CREATE_NO_WINDOW);
-            }
-
-            // Ensure process is killed on drop
-            cmd.kill_on_drop(true);
 
             let mut child = match cmd.spawn() {
                 Ok(child) => {
@@ -328,8 +328,8 @@ impl WslCommandExecutor {
 
             let mut full_output = String::new();
             let mut stderr_output = String::new();
-            let mut out_buf = [0u8; 1024];
-            let mut err_buf = [0u8; 1024];
+            let mut out_buf = [0u8; STREAM_BUF_SIZE];
+            let mut err_buf = [0u8; STREAM_BUF_SIZE];
 
             let mut out_decoder = WslOutputDecoder::new();
             let mut err_decoder = WslOutputDecoder::new();
@@ -396,7 +396,7 @@ impl WslCommandExecutor {
         };
 
         // Streaming commands usually used for install/import, so 30m timeout
-        let timeout_duration = std::time::Duration::from_secs(1800);
+        let timeout_duration = std::time::Duration::from_secs(STREAMING_TIMEOUT_SECS);
 
         // Also respect semaphore for consistency
         let permit_timeout = std::time::Duration::from_secs(10);
@@ -468,42 +468,6 @@ impl WslCommandExecutor {
             .execute_command(&["-d", distro_name, "-u", "root", "-e", "test", "-x", path])
             .await;
         (exists_res.success, exec_res.success)
-    }
-
-    /// Execute a WSL command in a new console window (interactive, fire-and-forget).
-    /// Uses CREATE_NEW_CONSOLE so the user can interact with the terminal.
-    #[allow(dead_code)]
-    pub async fn spawn_console(&self, args: &[&str]) -> Result<(), String> {
-        let args_owned: Vec<String> = args.iter().map(|&s| s.to_string()).collect();
-        let command_str = format!("wsl {}", args_owned.join(" "));
-        info!("Spawning WSL console: {}", command_str);
-
-        let permit_timeout = std::time::Duration::from_secs(3);
-        let _permit = match tokio::time::timeout(permit_timeout, self.semaphore.acquire()).await {
-            Ok(Ok(p)) => p,
-            Ok(Err(_)) => return Err("Failed to acquire semaphore permit (closed)".to_string()),
-            Err(_) => {
-                return Err(format!(
-                    "WSL spawn console timeout after {}s (Queue full): {}",
-                    permit_timeout.as_secs(),
-                    command_str
-                ));
-            }
-        };
-
-        let mut cmd = tokio::process::Command::new("wsl.exe");
-        cmd.args(&args_owned);
-        #[cfg(windows)]
-        {
-            cmd.creation_flags(CREATE_NEW_CONSOLE);
-        }
-        cmd.kill_on_drop(false);
-
-        cmd.spawn()
-            .map(|_| {
-                info!("WSL console spawned successfully: {}", command_str);
-            })
-            .map_err(|e| format!("Failed to spawn WSL console: {}", e))
     }
 
     /// Execute a command with elevation in a console window.

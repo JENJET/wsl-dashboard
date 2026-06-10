@@ -499,7 +499,7 @@ pub fn setup(app: &AppWindow, app_handle: Weak<AppWindow>, _app_state: Arc<Mutex
                         use std::process::Stdio;
                         use std::time::{Duration, Instant};
 
-                        let mut child = match StdCommand::new("wsl")
+                        let mut child = match crate::utils::system::new_wsl_command()
                             .args(["--manage", dn, "--set-sparse", "true", "--allow-unsafe"])
                             .stdout(Stdio::piped())
                             .stderr(Stdio::piped())
@@ -611,7 +611,7 @@ fn goto_restore_sparse(
         use std::time::{Duration, Instant};
 
         let result = {
-            let mut child = match StdCommand::new("wsl")
+            let mut child = match crate::utils::system::new_wsl_command()
                 .args([
                     "--manage",
                     distro_name,
@@ -720,12 +720,7 @@ fn check_backup_path_exists(ah: &Weak<AppWindow>) {
 fn update_drive_info(ah: &Weak<AppWindow>, _vhdx_path: &str) {
     if let Some(app) = ah.upgrade() {
         let backup_path = app.get_vhdx_compact_backup_path().to_string();
-        let drive_root = if backup_path.len() >= 3 {
-            backup_path[..3].to_string()
-        } else {
-            "C:\\".to_string()
-        };
-
+        let drive_root = crate::utils::system::get_drive_root(&backup_path);
         let disk_info = system::get_disk_space(&drive_root);
         let free_gb = disk_info.unused_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
         let total_gb = disk_info.total_bytes as f64 / (1024.0 * 1024.0 * 1024.0);

@@ -17,7 +17,9 @@ import {
 import { TitleBar } from "components/title_bar.slint";
 import { Sidebar } from "components/sidebar.slint";
 import { ModalManager } from "components/modal_manager.slint";
-import { ConfirmationDialog } from "components/dialogs/confirmation_dialog.slint";
+import {
+    ConfirmationDialog,
+} from "components/dialogs/confirmation_dialog.slint";
 import { CustomCheckBox, CustomButton } from "components/form_widgets.slint";
 import { MainView } from "views/main_view.slint";
 import { AddInstanceView } from "views/add_view.slint";
@@ -172,6 +174,7 @@ export component AppWindow inherits Window {
     in property <bool> task_status_visible: false;
     in-out property <bool> batch_abort_triggered: false;
     in property <string> batch_progress_suffix: "";
+    in-out property <bool> show_batch_delete_confirmation: false;
     in property <Information> information;
     in property <[RootFSHelpItem]> rootfs_help_list: [{ name: "Ubuntu", url: "https://cdimages.ubuntu.com/ubuntu-wsl/" }];
     in property <SettingsStrings> settings_strings;
@@ -249,7 +252,7 @@ export component AppWindow inherits Window {
     in-out property <string> network_add_target_port: "";
     in-out property <bool> network_add_enable_fw: true;
     in property <string> network_add_error: "";
-    
+
     // --- USB Properties ---
     in property <[UsbDevice]> usb_devices: [];
     in property <bool> usb_loading: false;
@@ -560,6 +563,7 @@ export component AppWindow inherits Window {
     callback batch_clone();
     callback batch_move();
     callback batch_delete();
+    callback confirm_batch_delete();
     callback batch_select_all();
     callback batch_invert_selection();
     callback batch_select_running();
@@ -1105,12 +1109,24 @@ export component AppWindow inherits Window {
                                 terminal_user_preset_form_args <=> root.terminal_user_preset_form_args;
                                 terminal_user_preset_form_error: root.terminal_user_preset_form_error;
                                 terminal_user_preset_original_name <=> root.terminal_user_preset_original_name;
-                                edit_user_preset(name) => { root.edit_user_preset(name); }
-                                delete_user_preset(name) => { root.delete_user_preset(name); }
-                                save_user_preset(old, name, path, args) => { root.save_user_preset(old, name, path, args); }
-                                cancel_user_preset_form => { root.cancel_user_preset_form(); }
-                                add_user_preset => { root.add_user_preset(); }
-                                user_preset_path_browse => { root.user_preset_path_browse(); }
+                                edit_user_preset(name) => {
+                                    root.edit_user_preset(name);
+                                }
+                                delete_user_preset(name) => {
+                                    root.delete_user_preset(name);
+                                }
+                                save_user_preset(old, name, path, args) => {
+                                    root.save_user_preset(old, name, path, args);
+                                }
+                                cancel_user_preset_form => {
+                                    root.cancel_user_preset_form();
+                                }
+                                add_user_preset => {
+                                    root.add_user_preset();
+                                }
+                                user_preset_path_browse => {
+                                    root.user_preset_path_browse();
+                                }
                                 save-settings => {
                                     root.save_settings();
                                 }
@@ -1154,7 +1170,7 @@ export component AppWindow inherits Window {
         }
     }
 
-        // --- Layers/Modals ---
+    // --- Layers/Modals ---
         ModalManager {
         is_installing: root.is_installing;
         show_delete: root.show_delete_confirmation;
@@ -1165,6 +1181,14 @@ export component AppWindow inherits Window {
         }
         cancel_delete => {
             root.show_delete_confirmation = false;
+        }
+        show_batch_delete: root.show_batch_delete_confirmation;
+        confirm_batch_delete => {
+            root.show_batch_delete_confirmation = false;
+            root.confirm_batch_delete();
+        }
+        cancel_batch_delete => {
+            root.show_batch_delete_confirmation = false;
         }
         show_export: root.show_export_dialog;
         export_target_name: root.export_distro_name;
@@ -1520,7 +1544,7 @@ export component AppWindow inherits Window {
     }
 
     // Official communication group image popup layer (borderless, click anywhere to close)
-    if root.show_group_popup : Rectangle {
+    if root.show_group_popup: Rectangle {
         background: #00000080;
         z: 100;
         width: 100%;
@@ -1549,10 +1573,10 @@ export component AppWindow inherits Window {
                 image-fit: cover;
             }
         }
-    }   
+    }
 
     // Busy Dialog - blocks close/exit when manual operation is in progress
-    if root.show_busy_dialog : ConfirmationDialog {
+    if root.show_busy_dialog: ConfirmationDialog {
         title_text: AppI18n.t("dialog.info", [AppI18n.version]);
         message: AppI18n.t("dialog.busy_close", [AppI18n.version]);
         z: 100;
@@ -1565,7 +1589,7 @@ export component AppWindow inherits Window {
     }
 
     // VHDX Resize Dialog
-    if root.show_vhdx_resize : Rectangle {
+    if root.show_vhdx_resize: Rectangle {
         background: #00000080;
         z: 100;
         width: 100%;
@@ -1579,6 +1603,7 @@ export component AppWindow inherits Window {
                 }
             }
         }
+
         Rectangle {
             width: 440px;
             height: root.vhdx_resize_running || root.vhdx_resize_output != "" ? 220px : 120px;
@@ -1592,6 +1617,7 @@ export component AppWindow inherits Window {
             drop-shadow-color: #00000040;
             clip: true;
             TouchArea { /* prevent click through */ }
+
             VerticalLayout {
                 padding: 12px;
                 spacing: 6px;
@@ -1601,16 +1627,18 @@ export component AppWindow inherits Window {
                     font-family: Theme.default_font;
                     font-weight: 500;
                     color: Theme.text_primary;
-                    horizontal-alignment: left;
+                    horizontal-alignment: AppI18n.is-rtl ? right : left;
                 }
+
                 Text {
                     text: AppI18n.t("dialog.vhdx_resize_desc", [AppI18n.version]);
                     font-size: 12px * LayoutConstants.font-scale;
                     font-family: Theme.default_font;
                     color: Theme.text_secondary;
                     wrap: word-wrap;
-                    horizontal-alignment: left;
+                    horizontal-alignment: AppI18n.is-rtl ? right : left;
                 }
+
                 HorizontalLayout {
                     spacing: 8px;
                     alignment: center;
@@ -1621,6 +1649,7 @@ export component AppWindow inherits Window {
                         color: Theme.text_primary;
                         vertical-alignment: center;
                     }
+
                     Rectangle {
                         width: 100px;
                         height: 30px;
@@ -1641,6 +1670,7 @@ export component AppWindow inherits Window {
                             input-type: number;
                         }
                     }
+
                     if (!root.vhdx_resize_running): Rectangle {
                         width: 110px;
                         height: 30px;
@@ -1659,6 +1689,7 @@ export component AppWindow inherits Window {
                                 vertical-alignment: center;
                             }
                         }
+
                         TouchArea {
                             clicked => {
                                 if (root.vhdx_resize_new_size != "" && root.vhdx_resize_new_size.to-float() > 0) {
@@ -1696,6 +1727,7 @@ export component AppWindow inherits Window {
                             horizontal-alignment: center;
                             vertical-alignment: center;
                         }
+
                         TouchArea {
                             clicked => {
                                 root.vhdx_resize_cancel();
@@ -1703,6 +1735,7 @@ export component AppWindow inherits Window {
                         }
                     }
                 }
+
                 if (root.vhdx_resize_running || root.vhdx_resize_output != ""): Rectangle {
                     horizontal-stretch: 1;
                     vertical-stretch: 1;
@@ -1728,6 +1761,7 @@ export component AppWindow inherits Window {
                             }
                         }
                     }
+
                     auto_scroll_timer := Timer {
                         interval: 100ms;
                         running: root.vhdx_resize_running;
@@ -1741,7 +1775,7 @@ export component AppWindow inherits Window {
     }
 
     // VHDX Resize Warning (on top of resize dialog)
-    if root.show_vhdx_resize_warning : ConfirmationDialog {
+    if root.show_vhdx_resize_warning: ConfirmationDialog {
         width: 100%;
         height: 100%;
         z: 101;
@@ -1758,7 +1792,7 @@ export component AppWindow inherits Window {
     }
 
     // VHDX Compact Dialog
-    if root.show_vhdx_compact : Rectangle {
+    if root.show_vhdx_compact: Rectangle {
         background: #00000080;
         z: 100;
         width: 100%;
@@ -1772,6 +1806,7 @@ export component AppWindow inherits Window {
                 }
             }
         }
+
         Rectangle {
             width: 520px;
             height: cd_layout.min-height;
@@ -1785,6 +1820,7 @@ export component AppWindow inherits Window {
             drop-shadow-color: #00000040;
             clip: true;
             TouchArea { }
+
             cd_layout := VerticalLayout {
                 padding: 20px;
                 spacing: 12px;
@@ -1821,6 +1857,7 @@ export component AppWindow inherits Window {
                         checked <=> root.vhdx_compact_clean_cache;
                         text: AppI18n.t("dialog.vhdx_compact_clean_cache", [AppI18n.version]);
                     }
+
                     CustomCheckBox {
                         checked <=> root.vhdx_compact_backup_tar;
                         text: AppI18n.t("dialog.vhdx_compact_backup_tar", [AppI18n.version]);
@@ -1834,6 +1871,7 @@ export component AppWindow inherits Window {
                             font-family: Theme.default_font;
                             color: Theme.text_secondary;
                         }
+
                         HorizontalLayout {
                             spacing: 6px;
                             Rectangle {
@@ -1848,18 +1886,20 @@ export component AppWindow inherits Window {
                                         root.vhdx_compact_select_backup_path();
                                     }
                                 }
+
                                 path_text := Text {
-                                    x: 8px;
+                                    x: AppI18n.is-rtl ? parent.width - self.width - 8px : 8px;
                                     width: parent.width - 12px;
                                     text: root.vhdx_compact_backup_path;
                                     color: Theme.text_primary;
                                     font-family: Theme.default_font;
                                     font-size: 12px * LayoutConstants.font-scale;
                                     vertical-alignment: center;
-                                    horizontal-alignment: left;
+                                    horizontal-alignment: AppI18n.is-rtl ? right : left;
                                     overflow: elide;
                                 }
                             }
+
                             CustomButton {
                                 text: AppI18n.t("dialog.vhdx_compact_select", [AppI18n.version]);
                                 height: 32px;
@@ -1895,6 +1935,7 @@ export component AppWindow inherits Window {
                                         color: Theme.text_secondary;
                                         vertical-alignment: center;
                                     }
+
                                     Text {
                                         text: root.vhdx_compact_vhdx_size;
                                         font-size: 12px * LayoutConstants.font-scale;
@@ -1905,6 +1946,7 @@ export component AppWindow inherits Window {
                                     }
                                 }
                             }
+
                             Rectangle {
                                 width: (parent.width - 12px) / 2;
                                 height: 26px;
@@ -1922,6 +1964,7 @@ export component AppWindow inherits Window {
                                         color: Theme.text_secondary;
                                         vertical-alignment: center;
                                     }
+
                                     Text {
                                         text: root.vhdx_compact_drive_free;
                                         font-size: 12px * LayoutConstants.font-scale;
@@ -1969,11 +2012,12 @@ export component AppWindow inherits Window {
                                 font-size: 12px * LayoutConstants.font-scale;
                                 font-family: Theme.default_font;
                                 wrap: word-wrap;
-                                horizontal-alignment: left;
+                                horizontal-alignment: AppI18n.is-rtl ? right : left;
                                 vertical-alignment: top;
                             }
                         }
                     }
+
                     cd_scroll_timer := Timer {
                         interval: 100ms;
                         running: root.vhdx_compact_running;
@@ -2027,6 +2071,7 @@ export component AppWindow inherits Window {
                             horizontal-alignment: center;
                             vertical-alignment: center;
                         }
+
                         TouchArea {
                             enabled: !root.vhdx_compact_running;
                             clicked => {
@@ -2040,7 +2085,7 @@ export component AppWindow inherits Window {
     }
 
     // WSL Streaming Output Dialog
-    if root.show_wsl_streaming : Rectangle {
+    if root.show_wsl_streaming: Rectangle {
         background: #00000080;
         z: 100;
         width: 100%;
@@ -2054,6 +2099,7 @@ export component AppWindow inherits Window {
                 }
             }
         }
+
         Rectangle {
             width: 540px;
             height: 220px;
@@ -2067,6 +2113,7 @@ export component AppWindow inherits Window {
             drop-shadow-color: #00000050;
             clip: true;
             TouchArea { }
+
             VerticalLayout {
                 padding-left: 20px;
                 padding-right: 20px;
@@ -2083,13 +2130,14 @@ export component AppWindow inherits Window {
                         border-radius: 11px;
                         background: root.wsl_streaming_running ? Theme.accent : (root.wsl_streaming_is_error ? #ef4444 : #22c55e);
                     }
+
                     Text {
                         text: root.wsl_streaming_title;
                         font-size: 16px * LayoutConstants.font-scale;
                         font-family: Theme.default_font;
                         font-weight: 600;
                         color: Theme.text_primary;
-                        horizontal-alignment: left;
+                        horizontal-alignment: AppI18n.is-rtl ? right : left;
                         vertical-alignment: center;
                     }
                 }
@@ -2115,11 +2163,12 @@ export component AppWindow inherits Window {
                                 font-size: 13px * LayoutConstants.font-scale;
                                 font-family: Theme.default_font;
                                 wrap: word-wrap;
-                                horizontal-alignment: left;
+                                horizontal-alignment: AppI18n.is-rtl ? right : left;
                                 vertical-alignment: top;
                             }
                         }
                     }
+
                     wsl_scroll_timer := Timer {
                         interval: 100ms;
                         running: root.wsl_streaming_running;
@@ -2145,6 +2194,7 @@ export component AppWindow inherits Window {
                             horizontal-alignment: center;
                             vertical-alignment: center;
                         }
+
                         TouchArea {
                             enabled: !root.wsl_streaming_running;
                             clicked => {

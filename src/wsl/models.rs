@@ -105,17 +105,6 @@ pub struct WslCommandResult<T> {
 }
 
 impl<T> WslCommandResult<T> {
-    #[allow(dead_code)]
-    pub fn new(success: bool, output: String, error: Option<String>, data: Option<T>) -> Self {
-        Self {
-            success,
-            output,
-            error,
-            data,
-            timeout: false,
-        }
-    }
-
     pub fn success(output: String, data: Option<T>) -> Self {
         Self {
             success: true,

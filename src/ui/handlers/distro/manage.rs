@@ -4,7 +4,6 @@ use crate::ui::handlers::instance;
 use crate::wsl::terminal;
 use crate::{AppState, AppWindow, i18n};
 use slint::Model;
-use std::os::windows::process::CommandExt;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::{error, info};
@@ -402,11 +401,9 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                                         let mut drive_unused_mb: f64 = 0.0;
                                         if !vhdx_path_for_async.is_empty() {
                                             // Extract drive letter (e.g., "D:\" -> "D:\")
-                                            let drive_root = if vhdx_path_for_async.len() >= 3 {
-                                                vhdx_path_for_async[..3].to_string()
-                                            } else {
-                                                vhdx_path_for_async.clone()
-                                            };
+                                            let drive_root = crate::utils::system::get_drive_root(
+                                                &vhdx_path_for_async,
+                                            );
                                             let disk_info =
                                                 crate::utils::system::get_disk_space(&drive_root);
                                             drive_total_mb =
@@ -415,9 +412,8 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                                                 disk_info.unused_bytes as f64 / (1024.0 * 1024.0);
                                         }
 
-                                        let df_output = std::process::Command::new("wsl")
-                                            .env("WSL_UTF8", "1")
-                                            .args(&[
+                                        let df_output = crate::utils::system::new_wsl_command()
+                                            .args([
                                                 "-d",
                                                 &distro_name_for_async,
                                                 "--exec",
@@ -425,7 +421,6 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                                                 "-B1M",
                                                 "/",
                                             ])
-                                            .creation_flags(crate::utils::system::CREATE_NO_WINDOW)
                                             .output();
 
                                         if let Ok(out) = df_output {

@@ -1224,13 +1224,10 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
         });
     }
 
-    // Batch delete
+    // Batch delete — show confirmation dialog first
     {
         let ah = app_handle.clone();
-        let as_ptr = app_state.clone();
         app.on_batch_delete(move || {
-            let ah = ah.clone();
-            let as_ptr = as_ptr.clone();
             if let Some(app) = ah.upgrade() {
                 if app.get_is_exporting()
                     || app.get_is_cloning()
@@ -1241,13 +1238,24 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     app.set_show_message_dialog(true);
                     return;
                 }
+                app.set_show_batch_delete_confirmation(true);
             }
+        });
+    }
+
+    // Confirm batch delete — execute after confirmation
+    {
+        let ah = app_handle.clone();
+        let as_ptr = app_state.clone();
+        app.on_confirm_batch_delete(move || {
+            let ah = ah.clone();
+            let as_ptr = as_ptr.clone();
             tokio::spawn(async move {
                 let names = get_selected_names(&as_ptr).await;
                 if names.is_empty() {
                     return;
                 }
-                info!("Batch delete: {:?}", names);
+                info!("Batch delete confirmed: {:?}", names);
                 run_batch_op(&ah, &as_ptr, names, "operation.deleting", {
                     let as_ptr = as_ptr.clone();
                     move |m, n| {

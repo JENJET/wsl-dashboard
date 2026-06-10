@@ -1,3 +1,4 @@
+pub mod format;
 pub mod icon_mapper;
 pub mod logging;
 pub mod registry;

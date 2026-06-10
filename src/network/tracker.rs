@@ -1,8 +1,5 @@
-use crate::utils::system::CREATE_NO_WINDOW;
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
-use std::os::windows::process::CommandExt;
-use std::process::Command;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::info;
@@ -39,10 +36,8 @@ pub fn get_distro_ip(distro_name: &str, max_retries: Option<u32>) -> Result<Stri
             std::thread::sleep(std::time::Duration::from_secs(1));
         }
 
-        let output = Command::new("wsl")
-            .env("WSL_UTF8", "1")
-            .args(&["-d", distro_name, "--", "hostname", "-I"])
-            .creation_flags(CREATE_NO_WINDOW)
+        let output = crate::utils::system::new_wsl_command()
+            .args(["-d", distro_name, "--", "hostname", "-I"])
             .output();
 
         match output {
@@ -120,10 +115,8 @@ fn select_best_ip(ips: &[&str]) -> Option<String> {
 }
 
 fn parse_ip_from_addr(distro_name: &str) -> Option<String> {
-    let output = Command::new("wsl")
-        .env("WSL_UTF8", "1")
-        .args(&["-d", distro_name, "--", "ip", "-4", "addr", "show"])
-        .creation_flags(CREATE_NO_WINDOW)
+    let output = crate::utils::system::new_wsl_command()
+        .args(["-d", distro_name, "--", "ip", "-4", "addr", "show"])
         .output();
 
     if let Ok(out) = output {
@@ -161,10 +154,8 @@ fn parse_ip_from_addr(distro_name: &str) -> Option<String> {
 
 /// Check if the distribution is currently running (fast check, won't start it)
 pub fn is_distro_running(distro_name: &str) -> bool {
-    let output = Command::new("wsl")
-        .env("WSL_UTF8", "1")
-        .args(&["-l", "-q", "--running"])
-        .creation_flags(CREATE_NO_WINDOW)
+    let output = crate::utils::system::new_wsl_command()
+        .args(["-l", "-q", "--running"])
         .output();
 
     if let Ok(out) = output {
@@ -202,10 +193,8 @@ fn get_distro_num_cores(distro_name: &str) -> usize {
         return cached;
     }
 
-    let count = Command::new("wsl")
-        .env("WSL_UTF8", "1")
-        .args(&["-d", distro_name, "--", "nproc"])
-        .creation_flags(CREATE_NO_WINDOW)
+    let count = crate::utils::system::new_wsl_command()
+        .args(["-d", distro_name, "--", "nproc"])
         .output()
         .ok()
         .and_then(|o| {
@@ -241,10 +230,8 @@ fn get_cpu_and_mem(distro_name: &str) -> Result<(f64, f64), String> {
 }
 
 fn get_cpu_and_mem_via_top(distro_name: &str) -> Result<(f64, f64), String> {
-    let output = Command::new("wsl")
-        .env("WSL_UTF8", "1")
-        .args(&["-d", distro_name, "--", "top", "-bn2", "-d", "0.2", "-b"])
-        .creation_flags(CREATE_NO_WINDOW)
+    let output = crate::utils::system::new_wsl_command()
+        .args(["-d", distro_name, "--", "top", "-bn2", "-d", "0.2", "-b"])
         .output();
 
     match output {
@@ -326,9 +313,8 @@ fn get_cpu_and_mem_via_top(distro_name: &str) -> Result<(f64, f64), String> {
 /// Read memory from /proc/*/status VmRSS for BusyBox distros.
 /// Sums all processes' VmRSS (same as GNU top RES), returns KiB.
 fn get_busybox_proc_mem(distro_name: &str) -> Option<f64> {
-    let output = Command::new("wsl")
-        .env("WSL_UTF8", "1")
-        .args(&[
+    let output = crate::utils::system::new_wsl_command()
+        .args([
             "-d",
             distro_name,
             "--",
@@ -337,7 +323,6 @@ fn get_busybox_proc_mem(distro_name: &str) -> Option<f64> {
             "VmRSS:",
             "/proc/[0-9]*/status",
         ])
-        .creation_flags(CREATE_NO_WINDOW)
         .output()
         .ok()?;
 
@@ -359,10 +344,8 @@ fn get_busybox_proc_mem(distro_name: &str) -> Option<f64> {
 }
 
 fn get_cpu_and_mem_via_ps(distro_name: &str) -> Result<(f64, f64), String> {
-    let output = Command::new("wsl")
-        .env("WSL_UTF8", "1")
-        .args(&["-d", distro_name, "--", "ps", "-eo", "pid,%cpu,rss"])
-        .creation_flags(CREATE_NO_WINDOW)
+    let output = crate::utils::system::new_wsl_command()
+        .args(["-d", distro_name, "--", "ps", "-eo", "pid,%cpu,rss"])
         .output();
 
     match output {

@@ -28,9 +28,6 @@ pub enum BuiltinTerminal {
 }
 
 impl BuiltinTerminal {
-    #[allow(dead_code)]
-    pub const ALL: [Self; 4] = [Self::Cmd, Self::PowerShell, Self::Wt, Self::Pwsh];
-
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Cmd => "cmd",
@@ -135,11 +132,6 @@ const BUILTIN_PRESETS: &[(&str, &str, &str)] = &[
     ),
 ];
 
-#[allow(dead_code)]
-pub fn get_builtin_preset_names() -> Vec<&'static str> {
-    BuiltinTerminal::ALL.iter().map(|t| t.as_str()).collect()
-}
-
 pub fn get_builtin_presets_map() -> HashMap<&'static str, TerminalPreset> {
     let mut m = HashMap::new();
     for (id, path, args) in BUILTIN_PRESETS {
@@ -152,12 +144,6 @@ pub fn get_builtin_presets_map() -> HashMap<&'static str, TerminalPreset> {
         );
     }
     m
-}
-
-#[allow(dead_code)]
-pub fn is_builtin(name: &str) -> bool {
-    BuiltinTerminal::from_str(name).is_some()
-        || BUILTIN_PRESETS.iter().any(|(id, _, _)| *id == name)
 }
 
 pub fn resolve_presets(

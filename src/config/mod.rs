@@ -363,17 +363,6 @@ impl ConfigManager {
         &self.config.usb
     }
 
-    #[allow(dead_code)]
-    pub fn update_usb_config(
-        &mut self,
-        usb: UsbConfig,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-        self.config.usb = usb;
-        Self::save_config(&self.config_path, &mut self.config)?;
-        info!("✅ USB configuration saved successfully");
-        Ok(())
-    }
-
     pub fn toggle_usb_auto_attach(
         &mut self,
         bus_id: &str,

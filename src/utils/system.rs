@@ -1,3 +1,4 @@
+use std::process::{Command, Output};
 use windows::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
 use windows::core::HSTRING;
 
@@ -5,6 +6,43 @@ use crate::i18n;
 
 pub const CREATE_NO_WINDOW: u32 = 0x08000000;
 pub const CREATE_NEW_CONSOLE: u32 = 0x00000010;
+
+/// Extract drive root (e.g. "C:\\") from a path, handling "\\\\?\\" prefix.
+pub fn get_drive_root(path: &str) -> String {
+    if path.len() >= 7 && path.starts_with("\\\\?\\") {
+        // "\\?\C:\..." → "C:\"
+        path[4..7].to_string()
+    } else if path.len() >= 3 && path.as_bytes()[1] == b':' {
+        // "C:\..." → "C:\"
+        path[..3].to_string()
+    } else {
+        "C:\\".to_string()
+    }
+}
+
+/// Create a pre-configured powershell.exe command with common flags.
+pub fn run_powershell(script: &str) -> Result<Output, std::io::Error> {
+    let mut cmd = Command::new("powershell.exe");
+    cmd.args(["-NoProfile", "-NonInteractive", "-Command", script]);
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    cmd.output()
+}
+
+/// Create a pre-configured wsl.exe command with WSL_UTF8 and CREATE_NO_WINDOW.
+pub fn new_wsl_command() -> Command {
+    let mut cmd = Command::new("wsl");
+    cmd.env("WSL_UTF8", "1");
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    cmd
+}
 
 pub struct DiskSpaceInfo {
     pub total_bytes: u64,

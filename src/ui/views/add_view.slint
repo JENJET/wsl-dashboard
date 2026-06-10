@@ -70,7 +70,7 @@ export component AddInstanceView inherits Rectangle {
     callback is_local_url(string) -> bool;
     callback url_distro_selected(string);
 
-    VerticalLayout {        
+    VerticalLayout {
         padding-left: AppI18n.is-rtl ? 16px : 4px;
         padding-right: AppI18n.is-rtl ? 4px : 16px;
         padding-top: 8px;
@@ -78,7 +78,7 @@ export component AddInstanceView inherits Rectangle {
         Rectangle {
             clip: true;
             vertical-stretch: 1;
-            
+
             // Page-level scroll
             outer-flick := Flickable {
                 vertical-stretch: 1;
@@ -296,7 +296,9 @@ export component AddInstanceView inherits Rectangle {
 
                                 if (root.is_custom_mirror_selected): VerticalLayout {
                                     spacing: 2px;
-                                    Rectangle { height: 2px; }
+                                    Rectangle {
+                                        height: 2px;
+                                    }
 
                                     CustomLineEdit {
                                         placeholder-text: "输入自定义镜像前缀地址，例如 https://example.com/";
@@ -330,8 +332,9 @@ export component AddInstanceView inherits Rectangle {
                             horizontal-alignment: AppI18n.is-rtl ? right : left;
                         }
 
-                        HorizontalLayout {
+                        if (!AppI18n.is-rtl): HorizontalLayout {
                             spacing: 8px;
+                            alignment: start;
                             Rectangle {
                                 width: 32px;
                                 height: 32px;
@@ -349,7 +352,7 @@ export component AddInstanceView inherits Rectangle {
 
                                 Text {
                                     text: "-";
-                                    font-size: 16px * LayoutConstants.font-scale;
+                                    font-size: 16px;
                                     font-family: Theme.default_font;
                                     color: Theme.text_primary;
                                     vertical-alignment: center;
@@ -395,7 +398,83 @@ export component AddInstanceView inherits Rectangle {
 
                                 Text {
                                     text: "+";
-                                    font-size: 16px * LayoutConstants.font-scale;
+                                    font-size: 16px;
+                                    font-family: Theme.default_font;
+                                    color: Theme.text_primary;
+                                    vertical-alignment: center;
+                                    horizontal-alignment: center;
+                                    width: 100%;
+                                    height: 100%;
+                                }
+                            }
+                        }
+                        if (AppI18n.is-rtl): HorizontalLayout {
+                            spacing: 8px;
+                            alignment: end;
+                            Rectangle {
+                                width: 32px;
+                                height: 32px;
+                                border-radius: 4px;
+                                background: root.download_threads < 8 && !root.is_installing ? (ta_inc_rtl.has-hover ? Theme.hover_bg : Theme.input_bg) : Theme.input_bg;
+                                border-width: 1px;
+                                border-color: Theme.input_border;
+                                opacity: root.download_threads < 8 && !root.is_installing ? 1.0 : 0.6;
+                                ta_inc_rtl := TouchArea {
+                                    enabled: root.download_threads < 8 && !root.is_installing;
+                                    clicked => {
+                                        root.download_threads = Math.min(8, root.download_threads + 1);
+                                    }
+                                }
+
+                                Text {
+                                    text: "+";
+                                    font-size: 16px;
+                                    font-family: Theme.default_font;
+                                    color: Theme.text_primary;
+                                    vertical-alignment: center;
+                                    horizontal-alignment: center;
+                                    width: 100%;
+                                    height: 100%;
+                                }
+                            }
+
+                            Rectangle {
+                                width: 40px;
+                                height: 32px;
+                                background: Theme.input_bg;
+                                border-radius: 4px;
+                                border-width: 1px;
+                                border-color: Theme.input_border;
+                                Text {
+                                    text: root.download_threads;
+                                    font-size: 13px * LayoutConstants.font-scale;
+                                    font-family: Theme.default_font;
+                                    color: Theme.text_primary;
+                                    vertical-alignment: center;
+                                    horizontal-alignment: center;
+                                    width: 100%;
+                                    height: 100%;
+                                }
+                            }
+
+                            Rectangle {
+                                width: 32px;
+                                height: 32px;
+                                border-radius: 4px;
+                                background: root.download_threads > 1 && !root.is_installing ? (ta_dec_rtl.has-hover ? Theme.hover_bg : Theme.input_bg) : Theme.input_bg;
+                                border-width: 1px;
+                                border-color: Theme.input_border;
+                                opacity: root.download_threads > 1 && !root.is_installing ? 1.0 : 0.6;
+                                ta_dec_rtl := TouchArea {
+                                    enabled: root.download_threads > 1 && !root.is_installing;
+                                    clicked => {
+                                        root.download_threads = Math.max(1, root.download_threads - 1);
+                                    }
+                                }
+
+                                Text {
+                                    text: "-";
+                                    font-size: 16px;
                                     font-family: Theme.default_font;
                                     color: Theme.text_primary;
                                     vertical-alignment: center;

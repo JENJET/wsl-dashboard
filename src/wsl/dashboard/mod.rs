@@ -4,7 +4,6 @@ use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 use std::sync::atomic::Ordering;
 use tokio::sync::{Mutex, Notify};
-use tokio::time::Duration;
 use tracing::debug;
 
 use crate::wsl::command::WslCommandExecutor;
@@ -17,8 +16,6 @@ pub struct WslDashboard {
     executor: WslCommandExecutor,
     // List of currently installed WSL subsystems, using Mutex for concurrent safety
     pub distros: Arc<Mutex<Vec<WslDistro>>>,
-    // Status refresh interval, default 5 seconds
-    refresh_interval: Duration,
     // Status change notifier, notifies listeners when WSL status changes
     state_changed: Arc<Notify>,
     // Manual operation flag
@@ -35,7 +32,6 @@ impl WslDashboard {
         Self {
             executor: WslCommandExecutor::new(),
             distros: Arc::new(Mutex::new(initial_distros)),
-            refresh_interval: Duration::from_secs(5),
             state_changed: Arc::new(Notify::new()),
             manual_operation: Arc::new(std::sync::atomic::AtomicI32::new(0)),
             heavy_op_lock: Arc::new(Mutex::new(())),
@@ -49,11 +45,6 @@ impl WslDashboard {
 
     pub fn heavy_op_lock(&self) -> &Mutex<()> {
         &*self.heavy_op_lock
-    }
-
-    #[allow(dead_code)]
-    pub fn set_refresh_interval(&mut self, interval: Duration) {
-        self.refresh_interval = interval;
     }
 
     pub fn state_changed(&self) -> &Arc<Notify> {
@@ -151,28 +142,11 @@ impl WslDashboard {
         distros_lock.clone()
     }
 
-    #[allow(dead_code)]
-    pub async fn start_monitoring(&self) {
-        let manager = self.clone();
-        tokio::spawn(async move {
-            let mut interval = tokio::time::interval(manager.refresh_interval);
-            interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
-            loop {
-                interval.tick().await;
-                if !manager.is_manual_operation() {
-                    let _ = manager.refresh_distros().await;
-                }
-            }
-        });
-    }
-
-    #[allow(dead_code)]
     pub async fn get_distro(&self, name: &str) -> Option<WslDistro> {
         let distros_lock = self.distros.lock().await;
         distros_lock.iter().find(|d| d.name == name).cloned()
     }
 
-    #[allow(dead_code)]
     pub async fn is_distro_running(&self, name: &str) -> bool {
         if let Some(distro) = self.get_distro(name).await {
             return matches!(distro.status, WslStatus::Running);

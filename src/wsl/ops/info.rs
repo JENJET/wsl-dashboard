@@ -128,11 +128,7 @@ pub async fn get_distro_information(
                     information.vhdx_is_sparse = vhdx_info.is_sparse;
                 }
                 // Get drive total size
-                let drive_root = if vhdx_path_str.len() >= 3 {
-                    vhdx_path_str[..3].to_string()
-                } else {
-                    "C:\\".to_string()
-                };
+                let drive_root = crate::utils::system::get_drive_root(vhdx_path_str.as_str());
                 let disk_info = get_disk_space(&drive_root);
                 let total_gb = disk_info.total_bytes as f64 / (1024.0 * 1024.0 * 1024.0);
                 let free_gb = disk_info.unused_bytes as f64 / (1024.0 * 1024.0 * 1024.0);

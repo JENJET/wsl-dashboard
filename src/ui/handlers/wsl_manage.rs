@@ -824,13 +824,27 @@ pub async fn refresh_wsl_info(
                             lines.push("\n---------------------\n".into());
                             if let Ok(cpu_val) = cpu.trim().parse::<f64>() {
                                 let cpu_label = i18n::t("distro.cpu_tooltip");
-                                lines.push(format!("{}: {:.2}%", cpu_label, cpu_val).into());
+                                let is_rtl = crate::i18n::is_rtl(&crate::i18n::current_lang());
+                                if is_rtl {
+                                    lines.push(format!("%{:.2} :{}", cpu_val, cpu_label).into());
+                                } else {
+                                    lines.push(format!("{}: {:.2}%", cpu_label, cpu_val).into());
+                                }
                             }
                             let mem_label = i18n::t("distro.memory_tooltip");
+                            let is_rtl = crate::i18n::is_rtl(&crate::i18n::current_lang());
                             if mem_mb >= 1024.0 {
-                                lines.push(format!("{}: {:.2} GB", mem_label, mem_mb / 1024.0).into());
+                                if is_rtl {
+                                    lines.push(format!("{:.2} GB :{}", mem_mb / 1024.0, mem_label).into());
+                                } else {
+                                    lines.push(format!("{}: {:.2} GB", mem_label, mem_mb / 1024.0).into());
+                                }
                             } else {
-                                lines.push(format!("{}: {:.2} MB", mem_label, mem_mb).into());
+                                if is_rtl {
+                                    lines.push(format!("{:.2} MB :{}", mem_mb, mem_label).into());
+                                } else {
+                                    lines.push(format!("{}: {:.2} MB", mem_label, mem_mb).into());
+                                }
                             }
                         }
                     }

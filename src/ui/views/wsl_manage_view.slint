@@ -4,7 +4,13 @@ import {
     WslManageStrings,
     LayoutConstants,
 } from "../theme.slint";
-import { CustomButton, CustomCheckBox, CustomComboBox, CustomLineEdit, ToggleButton } from "../components/form_widgets.slint";
+import {
+    CustomButton,
+    CustomCheckBox,
+    CustomComboBox,
+    CustomLineEdit,
+    ToggleButton,
+} from "../components/form_widgets.slint";
 import { CustomScrollbar } from "../components/scrollbar.slint";
 import { EmptyState } from "../components/common.slint";
 
@@ -28,6 +34,7 @@ component StatusBadge inherits Rectangle {
             color: root.bg-color;
             vertical-alignment: center;
         }
+
         Text {
             text: root.text;
             font-size: 12px * LayoutConstants.font-scale;
@@ -89,6 +96,7 @@ component ActionPill inherits Rectangle {
             vertical-alignment: center;
             horizontal-alignment: center;
         }
+
         Text {
             text: root.text;
             font-size: 13px * LayoutConstants.font-scale;
@@ -99,8 +107,11 @@ component ActionPill inherits Rectangle {
             horizontal-alignment: center;
         }
     }
+
     touch := TouchArea {
-        clicked => { root.clicked(); }
+        clicked => {
+            root.clicked();
+        }
     }
 }
 
@@ -115,27 +126,25 @@ component ActionRow inherits Rectangle {
     in property <bool> enabled: true;
     callback clicked;
     height: 72px;
-    HorizontalLayout {
+    if (!AppI18n.is-rtl): HorizontalLayout {
         padding-left: 0px;
         padding-right: 0px;
         spacing: 12px;
 
-        // Left: icon + text
+        // LTR: icon+text left, button right
         HorizontalLayout {
             spacing: 12px;
             horizontal-stretch: 1;
-            alignment: AppI18n.is-rtl ? end : start;
+            alignment: start;
 
-            // Vertical centering
             VerticalLayout {
                 horizontal-stretch: 1;
                 alignment: center;
 
                 HorizontalLayout {
                     spacing: 12px;
-                    alignment: AppI18n.is-rtl ? end : start;
+                    alignment: start;
 
-                    // Icon
                     Rectangle {
                         width: 36px;
                         height: 36px;
@@ -150,7 +159,7 @@ component ActionRow inherits Rectangle {
                             vertical-alignment: center;
                         }
                     }
-                    // Title + description
+
                     VerticalLayout {
                         spacing: 4px;
                         horizontal-stretch: 1;
@@ -160,23 +169,23 @@ component ActionRow inherits Rectangle {
                             font-family: Theme.default_font;
                             font-weight: 500;
                             color: Theme.text_primary;
-                            horizontal-alignment: AppI18n.is-rtl ? right : left;
+                            horizontal-alignment: left;
                             overflow: elide;
                         }
+
                         Text {
                             text: root.description;
                             font-size: 12px * LayoutConstants.font-scale;
                             font-family: Theme.default_font;
                             color: Theme.text_secondary;
                             wrap: word-wrap;
-                            horizontal-alignment: AppI18n.is-rtl ? right : left;
+                            horizontal-alignment: left;
                         }
                     }
                 }
             }
         }
 
-        // Right: button
         VerticalLayout {
             alignment: center;
             Rectangle {
@@ -188,7 +197,87 @@ component ActionRow inherits Rectangle {
                     show_shield: root.show-shield;
                     enabled: root.enabled;
                     height: 32px;
-                    clicked => { root.clicked(); }
+                    clicked => {
+                        root.clicked();
+                    }
+                }
+            }
+        }
+    }
+    if (AppI18n.is-rtl): HorizontalLayout {
+        padding-left: 0px;
+        padding-right: 0px;
+        spacing: 12px;
+
+        // RTL: button left, icon+text right
+        VerticalLayout {
+            alignment: center;
+            Rectangle {
+                height: 32px;
+                CustomButton {
+                    text: root.button-text;
+                    primary: root.button-style == "primary";
+                    danger: root.button-style == "danger";
+                    show_shield: root.show-shield;
+                    enabled: root.enabled;
+                    height: 32px;
+                    clicked => {
+                        root.clicked();
+                    }
+                }
+            }
+        }
+
+        HorizontalLayout {
+            spacing: 12px;
+            horizontal-stretch: 1;
+            alignment: end;
+
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+
+                HorizontalLayout {
+                    spacing: 12px;
+                    alignment: end;
+
+                    VerticalLayout {
+                        spacing: 4px;
+                        horizontal-stretch: 1;
+                        Text {
+                            text: root.title;
+                            font-size: 14px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            font-weight: 500;
+                            color: Theme.text_primary;
+                            horizontal-alignment: right;
+                            overflow: elide;
+                        }
+
+                        Text {
+                            text: root.description;
+                            font-size: 12px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            color: Theme.text_secondary;
+                            wrap: word-wrap;
+                            horizontal-alignment: right;
+                        }
+                    }
+
+                    Rectangle {
+                        width: 36px;
+                        height: 36px;
+                        border-radius: 6px;
+                        background: Theme.surface_subtle;
+                        Text {
+                            text: root.icon;
+                            font-family: Theme.icon_font;
+                            font-size: 16px;
+                            color: root.button-style == "danger" ? Theme.status_danger : (root.button-style == "primary" ? Theme.accent : Theme.text_secondary);
+                            horizontal-alignment: center;
+                            vertical-alignment: center;
+                        }
+                    }
                 }
             }
         }
@@ -276,13 +365,13 @@ export component WslManageView inherits Rectangle {
                         border-radius: 8px;
                         border-width: 1px;
                         border-color: Theme.border_color;
-                        HorizontalLayout {
+                        if (!AppI18n.is-rtl): HorizontalLayout {
                             padding-left: 12px;
                             padding-right: 12px;
                             spacing: 12px;
                             alignment: center;
 
-                            // Left: title + status badge
+                            // LTR: Left=title+badge, Right=action pill
                             HorizontalLayout {
                                 spacing: 10px;
                                 horizontal-stretch: 1;
@@ -294,6 +383,7 @@ export component WslManageView inherits Rectangle {
                                     color: Theme.text_primary;
                                     vertical-alignment: center;
                                 }
+
                                 if (root.wsl_installed): VerticalLayout {
                                     alignment: center;
                                     StatusBadge {
@@ -310,26 +400,94 @@ export component WslManageView inherits Rectangle {
                                 }
                             }
 
-                            // Right: action pill
                             VerticalLayout {
                                 alignment: center;
                                 if (!root.wsl_installed): ActionPill {
                                     icon: "\u{E945}";
                                     text: root.strings.install_btn;
                                     accent-color: Theme.accent;
-                                    clicked => { root.install_wsl(); }
+                                    clicked => {
+                                        root.install_wsl();
+                                    }
                                 }
                                 if (root.wsl_installed && root.has_running_instances): ActionPill {
                                     icon: "\u{E769}";
                                     text: root.strings.shutdown_btn;
                                     accent-color: Theme.status_danger;
-                                    clicked => { root.shutdown_all(); }
+                                    clicked => {
+                                        root.shutdown_all();
+                                    }
                                 }
                                 if (root.wsl_installed && !root.has_running_instances && root.has_instances): ActionPill {
                                     icon: "\u{E768}";
                                     text: AppI18n.t("wsl_manage.start_btn", [AppI18n.version]);
                                     accent-color: Theme.status_success;
-                                    clicked => { root.start_wsl(); }
+                                    clicked => {
+                                        root.start_wsl();
+                                    }
+                                }
+                            }
+                        }
+                        if (AppI18n.is-rtl): HorizontalLayout {
+                            padding-left: 12px;
+                            padding-right: 12px;
+                            spacing: 12px;
+                            alignment: center;
+
+                            // RTL: Left=action pill, Right=title+badge
+                            VerticalLayout {
+                                alignment: center;
+                                if (!root.wsl_installed): ActionPill {
+                                    icon: "\u{E945}";
+                                    text: root.strings.install_btn;
+                                    accent-color: Theme.accent;
+                                    clicked => {
+                                        root.install_wsl();
+                                    }
+                                }
+                                if (root.wsl_installed && root.has_running_instances): ActionPill {
+                                    icon: "\u{E769}";
+                                    text: root.strings.shutdown_btn;
+                                    accent-color: Theme.status_danger;
+                                    clicked => {
+                                        root.shutdown_all();
+                                    }
+                                }
+                                if (root.wsl_installed && !root.has_running_instances && root.has_instances): ActionPill {
+                                    icon: "\u{E768}";
+                                    text: AppI18n.t("wsl_manage.start_btn", [AppI18n.version]);
+                                    accent-color: Theme.status_success;
+                                    clicked => {
+                                        root.start_wsl();
+                                    }
+                                }
+                            }
+
+                            HorizontalLayout {
+                                spacing: 10px;
+                                horizontal-stretch: 1;
+                                Text {
+                                    text: root.strings.status_title;
+                                    font-size: 14px * LayoutConstants.font-scale;
+                                    font-family: Theme.default_font;
+                                    font-weight: 500;
+                                    color: Theme.text_primary;
+                                    vertical-alignment: center;
+                                }
+
+                                if (root.wsl_installed): VerticalLayout {
+                                    alignment: center;
+                                    StatusBadge {
+                                        text: root.has_running_instances ? root.strings.status_running : root.strings.status_stopped;
+                                        bg-color: root.has_running_instances ? Theme.status_success : Theme.status_warning;
+                                    }
+                                }
+                                if (!root.wsl_installed): VerticalLayout {
+                                    alignment: center;
+                                    StatusBadge {
+                                        text: root.strings.status_not_installed;
+                                        bg-color: Theme.status_danger;
+                                    }
                                 }
                             }
                         }
@@ -338,7 +496,8 @@ export component WslManageView inherits Rectangle {
                     // === Version & Status Info side by side ===
                     if (root.wsl_installed && (root.version_text != "" || root.status_text != "")): HorizontalLayout {
                         spacing: 12px;
-                        if (root.version_text != ""): Rectangle {
+                        // LTR: Version left, Status right
+                        if (!AppI18n.is-rtl && root.version_text != ""): Rectangle {
                             horizontal-stretch: 6;
                             preferred-width: 0;
                             min-width: 0;
@@ -368,7 +527,7 @@ export component WslManageView inherits Rectangle {
                             }
                         }
 
-                        if (root.status_text != ""): Rectangle {
+                        if (!AppI18n.is-rtl && root.status_text != ""): Rectangle {
                             horizontal-stretch: 4;
                             preferred-width: 0;
                             min-width: 0;
@@ -394,6 +553,67 @@ export component WslManageView inherits Rectangle {
                                 CodeBlock {
                                     vertical-stretch: 1;
                                     text: root.status_text;
+                                }
+                            }
+                        }
+
+                        // RTL: Status left, Version right
+                        if (AppI18n.is-rtl && root.status_text != ""): Rectangle {
+                            horizontal-stretch: 4;
+                            preferred-width: 0;
+                            min-width: 0;
+                            background: Theme.card_bg;
+                            border-radius: 8px;
+                            border-width: 1px;
+                            border-color: Theme.border_color;
+                            VerticalLayout {
+                                min-width: 0;
+                                padding: 12px;
+                                spacing: 8px;
+
+                                Text {
+                                    min-width: 0;
+                                    text: root.strings.status_output_title;
+                                    font-size: 14px * LayoutConstants.font-scale;
+                                    font-family: Theme.default_font;
+                                    font-weight: 500;
+                                    color: Theme.text_primary;
+                                    horizontal-alignment: AppI18n.is-rtl ? right : left;
+                                }
+
+                                CodeBlock {
+                                    vertical-stretch: 1;
+                                    text: root.status_text;
+                                }
+                            }
+                        }
+
+                        if (AppI18n.is-rtl && root.version_text != ""): Rectangle {
+                            horizontal-stretch: 6;
+                            preferred-width: 0;
+                            min-width: 0;
+                            background: Theme.card_bg;
+                            border-radius: 8px;
+                            border-width: 1px;
+                            border-color: Theme.border_color;
+                            VerticalLayout {
+                                min-width: 0;
+                                padding: 12px;
+                                spacing: 8px;
+
+                                Text {
+                                    min-width: 0;
+                                    text: root.strings.version_output_title;
+                                    font-size: 14px * LayoutConstants.font-scale;
+                                    font-family: Theme.default_font;
+                                    font-weight: 500;
+                                    color: Theme.text_primary;
+                                    horizontal-alignment: AppI18n.is-rtl ? right : left;
+                                }
+
+                                CodeBlock {
+                                    vertical-stretch: 1;
+                                    text: root.version_text;
                                 }
                             }
                         }
@@ -430,16 +650,18 @@ export component WslManageView inherits Rectangle {
                                 horizontal-alignment: AppI18n.is-rtl ? right : left;
                             }
 
-                            HorizontalLayout {
+                            if (!AppI18n.is-rtl): HorizontalLayout {
                                 spacing: 8px;
-                                alignment: AppI18n.is-rtl ? end : start;
+                                alignment: start;
 
                                 ToggleButton {
                                     text: root.strings.version_label_1;
                                     selected: root.default_version == 1;
                                     min-width: 96px;
                                     height: 32px;
-                                    clicked => { root.set_default_version(1); }
+                                    clicked => {
+                                        root.set_default_version(1);
+                                    }
                                 }
 
                                 ToggleButton {
@@ -447,13 +669,45 @@ export component WslManageView inherits Rectangle {
                                     selected: root.default_version == 2;
                                     min-width: 96px;
                                     height: 32px;
-                                    clicked => { root.set_default_version(2); }
+                                    clicked => {
+                                        root.set_default_version(2);
+                                    }
+                                }
+                            }
+                            if (AppI18n.is-rtl): HorizontalLayout {
+                                spacing: 8px;
+                                alignment: end;
+
+                                ToggleButton {
+                                    text: root.strings.version_label_2;
+                                    selected: root.default_version == 2;
+                                    min-width: 96px;
+                                    height: 32px;
+                                    clicked => {
+                                        root.set_default_version(2);
+                                    }
+                                }
+
+                                ToggleButton {
+                                    text: root.strings.version_label_1;
+                                    selected: root.default_version == 1;
+                                    min-width: 96px;
+                                    height: 32px;
+                                    clicked => {
+                                        root.set_default_version(1);
+                                    }
                                 }
                             }
 
                             Divider { }
 
-                            CustomCheckBox { checked <=> root.vhdx_sparse_mode; text: root.strings.sparse_mode; toggled => { root.sparse_mode_toggled(); } }
+                            CustomCheckBox {
+                                checked <=> root.vhdx_sparse_mode;
+                                text: root.strings.sparse_mode;
+                                toggled => {
+                                    root.sparse_mode_toggled();
+                                }
+                            }
                         }
                     }
 
@@ -489,7 +743,9 @@ export component WslManageView inherits Rectangle {
                                 button-text: root.is_updating ? root.strings.updating_btn : root.strings.update_btn;
                                 button-style: "primary";
                                 enabled: !root.is_updating;
-                                clicked => { root.update_wsl(); }
+                                clicked => {
+                                    root.update_wsl();
+                                }
                             }
 
                             Divider { }
@@ -500,7 +756,9 @@ export component WslManageView inherits Rectangle {
                                 description: root.strings.settings_desc;
                                 button-text: root.strings.settings_btn;
                                 button-style: "default";
-                                clicked => { root.open_wsl_settings(); }
+                                clicked => {
+                                    root.open_wsl_settings();
+                                }
                             }
 
                             Divider { }
@@ -513,7 +771,9 @@ export component WslManageView inherits Rectangle {
                                 button-style: "danger";
                                 show-shield: true;
                                 enabled: !root.is_updating;
-                                clicked => { root.uninstall_wsl(); }
+                                clicked => {
+                                    root.uninstall_wsl();
+                                }
                             }
                         }
                     }
@@ -544,7 +804,7 @@ export component WslManageView inherits Rectangle {
                             // Physical disks selector
                             HorizontalLayout {
                                 spacing: 8px;
-                                alignment: start;
+                                alignment: AppI18n.is-rtl ? end : start;
                                 Text {
                                     text: root.strings.physical_disk_label;
                                     font-size: 13px * LayoutConstants.font-scale;
@@ -552,6 +812,7 @@ export component WslManageView inherits Rectangle {
                                     color: Theme.text_secondary;
                                     vertical-alignment: center;
                                 }
+
                                 Rectangle {
                                     border-radius: 4px;
                                     background: Theme.hover_bg;
@@ -569,6 +830,7 @@ export component WslManageView inherits Rectangle {
                                             color: Theme.text_secondary;
                                             vertical-alignment: center;
                                         }
+
                                         Text {
                                             text: root.strings.usb_mount_hint;
                                             font-size: 11px * LayoutConstants.font-scale;
@@ -579,7 +841,8 @@ export component WslManageView inherits Rectangle {
                                     }
                                 }
                             }
-                            HorizontalLayout {
+
+                            if (!AppI18n.is-rtl): HorizontalLayout {
                                 spacing: 8px;
                                 CustomComboBox {
                                     horizontal-stretch: 1;
@@ -594,12 +857,41 @@ export component WslManageView inherits Rectangle {
                                         }
                                     }
                                 }
+
                                 CustomButton {
                                     text: root.strings.refresh_disks_btn;
                                     icon: "\u{E72C}";
                                     height: 32px;
                                     enabled: !root.mount_running;
-                                    clicked => { root.refresh_physical_disks(); }
+                                    clicked => {
+                                        root.refresh_physical_disks();
+                                    }
+                                }
+                            }
+                            if (AppI18n.is-rtl): HorizontalLayout {
+                                spacing: 8px;
+                                CustomButton {
+                                    text: root.strings.refresh_disks_btn;
+                                    icon: "\u{E72C}";
+                                    height: 32px;
+                                    enabled: !root.mount_running;
+                                    clicked => {
+                                        root.refresh_physical_disks();
+                                    }
+                                }
+
+                                CustomComboBox {
+                                    horizontal-stretch: 1;
+                                    min-width: 200px;
+                                    model: root.physical_disks;
+                                    current-index: 0;
+                                    enabled: !root.mount_running;
+                                    selected(index) => {
+                                        if (index >= 0 && index < root.physical_disks_paths.length) {
+                                            root.disk_path = root.physical_disks_paths[index];
+                                            root.disk_mount_name = root.physical_disks_names[index];
+                                        }
+                                    }
                                 }
                             }
 
@@ -624,7 +916,7 @@ export component WslManageView inherits Rectangle {
                             }
 
                             // Disk path input + Browse button
-                            HorizontalLayout {
+                            if (!AppI18n.is-rtl): HorizontalLayout {
                                 spacing: 8px;
                                 CustomLineEdit {
                                     horizontal-stretch: 1;
@@ -632,17 +924,39 @@ export component WslManageView inherits Rectangle {
                                     placeholder-text: root.strings.disk_path_placeholder;
                                     enabled: !root.mount_running;
                                 }
+
                                 CustomButton {
                                     icon: "\u{E8B7}";
                                     icon-only: true;
                                     height: 32px;
                                     enabled: !root.mount_running;
-                                    clicked => { root.browse_vhd(); }
+                                    clicked => {
+                                        root.browse_vhd();
+                                    }
+                                }
+                            }
+                            if (AppI18n.is-rtl): HorizontalLayout {
+                                spacing: 8px;
+                                CustomButton {
+                                    icon: "\u{E8B7}";
+                                    icon-only: true;
+                                    height: 32px;
+                                    enabled: !root.mount_running;
+                                    clicked => {
+                                        root.browse_vhd();
+                                    }
+                                }
+
+                                CustomLineEdit {
+                                    horizontal-stretch: 1;
+                                    text <=> root.disk_path;
+                                    placeholder-text: root.strings.disk_path_placeholder;
+                                    enabled: !root.mount_running;
                                 }
                             }
 
                             // Optional fields: Name, Type (2 columns)
-                            HorizontalLayout {
+                            if (!AppI18n.is-rtl): HorizontalLayout {
                                 spacing: 10px;
                                 VerticalLayout {
                                     horizontal-stretch: 1;
@@ -654,12 +968,14 @@ export component WslManageView inherits Rectangle {
                                         color: Theme.text_secondary;
                                         horizontal-alignment: AppI18n.is-rtl ? right : left;
                                     }
+
                                     CustomLineEdit {
                                         horizontal-stretch: 1;
                                         text <=> root.disk_mount_name;
                                         enabled: !root.mount_running;
                                     }
                                 }
+
                                 VerticalLayout {
                                     horizontal-stretch: 1;
                                     spacing: 6px;
@@ -670,6 +986,7 @@ export component WslManageView inherits Rectangle {
                                         color: Theme.text_secondary;
                                         horizontal-alignment: AppI18n.is-rtl ? right : left;
                                     }
+
                                     CustomLineEdit {
                                         horizontal-stretch: 1;
                                         text <=> root.disk_fs_type;
@@ -677,9 +994,47 @@ export component WslManageView inherits Rectangle {
                                     }
                                 }
                             }
+                            if (AppI18n.is-rtl): HorizontalLayout {
+                                spacing: 10px;
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    spacing: 6px;
+                                    Text {
+                                        text: root.strings.filesystem_label;
+                                        font-size: 13px * LayoutConstants.font-scale;
+                                        font-family: Theme.default_font;
+                                        color: Theme.text_secondary;
+                                        horizontal-alignment: AppI18n.is-rtl ? right : left;
+                                    }
+
+                                    CustomLineEdit {
+                                        horizontal-stretch: 1;
+                                        text <=> root.disk_fs_type;
+                                        enabled: !root.mount_running;
+                                    }
+                                }
+
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    spacing: 6px;
+                                    Text {
+                                        text: root.strings.mount_name_label;
+                                        font-size: 13px * LayoutConstants.font-scale;
+                                        font-family: Theme.default_font;
+                                        color: Theme.text_secondary;
+                                        horizontal-alignment: AppI18n.is-rtl ? right : left;
+                                    }
+
+                                    CustomLineEdit {
+                                        horizontal-stretch: 1;
+                                        text <=> root.disk_mount_name;
+                                        enabled: !root.mount_running;
+                                    }
+                                }
+                            }
 
                             // Optional fields: Partition, Options (2 columns)
-                            HorizontalLayout {
+                            if (!AppI18n.is-rtl): HorizontalLayout {
                                 spacing: 10px;
                                 VerticalLayout {
                                     horizontal-stretch: 1;
@@ -691,6 +1046,7 @@ export component WslManageView inherits Rectangle {
                                         color: Theme.text_secondary;
                                         horizontal-alignment: AppI18n.is-rtl ? right : left;
                                     }
+
                                     CustomLineEdit {
                                         horizontal-stretch: 1;
                                         text <=> root.disk_partition;
@@ -698,6 +1054,7 @@ export component WslManageView inherits Rectangle {
                                         enabled: !root.mount_running;
                                     }
                                 }
+
                                 VerticalLayout {
                                     horizontal-stretch: 1;
                                     spacing: 6px;
@@ -708,9 +1065,49 @@ export component WslManageView inherits Rectangle {
                                         color: Theme.text_secondary;
                                         horizontal-alignment: AppI18n.is-rtl ? right : left;
                                     }
+
                                     CustomLineEdit {
                                         horizontal-stretch: 1;
                                         text <=> root.disk_options;
+                                        enabled: !root.mount_running;
+                                    }
+                                }
+                            }
+                            if (AppI18n.is-rtl): HorizontalLayout {
+                                spacing: 10px;
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    spacing: 6px;
+                                    Text {
+                                        text: root.strings.mount_options_label;
+                                        font-size: 13px * LayoutConstants.font-scale;
+                                        font-family: Theme.default_font;
+                                        color: Theme.text_secondary;
+                                        horizontal-alignment: AppI18n.is-rtl ? right : left;
+                                    }
+
+                                    CustomLineEdit {
+                                        horizontal-stretch: 1;
+                                        text <=> root.disk_options;
+                                        enabled: !root.mount_running;
+                                    }
+                                }
+
+                                VerticalLayout {
+                                    horizontal-stretch: 1;
+                                    spacing: 6px;
+                                    Text {
+                                        text: root.strings.partition_label;
+                                        font-size: 13px * LayoutConstants.font-scale;
+                                        font-family: Theme.default_font;
+                                        color: Theme.text_secondary;
+                                        horizontal-alignment: AppI18n.is-rtl ? right : left;
+                                    }
+
+                                    CustomLineEdit {
+                                        horizontal-stretch: 1;
+                                        text <=> root.disk_partition;
+                                        placeholder-text: "1";
                                         enabled: !root.mount_running;
                                     }
                                 }
@@ -725,7 +1122,9 @@ export component WslManageView inherits Rectangle {
                                     primary: true;
                                     enabled: !root.mount_running && root.disk_path != "";
                                     height: 32px;
-                                    clicked => { root.mount_disk(); }
+                                    clicked => {
+                                        root.mount_disk();
+                                    }
                                 }
                             }
 
@@ -747,7 +1146,7 @@ export component WslManageView inherits Rectangle {
                             padding: 16px;
                             spacing: 12px;
 
-                            HorizontalLayout {
+                            if (!AppI18n.is-rtl): HorizontalLayout {
                                 spacing: 8px;
                                 alignment: space-between;
 
@@ -767,15 +1166,56 @@ export component WslManageView inherits Rectangle {
                                         text: root.strings.refresh_disks_btn;
                                         icon: "\u{E72C}";
                                         height: 28px;
-                                        clicked => { root.refresh_mounted_disks(); }
+                                        clicked => {
+                                            root.refresh_mounted_disks();
+                                        }
                                     }
+
                                     CustomButton {
                                         text: root.strings.unmount_all_btn;
                                         danger: true;
                                         ghost: true;
                                         height: 28px;
-                                        clicked => { root.unmount_all_disks(); }
+                                        clicked => {
+                                            root.unmount_all_disks();
+                                        }
                                     }
+                                }
+                            }
+                            if (AppI18n.is-rtl): HorizontalLayout {
+                                spacing: 8px;
+                                alignment: space-between;
+
+                                HorizontalLayout {
+                                    spacing: 6px;
+                                    CustomButton {
+                                        text: root.strings.unmount_all_btn;
+                                        danger: true;
+                                        ghost: true;
+                                        height: 28px;
+                                        clicked => {
+                                            root.unmount_all_disks();
+                                        }
+                                    }
+
+                                    CustomButton {
+                                        text: root.strings.refresh_disks_btn;
+                                        icon: "\u{E72C}";
+                                        height: 28px;
+                                        clicked => {
+                                            root.refresh_mounted_disks();
+                                        }
+                                    }
+                                }
+
+                                Text {
+                                    text: root.strings.mounted_disks_title;
+                                    font-size: 14px * LayoutConstants.font-scale;
+                                    font-family: Theme.default_font;
+                                    font-weight: 500;
+                                    color: Theme.text_primary;
+                                    vertical-alignment: center;
+                                    horizontal-alignment: AppI18n.is-rtl ? right : left;
                                 }
                             }
 
@@ -794,7 +1234,7 @@ export component WslManageView inherits Rectangle {
                                     background: Theme.surface_subtle;
                                     border-width: 1px;
                                     border-color: Theme.border_color;
-                                    HorizontalLayout {
+                                    if (!AppI18n.is-rtl): HorizontalLayout {
                                         padding-left: 12px;
                                         padding-right: 12px;
                                         spacing: 8px;
@@ -818,16 +1258,46 @@ export component WslManageView inherits Rectangle {
                                                 ghost: true;
                                                 danger: true;
                                                 height: 28px;
-                                                clicked => { root.unmount_disk(disk); }
+                                                clicked => {
+                                                    root.unmount_disk(disk);
+                                                }
                                             }
+                                        }
+                                    }
+                                    if (AppI18n.is-rtl): HorizontalLayout {
+                                        padding-left: 12px;
+                                        padding-right: 12px;
+                                        spacing: 8px;
+                                        alignment: space-between;
+
+                                        VerticalLayout {
+                                            alignment: center;
+                                            CustomButton {
+                                                text: root.strings.unmount_btn;
+                                                ghost: true;
+                                                danger: true;
+                                                height: 28px;
+                                                clicked => {
+                                                    root.unmount_disk(disk);
+                                                }
+                                            }
+                                        }
+
+                                        Text {
+                                            text: disk;
+                                            font-size: 13px * LayoutConstants.font-scale;
+                                            font-family: Theme.default_font;
+                                            color: Theme.text_primary;
+                                            vertical-alignment: center;
+                                            horizontal-alignment: AppI18n.is-rtl ? right : left;
+                                            overflow: elide;
+                                            horizontal-stretch: 1;
                                         }
                                     }
                                 }
                             }
                         }
                     }
-
-
                 }
             }
         }
@@ -835,10 +1305,14 @@ export component WslManageView inherits Rectangle {
 
     if (flick.viewport-height > flick.height): CustomScrollbar {
         x: AppI18n.is-rtl ? 2px : parent.width - 8px;
-        y: 0; width: 8px; height: 100%;
+        y: 0;
+        width: 8px;
+        height: 100%;
         maximum: flick.viewport-height - flick.height;
         page_size: flick.height;
         value: -flick.viewport-y;
-        scroll_to(v) => { flick.viewport-y = -v; }
+        scroll_to(v) => {
+            flick.viewport-y = -v;
+        }
     }
 }

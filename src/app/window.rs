@@ -3,6 +3,9 @@ use std::sync::atomic::Ordering;
 #[cfg(target_os = "windows")]
 use tracing::{error, info};
 
+/// Coordinate used to hide a window off-screen (Windows taskbar will not show it)
+const HIDE_POSITION: i32 = -32000;
+
 #[cfg(target_os = "windows")]
 use windows::Win32::Foundation::{BOOL, HWND, LPARAM, RECT};
 #[cfg(target_os = "windows")]
@@ -138,8 +141,8 @@ fn hide_window_completely(hwnd: HWND) {
         let _ = SetWindowPos(
             hwnd,
             HWND(std::ptr::null_mut()),
-            -32000,
-            -32000,
+            HIDE_POSITION,
+            HIDE_POSITION,
             0,
             0,
             SWP_NOSIZE | SWP_NOZORDER,
@@ -234,8 +237,10 @@ pub fn show_and_center(app: &AppWindow, silent: bool) {
         if silent {
             info!("Silent mode: Skipping app.show() to keep window hidden.");
             app.window().set_minimized(true);
-            app.window()
-                .set_position(slint::LogicalPosition::new(-32000.0, -32000.0));
+            app.window().set_position(slint::LogicalPosition::new(
+                HIDE_POSITION as f32,
+                HIDE_POSITION as f32,
+            ));
             app.set_is_window_visible(false);
             crate::ui::data::WINDOW_VISIBLE.store(false, Ordering::Relaxed);
 
@@ -266,8 +271,8 @@ pub fn show_and_center(app: &AppWindow, silent: bool) {
                     let _ = SetWindowPos(
                         hwnd,
                         HWND(std::ptr::null_mut()),
-                        -32000,
-                        -32000,
+                        HIDE_POSITION,
+                        HIDE_POSITION,
                         0,
                         0,
                         SWP_NOSIZE | SWP_NOZORDER,

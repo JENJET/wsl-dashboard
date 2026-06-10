@@ -168,13 +168,8 @@ impl UsbManager {
         // Pre-check: Ensure at least one WSL 2 distribution is running.
         // usbipd attach requires a running WSL 2 instance to work.
         let is_running = {
-            let mut cmd = Command::new("wsl");
+            let mut cmd = crate::utils::system::new_wsl_command();
             cmd.args(["-l", "-v"]);
-            #[cfg(windows)]
-            {
-                cmd.creation_flags(CREATE_NO_WINDOW);
-            }
-            cmd.env("WSL_UTF8", "1");
 
             match cmd.output() {
                 Ok(out) => {

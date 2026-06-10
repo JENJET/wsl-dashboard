@@ -213,11 +213,6 @@ fn load_png_buffer(data: &[u8]) -> SharedPixelBuffer<Rgba8Pixel> {
     buffer
 }
 
-#[allow(dead_code)]
-pub fn load_icon(key: &str) -> Option<Image> {
-    load_icon_data(key).and_then(|data| load_image_from_data(key.to_string(), data))
-}
-
 thread_local! {
     static SLINT_IMAGE_CACHE: std::cell::RefCell<HashMap<String, Image>> = std::cell::RefCell::new(HashMap::new());
 }
