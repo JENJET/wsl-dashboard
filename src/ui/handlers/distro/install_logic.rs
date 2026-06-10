@@ -918,9 +918,12 @@ pub async fn perform_install(
                         "install.url.step_download_failed",
                         &[max_retries.to_string(), e],
                     );
+                    terminal_buffer.push_str(&format!("  {}\n", error_msg));
+                    let tb_err = terminal_buffer.clone();
                     let ah_err = ah.clone();
                     let _ = slint::invoke_from_event_loop(move || {
                         if let Some(app) = ah_err.upgrade() {
+                            app.set_terminal_output(tb_err.into());
                             app.set_install_status(
                                 format!("{}: {}", i18n::t("install.error"), error_msg).into(),
                             );

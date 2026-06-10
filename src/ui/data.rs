@@ -236,6 +236,8 @@ pub async fn refresh_distros_ui(
         match tokio::time::timeout(lock_timeout, app_state.lock()).await {
             Ok(app_state_lock) => {
                 let mut distros = app_state_lock.wsl_dashboard.get_distros().await;
+                // Skip instances that are still being installed
+                distros.retain(|d| !matches!(d.status, wsl::models::WslStatus::Installing));
                 debug!(
                     "refresh_distros_ui: Found {} installed distributions",
                     distros.len()
