@@ -5,6 +5,7 @@ import {
     LayoutConstants,
 } from "../../theme.slint";
 import { ActionIcon } from "../common.slint";
+import { CustomComboBox } from "../form_widgets.slint";
 
 component InfoRow inherits Rectangle {
     in property <string> label;
@@ -102,6 +103,12 @@ component InfoRow inherits Rectangle {
 
 export component InformationDialog inherits Rectangle {
     in property <Information> info;
+    in property <string> distro_name;
+    in-out property <string> apt_mirror: "";
+    in-out property <string> dnf_mirror: "";
+    in-out property <string> pacman_mirror: "";
+    in property <string> distro_category: "";
+    in property <bool> show-mirror-section: false;
     callback close;
     callback open_path(string);
     callback copy_to_clipboard(string);
@@ -111,6 +118,73 @@ export component InformationDialog inherits Rectangle {
     callback compact_vhdx_clicked;
     callback set_sparse_clicked;
     callback unset_sparse_clicked;
+    callback save_mirror(string, string, string);
+    callback configure_mirror();
+    
+    pure function get-mirror-index(mirror: string) -> int {
+        if (mirror == "tsinghua") { return 1; }
+        if (mirror == "ustc") { return 2; }
+        if (mirror == "aliyun") { return 3; }
+        if (mirror == "tencent") { return 4; }
+        if (mirror == "huawei") { return 5; }
+        return 0;
+    }
+    pure function index-to-mirror(idx: int) -> string {
+        if (idx == 1) { return "tsinghua"; }
+        if (idx == 2) { return "ustc"; }
+        if (idx == 3) { return "aliyun"; }
+        if (idx == 4) { return "tencent"; }
+        if (idx == 5) { return "huawei"; }
+        return "";
+    }
+    pure function get-mirror-display-name(mirror: string) -> string {
+        if (mirror == "tsinghua") { return AppI18n.t("dialog.mirror_tsinghua", [AppI18n.version]); }
+        if (mirror == "ustc") { return AppI18n.t("dialog.mirror_ustc", [AppI18n.version]); }
+        if (mirror == "aliyun") { return AppI18n.t("dialog.mirror_aliyun", [AppI18n.version]); }
+        if (mirror == "tencent") { return AppI18n.t("dialog.mirror_tencent", [AppI18n.version]); }
+        if (mirror == "huawei") { return AppI18n.t("dialog.mirror_huawei", [AppI18n.version]); }
+        return AppI18n.t("dialog.mirror_none", [AppI18n.version]);
+    }
+    pure function get-mirror-index-limited(mirror: string) -> int {
+        if (mirror == "aliyun") { return 1; }
+        if (mirror == "tencent") { return 2; }
+        if (mirror == "huawei") { return 3; }
+        return 0;
+    }
+    pure function index-to-mirror-limited(idx: int) -> string {
+        if (idx == 1) { return "aliyun"; }
+        if (idx == 2) { return "tencent"; }
+        if (idx == 3) { return "huawei"; }
+        return "";
+    }
+    pure function get-mirror-index-rocky(mirror: string) -> int {
+        if (mirror == "ustc") { return 1; }
+        if (mirror == "aliyun") { return 2; }
+        if (mirror == "tencent") { return 3; }
+        if (mirror == "huawei") { return 4; }
+        return 0;
+    }
+    pure function index-to-mirror-rocky(idx: int) -> string {
+        if (idx == 1) { return "ustc"; }
+        if (idx == 2) { return "aliyun"; }
+        if (idx == 3) { return "tencent"; }
+        if (idx == 4) { return "huawei"; }
+        return "";
+    }
+    pure function get-mirror-index-centos(mirror: string) -> int {
+        if (mirror == "tsinghua") { return 1; }
+        if (mirror == "aliyun") { return 2; }
+        if (mirror == "tencent") { return 3; }
+        if (mirror == "huawei") { return 4; }
+        return 0;
+    }
+    pure function index-to-mirror-centos(idx: int) -> string {
+        if (idx == 1) { return "tsinghua"; }
+        if (idx == 2) { return "aliyun"; }
+        if (idx == 3) { return "tencent"; }
+        if (idx == 4) { return "huawei"; }
+        return "";
+    }
 
     // Background mask
     background: #00000080;
@@ -526,6 +600,197 @@ export component InformationDialog inherits Rectangle {
                         copy_clicked => {
                             root.copy_to_clipboard(root.info.vhdx_path);
                             root.show_copy_success();
+                        }
+                    }
+                }
+
+                // Mirror Source Section (button to load + configure)
+                if (AppI18n.locale-code == "zh-CN"): VerticalLayout {
+                    spacing: 8px;
+                    Rectangle {
+                        height: 1px;
+                        background: Theme.border_color.with-alpha(50%);
+                    }
+
+                    // Collapsed: show current value + gear icon button
+                    if (!root.show-mirror-section): Rectangle {
+                        height: 24px;
+                        Text {
+                            x: 0;
+                            width: 110px;
+                            height: 100%;
+                            text: AppI18n.t("dialog.mirror_source", [AppI18n.version]) + ":";
+                            color: Theme.text_secondary;
+                            font-size: 13px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            vertical-alignment: center;
+                            horizontal-alignment: left;
+                        }
+                        Text {
+                            x: 122px;
+                            height: 100%;
+                            text: {
+                                if (root.apt_mirror != "") { return root.get-mirror-display-name(root.apt_mirror); }
+                                if (root.dnf_mirror != "") { return root.get-mirror-display-name(root.dnf_mirror); }
+                                if (root.pacman_mirror != "") { return root.get-mirror-display-name(root.pacman_mirror); }
+                                return AppI18n.t("dialog.mirror_none", [AppI18n.version]);
+                            };
+                            color: Theme.text_primary;
+                            font-size: 13px * LayoutConstants.font-scale;
+                            font-family: Theme.default_font;
+                            vertical-alignment: center;
+                        }
+                        ActionIcon {
+                            x: parent.width - 32px;
+                            y: (parent.height - 28px) / 2;
+                            width: 28px;
+                            height: 28px;
+                            icon: "\u{E713}";
+                            is_font_icon: true;
+                            tooltip: AppI18n.t("dialog.mirror_configure", [AppI18n.version]);
+                            clicked => { root.configure_mirror(); }
+                        }
+                    }
+
+                    // Expanded: dropdowns
+                    if (root.show-mirror-section && (root.distro_category == "ubuntu" || root.distro_category == "debian" || root.distro_category == "kali" || root.distro_category == "centos" || root.distro_category == "fedora" || root.distro_category == "archlinux" || root.distro_category == "almalinux" || root.distro_category == "rocky" || root.distro_category == "opensuse")): VerticalLayout {
+                        spacing: 8px;
+
+                        // APT (Ubuntu/Debian/Kali)
+                        if (root.distro_category == "ubuntu" || root.distro_category == "debian" || root.distro_category == "kali"): VerticalLayout {
+                            spacing: 4px;
+                            Text {
+                                text: AppI18n.t("dialog.mirror_apt", [AppI18n.version]);
+                                font-size: 12px * LayoutConstants.font-scale;
+                                font-family: Theme.default_font;
+                                color: Theme.text_secondary;
+                                horizontal-alignment: AppI18n.is-rtl ? right : left;
+                            }
+                            HorizontalLayout {
+                                spacing: 6px;
+                                CustomComboBox {
+                                    horizontal-stretch: 1;
+                                    model: [
+                                        AppI18n.t("dialog.mirror_none", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_tsinghua", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_ustc", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_aliyun", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_tencent", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_huawei", [AppI18n.version])
+                                    ];
+                                    current-index: root.get-mirror-index(root.apt_mirror);
+                                    selected(idx) => {
+                                        root.apt_mirror = root.index-to-mirror(idx);
+                                        root.save_mirror(root.apt_mirror, root.dnf_mirror, root.pacman_mirror);
+                                    }
+                                }
+                            }
+                        }
+
+                        // DNF (CentOS/Fedora/AlmaLinux/Rocky/openSUSE)
+                        if (root.distro_category == "centos" || root.distro_category == "fedora" || root.distro_category == "almalinux" || root.distro_category == "rocky" || root.distro_category == "opensuse"): VerticalLayout {
+                            spacing: 4px;
+                            Text {
+                                text: AppI18n.t("dialog.mirror_dnf", [AppI18n.version]);
+                                font-size: 12px * LayoutConstants.font-scale;
+                                font-family: Theme.default_font;
+                                color: Theme.text_secondary;
+                                horizontal-alignment: AppI18n.is-rtl ? right : left;
+                            }
+                            HorizontalLayout {
+                                spacing: 6px;
+                                if (root.distro_category == "almalinux"): CustomComboBox {
+                                    horizontal-stretch: 1;
+                                    model: [
+                                        AppI18n.t("dialog.mirror_none", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_aliyun", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_tencent", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_huawei", [AppI18n.version])
+                                    ];
+                                    current-index: root.get-mirror-index-limited(root.dnf_mirror);
+                                    selected(idx) => {
+                                        root.dnf_mirror = root.index-to-mirror-limited(idx);
+                                        root.save_mirror(root.apt_mirror, root.dnf_mirror, root.pacman_mirror);
+                                    }
+                                }
+                                if (root.distro_category == "rocky"): CustomComboBox {
+                                    horizontal-stretch: 1;
+                                    model: [
+                                        AppI18n.t("dialog.mirror_none", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_ustc", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_aliyun", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_tencent", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_huawei", [AppI18n.version])
+                                    ];
+                                    current-index: root.get-mirror-index-rocky(root.dnf_mirror);
+                                    selected(idx) => {
+                                        root.dnf_mirror = root.index-to-mirror-rocky(idx);
+                                        root.save_mirror(root.apt_mirror, root.dnf_mirror, root.pacman_mirror);
+                                    }
+                                }
+                                if (root.distro_category == "centos"): CustomComboBox {
+                                    horizontal-stretch: 1;
+                                    model: [
+                                        AppI18n.t("dialog.mirror_none", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_tsinghua", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_aliyun", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_tencent", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_huawei", [AppI18n.version])
+                                    ];
+                                    current-index: root.get-mirror-index-centos(root.dnf_mirror);
+                                    selected(idx) => {
+                                        root.dnf_mirror = root.index-to-mirror-centos(idx);
+                                        root.save_mirror(root.apt_mirror, root.dnf_mirror, root.pacman_mirror);
+                                    }
+                                }
+                                if (root.distro_category == "fedora" || root.distro_category == "opensuse"): CustomComboBox {
+                                    horizontal-stretch: 1;
+                                    model: [
+                                        AppI18n.t("dialog.mirror_none", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_tsinghua", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_ustc", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_aliyun", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_tencent", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_huawei", [AppI18n.version])
+                                    ];
+                                    current-index: root.get-mirror-index(root.dnf_mirror);
+                                    selected(idx) => {
+                                        root.dnf_mirror = root.index-to-mirror(idx);
+                                        root.save_mirror(root.apt_mirror, root.dnf_mirror, root.pacman_mirror);
+                                    }
+                                }
+                            }
+                        }
+
+                        // Pacman (Arch Linux)
+                        if (root.distro_category == "archlinux"): VerticalLayout {
+                            spacing: 4px;
+                            Text {
+                                text: AppI18n.t("dialog.mirror_pacman", [AppI18n.version]);
+                                font-size: 12px * LayoutConstants.font-scale;
+                                font-family: Theme.default_font;
+                                color: Theme.text_secondary;
+                                horizontal-alignment: AppI18n.is-rtl ? right : left;
+                            }
+                            HorizontalLayout {
+                                spacing: 6px;
+                                CustomComboBox {
+                                    horizontal-stretch: 1;
+                                    model: [
+                                        AppI18n.t("dialog.mirror_none", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_tsinghua", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_ustc", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_aliyun", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_tencent", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_huawei", [AppI18n.version])
+                                    ];
+                                    current-index: root.get-mirror-index(root.pacman_mirror);
+                                    selected(idx) => {
+                                        root.pacman_mirror = root.index-to-mirror(idx);
+                                        root.save_mirror(root.apt_mirror, root.dnf_mirror, root.pacman_mirror);
+                                    }
+                                }
+                            }
                         }
                     }
                 }

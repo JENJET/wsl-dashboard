@@ -336,6 +336,12 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     });
                 }
                 let result = dashboard.executor().get_distro_information(&name_str).await;
+
+                let instance_config = {
+                    let state = as_ptr.lock().await;
+                    state.config_manager.get_instance_config(&name_str)
+                };
+
                 let ah_ui = ah.clone();
                 let _ = slint::invoke_from_event_loop(move || {
                     if let Some(app) = ah_ui.upgrade() {
@@ -362,6 +368,11 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                                 slint_data.drive_total = data.drive_total.into();
                                 slint_data.drive_free = data.drive_free.into();
                                 app.set_information(slint_data);
+                                app.set_info_apt_mirror(instance_config.apt_mirror.into());
+                                app.set_info_dnf_mirror(instance_config.dnf_mirror.into());
+                                app.set_info_pacman_mirror(instance_config.pacman_mirror.into());
+                                app.set_info_distro_category("".into());
+                                app.set_show_mirror_config_section(false);
                                 app.set_show_information(true);
 
                                 if is_running
@@ -571,6 +582,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     app.set_settings_vscode_dir_error("".into());
                     app.set_settings_startup_script_error("".into());
                     app.set_settings_default_error("".into());
+
                     app.set_show_settings(true);
 
                     let ah_fetch = ah.clone();
@@ -618,6 +630,120 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 });
             },
         );
+    }
+
+    // Info dialog mirror save
+    {
+        let ah_outer = app_handle.clone();
+        let as_outer = app_state.clone();
+        app.on_save_info_mirror(move |name, apt_mirror, dnf_mirror, pacman_mirror| {
+            let ah = ah_outer.clone();
+            let as_ptr = as_outer.clone();
+            let name = name.to_string();
+            let apt_mirror = apt_mirror.to_string();
+            let dnf_mirror = dnf_mirror.to_string();
+            let pacman_mirror = pacman_mirror.to_string();
+
+            tokio::spawn(async move {
+                let executor = {
+                    let state = as_ptr.lock().await;
+                    state.wsl_dashboard.executor().clone()
+                };
+
+                // Read existing config, only modify mirror fields
+                let mut config = {
+                    let state = as_ptr.lock().await;
+                    state.config_manager.get_instance_config(&name)
+                };
+                config.apt_mirror = apt_mirror.clone();
+                config.dnf_mirror = dnf_mirror.clone();
+                config.pacman_mirror = pacman_mirror.clone();
+
+                // Save mirror config locally first
+                {
+                    let state = as_ptr.lock().await;
+                    if let Err(e) = state.config_manager.update_instance_config(&name, config) {
+                        tracing::error!("Failed to save config for '{}': {}", name, e);
+                    }
+                }
+
+                // Apply mirrors (empty = restore default sources)
+                let mirror_config = crate::wsl::ops::mirror::MirrorConfig {
+                    apt_mirror,
+                    dnf_mirror,
+                    pacman_mirror,
+                };
+                let ah_bg = ah.clone();
+                let name_bg = name.clone();
+                tokio::spawn(async move {
+                    if let Err(e) = crate::wsl::ops::mirror::apply_all_mirrors(
+                        &executor,
+                        &name_bg,
+                        &mirror_config,
+                    )
+                    .await
+                    {
+                        tracing::error!("Failed to apply mirror for '{}': {}", name_bg, e);
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(app) = ah_bg.upgrade() {
+                                app.set_task_status_text(format!("镜像源设置失败: {}", e).into());
+                                app.set_task_status_visible(true);
+                                let ah_hide = ah_bg.clone();
+                                slint::Timer::single_shot(
+                                    std::time::Duration::from_secs(5),
+                                    move || {
+                                        if let Some(app_h) = ah_hide.upgrade() {
+                                            app_h.set_task_status_visible(false);
+                                        }
+                                    },
+                                );
+                            }
+                        });
+                    } else {
+                        let _ = slint::invoke_from_event_loop(move || {
+                            if let Some(app) = ah_bg.upgrade() {
+                                app.set_task_status_text("镜像源设置成功".into());
+                                app.set_task_status_visible(true);
+                                let ah_hide = ah_bg.clone();
+                                slint::Timer::single_shot(
+                                    std::time::Duration::from_secs(3),
+                                    move || {
+                                        if let Some(app_h) = ah_hide.upgrade() {
+                                            app_h.set_task_status_visible(false);
+                                        }
+                                    },
+                                );
+                            }
+                        });
+                    }
+                });
+            });
+        });
+    }
+
+    // Info dialog configure mirror button
+    {
+        let ah_outer = app_handle.clone();
+        let as_outer = app_state.clone();
+        app.on_configure_info_mirror(move |name| {
+            let ah = ah_outer.clone();
+            let as_ptr = as_outer.clone();
+            let name = name.to_string();
+            tokio::spawn(async move {
+                let executor = {
+                    let state = as_ptr.lock().await;
+                    state.wsl_dashboard.executor().clone()
+                };
+                let distro_category =
+                    crate::wsl::ops::mirror::get_distro_category(&executor, &name).await;
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(app) = ah.upgrade() {
+                        app.set_info_distro_category(distro_category.into());
+                        app.set_show_mirror_config_section(true);
+                    }
+                });
+            });
+        });
     }
 
     // WSL Config click

@@ -274,7 +274,7 @@ export component AddInstanceView inherits Rectangle {
                                 horizontal-stretch: 1;
                                 spacing: 0px;
                                 Text {
-                                    text: "选择镜像源";
+                                    text: AppI18n.t("add.url.mirror_select", [AppI18n.version]);
                                     font-size: 13px * LayoutConstants.font-scale;
                                     font-family: Theme.default_font;
                                     color: Theme.text_secondary;
@@ -301,14 +301,14 @@ export component AddInstanceView inherits Rectangle {
                                     }
 
                                     CustomLineEdit {
-                                        placeholder-text: "输入自定义镜像前缀地址，例如 https://example.com/";
+                                        placeholder-text: AppI18n.t("add.url.mirror_custom_placeholder", [AppI18n.version]);
                                         text <=> root.custom_mirror_url;
                                         height: 28px;
                                         enabled: !root.is_installing;
                                     }
 
                                     Text {
-                                        text: "仅支持前缀方式加速";
+                                        text: AppI18n.t("add.url.mirror_custom_hint", [AppI18n.version]);
                                         font-size: 11px * LayoutConstants.font-scale;
                                         font-family: Theme.default_font;
                                         color: Theme.text_secondary;

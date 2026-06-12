@@ -119,6 +119,14 @@ export component ModalManager inherits Rectangle {
     in property <bool> settings_is_task_exists: true;
     in-out property <bool> settings_terminal_proxy: true;
     in property <Information> information;
+    in property <string> info_target_name: "";
+    in property <string> info_distro_category: "";
+    in-out property <string> info_apt_mirror: "";
+    in-out property <string> info_dnf_mirror: "";
+    in-out property <string> info_pacman_mirror: "";
+    in property <bool> show-mirror-section: false;
+    callback confirm_info_mirror(string, string, string, string);
+    callback configure_mirror();
     in property <[RootFSHelpItem]> rootfs_help_list;
 
     // Network properties
@@ -503,6 +511,18 @@ export component ModalManager inherits Rectangle {
         }
         unset_sparse_clicked => {
             root.unset_sparse_clicked();
+        }
+        distro_name: info_target_name;
+        distro_category: info_distro_category;
+        apt_mirror <=> info_apt_mirror;
+        dnf_mirror <=> info_dnf_mirror;
+        pacman_mirror <=> info_pacman_mirror;
+        save_mirror(am, dm, pm) => {
+            root.confirm_info_mirror(root.info_target_name, am, dm, pm);
+        }
+        show-mirror-section: root.show-mirror-section;
+        configure_mirror => {
+            root.configure_mirror();
         }
     }
     if (root.show_set_sparse_confirm): ConfirmationDialog {

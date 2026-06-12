@@ -125,6 +125,8 @@ pub fn init_logging(log_dir: &str, level_num: u8, timezone_str: &str) -> Logging
     let stdout_layer = fmt::layer()
         .with_timer(timer)
         .with_target(false)
+        .with_file(true)
+        .with_line_number(true)
         .with_filter(DynamicLevelFilter {
             current_level: level_atomic.clone(),
         });
@@ -148,7 +150,9 @@ pub fn init_logging(log_dir: &str, level_num: u8, timezone_str: &str) -> Logging
         .with_timer(timer)
         .with_writer(swap_writer.clone())
         .with_ansi(false)
-        .with_target(true)
+        .with_target(false)
+        .with_file(true)
+        .with_line_number(true)
         .with_filter(DynamicLevelFilter {
             current_level: level_atomic.clone(),
         });

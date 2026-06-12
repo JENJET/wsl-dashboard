@@ -96,14 +96,16 @@ pub async fn perform_save_settings(
         app.set_show_settings(false);
     }
 
-    // 2. Save to instances.toml
-    let current_emulator = {
+    // 2. Save to instances.toml (preserve existing mirror config)
+    let (current_emulator, current_apt_mirror, current_dnf_mirror, current_pacman_mirror) = {
         let state = as_ptr.lock().await;
-        state
-            .config_manager
-            .get_instance_config(&name)
-            .terminal_emulator
-            .clone()
+        let cfg = state.config_manager.get_instance_config(&name);
+        (
+            cfg.terminal_emulator.clone(),
+            cfg.apt_mirror.clone(),
+            cfg.dnf_mirror.clone(),
+            cfg.pacman_mirror.clone(),
+        )
     };
     let config = crate::config::DistroInstanceConfig {
         terminal_dir,
@@ -112,6 +114,9 @@ pub async fn perform_save_settings(
         startup_script: startup_script.clone(),
         terminal_proxy,
         terminal_emulator: current_emulator,
+        apt_mirror: current_apt_mirror,
+        dnf_mirror: current_dnf_mirror,
+        pacman_mirror: current_pacman_mirror,
     };
 
     {

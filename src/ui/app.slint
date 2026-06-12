@@ -198,6 +198,13 @@ export component AppWindow inherits Window {
     in-out property <string> settings_default_error: "";
     in-out property <bool> settings_is_task_exists: true;
     in-out property <bool> settings_terminal_proxy: true;
+    in-out property <string> info_apt_mirror: "";
+    in-out property <string> info_dnf_mirror: "";
+    in-out property <string> info_pacman_mirror: "";
+    in property <string> info_distro_category: "";
+    in property <bool> show_mirror_config_section: false;
+    callback save_info_mirror(string, string, string, string);
+    callback configure_info_mirror(string);
 
     // WSL Config properties
     in-out property <bool> show_wsl_config: false;
@@ -1396,6 +1403,19 @@ export component AppWindow inherits Window {
         }
         cancel_set_sparse => {
             root.show_set_sparse_confirm = false;
+        }
+        // Info dialog mirror source
+        info_target_name: root.information.distro_name;
+        info_distro_category: root.info_distro_category;
+        info_apt_mirror <=> root.info_apt_mirror;
+        info_dnf_mirror <=> root.info_dnf_mirror;
+        info_pacman_mirror <=> root.info_pacman_mirror;
+        confirm_info_mirror(name, am, dm, pm) => {
+            root.save_info_mirror(name, am, dm, pm);
+        }
+        show-mirror-section: root.show_mirror_config_section;
+        configure_mirror => {
+            root.configure_info_mirror(root.information.distro_name);
         }
         show_settings: root.show_settings;
         settings_target_name: root.settings_distro_name;
