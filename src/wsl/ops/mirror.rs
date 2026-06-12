@@ -5,9 +5,7 @@ use crate::wsl::executor::{WslCommandExecutor, new_tokio_wsl_cmd};
 
 #[derive(Debug, Clone, Default)]
 pub struct MirrorConfig {
-    pub apt_mirror: String,
-    pub dnf_mirror: String,
-    pub pacman_mirror: String,
+    pub package_mirror: String,
 }
 
 pub async fn get_distro_category(executor: &WslCommandExecutor, distro_name: &str) -> String {
@@ -17,7 +15,7 @@ pub async fn get_distro_category(executor: &WslCommandExecutor, distro_name: &st
 
     if !result.success {
         warn!("Failed to read /etc/os-release for '{}'", distro_name);
-        return "unknown".to_string();
+        return detect_by_package_manager(executor, distro_name).await;
     }
 
     let content = result.output.to_lowercase();
@@ -40,6 +38,33 @@ pub async fn get_distro_category(executor: &WslCommandExecutor, distro_name: &st
         "archlinux".to_string()
     } else if content.contains("opensuse") || content.contains("sles") {
         "opensuse".to_string()
+    } else if content.contains("alpine") {
+        "alpine".to_string()
+    } else {
+        detect_by_package_manager(executor, distro_name).await
+    }
+}
+
+async fn detect_by_package_manager(executor: &WslCommandExecutor, distro_name: &str) -> String {
+    let result = executor
+        .execute_command(&[
+            "-d",
+            distro_name,
+            "-e",
+            "sh",
+            "-c",
+            "if command -v apk >/dev/null 2>&1; then echo alpine; \
+             elif command -v apt >/dev/null 2>&1; then echo debian; \
+             elif command -v dnf >/dev/null 2>&1; then echo fedora; \
+             elif command -v yum >/dev/null 2>&1; then echo centos; \
+             elif command -v pacman >/dev/null 2>&1; then echo archlinux; \
+             elif command -v zypper >/dev/null 2>&1; then echo opensuse; \
+             else echo unknown; fi",
+        ])
+        .await;
+
+    if result.success {
+        result.output.trim().to_string()
     } else {
         "unknown".to_string()
     }
@@ -86,6 +111,11 @@ fn mirror_url_for(category: &str, mirror: &str) -> Option<&'static str> {
         ("almalinux", "aliyun") => Some("https://mirrors.aliyun.com/almalinux/"),
         ("almalinux", "tencent") => Some("https://mirrors.cloud.tencent.com/almalinux/"),
         ("almalinux", "huawei") => Some("https://repo.huaweicloud.com/almalinux/"),
+        ("alpine", "tsinghua") => Some("https://mirrors.tuna.tsinghua.edu.cn/alpine/"),
+        ("alpine", "ustc") => Some("https://mirrors.ustc.edu.cn/alpine/"),
+        ("alpine", "aliyun") => Some("https://mirrors.aliyun.com/alpine/"),
+        ("alpine", "tencent") => Some("https://mirrors.cloud.tencent.com/alpine/"),
+        ("alpine", "huawei") => Some("https://repo.huaweicloud.com/alpine/"),
         ("archlinux", "tsinghua") => Some("https://mirrors.tuna.tsinghua.edu.cn/archlinux/"),
         ("archlinux", "ustc") => Some("https://mirrors.ustc.edu.cn/archlinux/"),
         ("archlinux", "aliyun") => Some("https://mirrors.aliyun.com/archlinux/"),
@@ -203,6 +233,11 @@ fn replace_traditional_mirror(content: &str, mirror_url: &str) -> String {
         "security.debian.org",
         "cdn.debian.net",
         "deb.uh-oh.com",
+        "mirrors.tuna.tsinghua.edu.cn",
+        "mirrors.ustc.edu.cn",
+        "mirrors.aliyun.com",
+        "mirrors.cloud.tencent.com",
+        "repo.huaweicloud.com",
     ];
     let mut out = Vec::new();
     for line in content.lines() {
@@ -346,7 +381,7 @@ pub async fn apply_apt_mirror(
     Ok(())
 }
 
-async fn verify_apt(distro_name: &str, mirror: &str) -> Result<(), String> {
+async fn verify_mirror(distro_name: &str, mirror: &str) -> Result<(), String> {
     let domain = mirror_domain_for(mirror).unwrap_or("");
     if domain.is_empty() {
         return Ok(());
@@ -410,33 +445,12 @@ async fn verify_http_cmd(distro_name: &str, cmd: &str, args: &[&str]) -> Result<
     }
 }
 
-async fn verify_dnf(distro_name: &str, mirror: &str) -> Result<(), String> {
-    let domain = mirror_domain_for(mirror).unwrap_or("");
-    if domain.is_empty() {
-        return Ok(());
-    }
-    // dnf makecache / yum makecache 受第三方仓库影响；统一用 curl
-    verify_url_reachable(distro_name, &format!("https://{}/", domain), domain).await
-}
-
-async fn verify_pacman(distro_name: &str, mirror: &str) -> Result<(), String> {
-    let domain = mirror_domain_for(mirror).unwrap_or("");
-    if domain.is_empty() {
-        return Ok(());
-    }
-    verify_url_reachable(distro_name, &format!("https://{}/", domain), domain).await
-}
-
 pub async fn apply_dnf_mirror(
     executor: &WslCommandExecutor,
     distro_name: &str,
     category: &str,
     mirror: &str,
 ) -> Result<(), String> {
-    if mirror.is_empty() {
-        return Ok(());
-    }
-
     match category {
         "centos" | "almalinux" | "rocky" => {
             apply_yum_mirror(executor, distro_name, category, mirror).await
@@ -508,14 +522,8 @@ async fn apply_fedora_mirror(
         return Ok(());
     }
 
-    let mirror_url = match mirror {
-        "tsinghua" => "https://mirrors.tuna.tsinghua.edu.cn/fedora/",
-        "ustc" => "https://mirrors.ustc.edu.cn/fedora/",
-        "aliyun" => "https://mirrors.aliyun.com/fedora/",
-        "tencent" => "https://mirrors.cloud.tencent.com/fedora/",
-        "huawei" => "https://repo.huaweicloud.com/fedora/",
-        _ => return Ok(()),
-    };
+    let mirror_url = mirror_url_for("fedora", mirror)
+        .ok_or_else(|| format!("不支持的软件源: fedora / {}", mirror))?;
 
     let cmd = format!(
         r#"
@@ -556,14 +564,10 @@ pub async fn apply_opensuse_mirror(
         return Ok(());
     }
 
-    let mirror_url = match mirror {
-        "tsinghua" => "https://mirrors.tuna.tsinghua.edu.cn/opensuse",
-        "ustc" => "https://mirrors.ustc.edu.cn/opensuse",
-        "aliyun" => "https://mirrors.aliyun.com/opensuse",
-        "tencent" => "https://mirrors.cloud.tencent.com/opensuse",
-        "huawei" => "https://repo.huaweicloud.com/opensuse",
-        _ => return Ok(()),
-    };
+    let mirror_url = mirror_url_for("opensuse", mirror)
+        .ok_or_else(|| format!("不支持的软件源: opensuse / {}", mirror))?
+        .trim_end_matches('/')
+        .to_string();
 
     let cmd = format!(
         r#"
@@ -572,6 +576,11 @@ pub async fn apply_opensuse_mirror(
             [ -f "$f.bak" ] || cp "$f" "$f.bak" 2>/dev/null || true
             sed -i "s|https\?://cdn\.opensuse\.org|{mirror}|g" "$f" 2>/dev/null || true
             sed -i "s|https\?://download\.opensuse\.org|{mirror}|g" "$f" 2>/dev/null || true
+            sed -i "s|https\?://mirrors\.tuna\.tsinghua\.edu\.cn/opensuse|{mirror}|g" "$f" 2>/dev/null || true
+            sed -i "s|https\?://mirrors\.ustc\.edu\.cn/opensuse|{mirror}|g" "$f" 2>/dev/null || true
+            sed -i "s|https\?://mirrors\.aliyun\.com/opensuse|{mirror}|g" "$f" 2>/dev/null || true
+            sed -i "s|https\?://mirrors\.cloud\.tencent\.com/opensuse|{mirror}|g" "$f" 2>/dev/null || true
+            sed -i "s|https\?://repo\.huaweicloud\.com/opensuse|{mirror}|g" "$f" 2>/dev/null || true
             echo "OK: $(basename $f)"
         done"#,
         mirror = mirror_url
@@ -601,14 +610,8 @@ pub async fn apply_pacman_mirror(
         return Ok(());
     }
 
-    let mirror_url = match mirror {
-        "tsinghua" => "https://mirrors.tuna.tsinghua.edu.cn/archlinux/",
-        "ustc" => "https://mirrors.ustc.edu.cn/archlinux/",
-        "aliyun" => "https://mirrors.aliyun.com/archlinux/",
-        "tencent" => "https://mirrors.cloud.tencent.com/archlinux/",
-        "huawei" => "https://repo.huaweicloud.com/archlinux/",
-        _ => return Ok(()),
-    };
+    let mirror_url = mirror_url_for("archlinux", mirror)
+        .ok_or_else(|| format!("不支持的软件源: archlinux / {}", mirror))?;
 
     let _ = executor
         .execute_command(&["-d", distro_name, "-u", "root", "-e", "sh", "-c",
@@ -640,6 +643,41 @@ pub async fn apply_pacman_mirror(
     }
 }
 
+pub async fn apply_apk_mirror(
+    executor: &WslCommandExecutor,
+    distro_name: &str,
+    mirror: &str,
+) -> Result<(), String> {
+    if mirror.is_empty() {
+        let _ = executor
+            .execute_command(&["-d", distro_name, "-u", "root", "-e", "sh", "-c",
+                "[ -f /etc/apk/repositories.bak ] && cp /etc/apk/repositories.bak /etc/apk/repositories || true"]).await;
+        return Ok(());
+    }
+
+    let mirror_url = mirror_url_for("alpine", mirror)
+        .ok_or_else(|| format!("不支持的软件源: alpine / {}", mirror))?;
+
+    let _ = executor
+        .execute_command(&["-d", distro_name, "-u", "root", "-e", "sh", "-c",
+            "[ -f /etc/apk/repositories.bak ] || cp /etc/apk/repositories /etc/apk/repositories.bak 2>/dev/null || true"]).await;
+
+    let cmd = format!(
+        r#"sed -i 's|https\?://[^/]*alpinelinux\.org/alpine/|{mirror}|g; s|https\?://mirrors\.tuna\.tsinghua\.edu\.cn/alpine/|{mirror}|g; s|https\?://mirrors\.ustc\.edu\.cn/alpine/|{mirror}|g; s|https\?://mirrors\.aliyun\.com/alpine/|{mirror}|g; s|https\?://mirrors\.cloud\.tencent\.com/alpine/|{mirror}|g; s|https\?://repo\.huaweicloud\.com/alpine/|{mirror}|g' /etc/apk/repositories"#,
+        mirror = mirror_url
+    );
+    let r = executor
+        .execute_command(&["-d", distro_name, "-u", "root", "-e", "sh", "-c", &cmd])
+        .await;
+
+    if r.success {
+        info!("Applied APK mirror '{}' for '{}'", mirror, distro_name);
+        Ok(())
+    } else {
+        Err(format!("应用 APK 镜像源失败: {}", r.output))
+    }
+}
+
 pub async fn apply_all_mirrors(
     executor: &WslCommandExecutor,
     distro_name: &str,
@@ -648,28 +686,34 @@ pub async fn apply_all_mirrors(
     let category = get_distro_category(executor, distro_name).await;
 
     match category.as_str() {
+        "alpine" => {
+            apply_apk_mirror(executor, distro_name, &config.package_mirror).await?;
+            if !config.package_mirror.is_empty() {
+                verify_mirror(distro_name, &config.package_mirror).await?;
+            }
+        }
         "ubuntu" | "debian" | "kali" => {
-            apply_apt_mirror(executor, distro_name, &category, &config.apt_mirror).await?;
-            if !config.apt_mirror.is_empty() {
-                verify_apt(distro_name, &config.apt_mirror).await?;
+            apply_apt_mirror(executor, distro_name, &category, &config.package_mirror).await?;
+            if !config.package_mirror.is_empty() {
+                verify_mirror(distro_name, &config.package_mirror).await?;
             }
         }
         "centos" | "almalinux" | "rocky" | "fedora" => {
-            apply_dnf_mirror(executor, distro_name, &category, &config.dnf_mirror).await?;
-            if !config.dnf_mirror.is_empty() {
-                verify_dnf(distro_name, &config.dnf_mirror).await?;
+            apply_dnf_mirror(executor, distro_name, &category, &config.package_mirror).await?;
+            if !config.package_mirror.is_empty() {
+                verify_mirror(distro_name, &config.package_mirror).await?;
             }
         }
         "archlinux" => {
-            apply_pacman_mirror(executor, distro_name, &config.pacman_mirror).await?;
-            if !config.pacman_mirror.is_empty() {
-                verify_pacman(distro_name, &config.pacman_mirror).await?;
+            apply_pacman_mirror(executor, distro_name, &config.package_mirror).await?;
+            if !config.package_mirror.is_empty() {
+                verify_mirror(distro_name, &config.package_mirror).await?;
             }
         }
         "opensuse" => {
-            apply_opensuse_mirror(executor, distro_name, &config.dnf_mirror).await?;
-            if !config.dnf_mirror.is_empty() {
-                verify_dnf(distro_name, &config.dnf_mirror).await?;
+            apply_opensuse_mirror(executor, distro_name, &config.package_mirror).await?;
+            if !config.package_mirror.is_empty() {
+                verify_mirror(distro_name, &config.package_mirror).await?;
             }
         }
         _ => {

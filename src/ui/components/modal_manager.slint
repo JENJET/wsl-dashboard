@@ -121,11 +121,9 @@ export component ModalManager inherits Rectangle {
     in property <Information> information;
     in property <string> info_target_name: "";
     in property <string> info_distro_category: "";
-    in-out property <string> info_apt_mirror: "";
-    in-out property <string> info_dnf_mirror: "";
-    in-out property <string> info_pacman_mirror: "";
+    in-out property <string> info_package_mirror: "";
     in property <bool> show-mirror-section: false;
-    callback confirm_info_mirror(string, string, string, string);
+    callback confirm_info_mirror(string, string);
     callback configure_mirror();
     in property <[RootFSHelpItem]> rootfs_help_list;
 
@@ -514,11 +512,9 @@ export component ModalManager inherits Rectangle {
         }
         distro_name: info_target_name;
         distro_category: info_distro_category;
-        apt_mirror <=> info_apt_mirror;
-        dnf_mirror <=> info_dnf_mirror;
-        pacman_mirror <=> info_pacman_mirror;
-        save_mirror(am, dm, pm) => {
-            root.confirm_info_mirror(root.info_target_name, am, dm, pm);
+        package_mirror <=> info_package_mirror;
+        save_mirror(pm) => {
+            root.confirm_info_mirror(root.info_target_name, pm);
         }
         show-mirror-section: root.show-mirror-section;
         configure_mirror => {

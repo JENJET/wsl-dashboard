@@ -328,12 +328,8 @@ pub struct DistroInstanceConfig {
     pub terminal_proxy: bool,
     #[serde(rename = "terminal-emulator", default)]
     pub terminal_emulator: String,
-    #[serde(rename = "apt-mirror", default)]
-    pub apt_mirror: String,
-    #[serde(rename = "dnf-mirror", default)]
-    pub dnf_mirror: String,
-    #[serde(rename = "pacman-mirror", default)]
-    pub pacman_mirror: String,
+    #[serde(rename = "package-mirror", default)]
+    pub package_mirror: String,
 }
 
 pub fn default_terminal_dir() -> String {
@@ -352,9 +348,7 @@ impl Default for DistroInstanceConfig {
             startup_script: String::new(),
             terminal_proxy: true,
             terminal_emulator: String::new(),
-            apt_mirror: String::new(),
-            dnf_mirror: String::new(),
-            pacman_mirror: String::new(),
+            package_mirror: String::new(),
         }
     }
 }

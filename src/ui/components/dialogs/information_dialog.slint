@@ -104,9 +104,7 @@ component InfoRow inherits Rectangle {
 export component InformationDialog inherits Rectangle {
     in property <Information> info;
     in property <string> distro_name;
-    in-out property <string> apt_mirror: "";
-    in-out property <string> dnf_mirror: "";
-    in-out property <string> pacman_mirror: "";
+    in-out property <string> package_mirror: "";
     in property <string> distro_category: "";
     in property <bool> show-mirror-section: false;
     callback close;
@@ -118,7 +116,7 @@ export component InformationDialog inherits Rectangle {
     callback compact_vhdx_clicked;
     callback set_sparse_clicked;
     callback unset_sparse_clicked;
-    callback save_mirror(string, string, string);
+    callback save_mirror(string);
     callback configure_mirror();
     
     pure function get-mirror-index(mirror: string) -> int {
@@ -630,9 +628,7 @@ export component InformationDialog inherits Rectangle {
                             x: 122px;
                             height: 100%;
                             text: {
-                                if (root.apt_mirror != "") { return root.get-mirror-display-name(root.apt_mirror); }
-                                if (root.dnf_mirror != "") { return root.get-mirror-display-name(root.dnf_mirror); }
-                                if (root.pacman_mirror != "") { return root.get-mirror-display-name(root.pacman_mirror); }
+                                if (root.package_mirror != "") { return root.get-mirror-display-name(root.package_mirror); }
                                 return AppI18n.t("dialog.mirror_none", [AppI18n.version]);
                             };
                             color: Theme.text_primary;
@@ -653,7 +649,7 @@ export component InformationDialog inherits Rectangle {
                     }
 
                     // Expanded: dropdowns
-                    if (root.show-mirror-section && (root.distro_category == "ubuntu" || root.distro_category == "debian" || root.distro_category == "kali" || root.distro_category == "centos" || root.distro_category == "fedora" || root.distro_category == "archlinux" || root.distro_category == "almalinux" || root.distro_category == "rocky" || root.distro_category == "opensuse")): VerticalLayout {
+                    if (root.show-mirror-section && (root.distro_category == "ubuntu" || root.distro_category == "debian" || root.distro_category == "kali" || root.distro_category == "centos" || root.distro_category == "fedora" || root.distro_category == "archlinux" || root.distro_category == "almalinux" || root.distro_category == "rocky" || root.distro_category == "opensuse" || root.distro_category == "alpine")): VerticalLayout {
                         spacing: 8px;
 
                         // APT (Ubuntu/Debian/Kali)
@@ -678,10 +674,41 @@ export component InformationDialog inherits Rectangle {
                                         AppI18n.t("dialog.mirror_tencent", [AppI18n.version]),
                                         AppI18n.t("dialog.mirror_huawei", [AppI18n.version])
                                     ];
-                                    current-index: root.get-mirror-index(root.apt_mirror);
+                                    current-index: root.get-mirror-index(root.package_mirror);
                                     selected(idx) => {
-                                        root.apt_mirror = root.index-to-mirror(idx);
-                                        root.save_mirror(root.apt_mirror, root.dnf_mirror, root.pacman_mirror);
+                                        root.package_mirror = root.index-to-mirror(idx);
+                                        root.save_mirror(root.package_mirror);
+                                    }
+                                }
+                            }
+                        }
+
+                        // APK (Alpine Linux)
+                        if (root.distro_category == "alpine"): VerticalLayout {
+                            spacing: 4px;
+                            Text {
+                                text: AppI18n.t("dialog.mirror_apk", [AppI18n.version]);
+                                font-size: 12px * LayoutConstants.font-scale;
+                                font-family: Theme.default_font;
+                                color: Theme.text_secondary;
+                                horizontal-alignment: AppI18n.is-rtl ? right : left;
+                            }
+                            HorizontalLayout {
+                                spacing: 6px;
+                                CustomComboBox {
+                                    horizontal-stretch: 1;
+                                    model: [
+                                        AppI18n.t("dialog.mirror_none", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_tsinghua", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_ustc", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_aliyun", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_tencent", [AppI18n.version]),
+                                        AppI18n.t("dialog.mirror_huawei", [AppI18n.version])
+                                    ];
+                                    current-index: root.get-mirror-index(root.package_mirror);
+                                    selected(idx) => {
+                                        root.package_mirror = root.index-to-mirror(idx);
+                                        root.save_mirror(root.package_mirror);
                                     }
                                 }
                             }
@@ -707,10 +734,10 @@ export component InformationDialog inherits Rectangle {
                                         AppI18n.t("dialog.mirror_tencent", [AppI18n.version]),
                                         AppI18n.t("dialog.mirror_huawei", [AppI18n.version])
                                     ];
-                                    current-index: root.get-mirror-index-limited(root.dnf_mirror);
+                                    current-index: root.get-mirror-index-limited(root.package_mirror);
                                     selected(idx) => {
-                                        root.dnf_mirror = root.index-to-mirror-limited(idx);
-                                        root.save_mirror(root.apt_mirror, root.dnf_mirror, root.pacman_mirror);
+                                        root.package_mirror = root.index-to-mirror-limited(idx);
+                                        root.save_mirror(root.package_mirror);
                                     }
                                 }
                                 if (root.distro_category == "rocky"): CustomComboBox {
@@ -722,10 +749,10 @@ export component InformationDialog inherits Rectangle {
                                         AppI18n.t("dialog.mirror_tencent", [AppI18n.version]),
                                         AppI18n.t("dialog.mirror_huawei", [AppI18n.version])
                                     ];
-                                    current-index: root.get-mirror-index-rocky(root.dnf_mirror);
+                                    current-index: root.get-mirror-index-rocky(root.package_mirror);
                                     selected(idx) => {
-                                        root.dnf_mirror = root.index-to-mirror-rocky(idx);
-                                        root.save_mirror(root.apt_mirror, root.dnf_mirror, root.pacman_mirror);
+                                        root.package_mirror = root.index-to-mirror-rocky(idx);
+                                        root.save_mirror(root.package_mirror);
                                     }
                                 }
                                 if (root.distro_category == "centos"): CustomComboBox {
@@ -737,10 +764,10 @@ export component InformationDialog inherits Rectangle {
                                         AppI18n.t("dialog.mirror_tencent", [AppI18n.version]),
                                         AppI18n.t("dialog.mirror_huawei", [AppI18n.version])
                                     ];
-                                    current-index: root.get-mirror-index-centos(root.dnf_mirror);
+                                    current-index: root.get-mirror-index-centos(root.package_mirror);
                                     selected(idx) => {
-                                        root.dnf_mirror = root.index-to-mirror-centos(idx);
-                                        root.save_mirror(root.apt_mirror, root.dnf_mirror, root.pacman_mirror);
+                                        root.package_mirror = root.index-to-mirror-centos(idx);
+                                        root.save_mirror(root.package_mirror);
                                     }
                                 }
                                 if (root.distro_category == "fedora" || root.distro_category == "opensuse"): CustomComboBox {
@@ -753,10 +780,10 @@ export component InformationDialog inherits Rectangle {
                                         AppI18n.t("dialog.mirror_tencent", [AppI18n.version]),
                                         AppI18n.t("dialog.mirror_huawei", [AppI18n.version])
                                     ];
-                                    current-index: root.get-mirror-index(root.dnf_mirror);
+                                    current-index: root.get-mirror-index(root.package_mirror);
                                     selected(idx) => {
-                                        root.dnf_mirror = root.index-to-mirror(idx);
-                                        root.save_mirror(root.apt_mirror, root.dnf_mirror, root.pacman_mirror);
+                                        root.package_mirror = root.index-to-mirror(idx);
+                                        root.save_mirror(root.package_mirror);
                                     }
                                 }
                             }
@@ -784,10 +811,10 @@ export component InformationDialog inherits Rectangle {
                                         AppI18n.t("dialog.mirror_tencent", [AppI18n.version]),
                                         AppI18n.t("dialog.mirror_huawei", [AppI18n.version])
                                     ];
-                                    current-index: root.get-mirror-index(root.pacman_mirror);
+                                    current-index: root.get-mirror-index(root.package_mirror);
                                     selected(idx) => {
-                                        root.pacman_mirror = root.index-to-mirror(idx);
-                                        root.save_mirror(root.apt_mirror, root.dnf_mirror, root.pacman_mirror);
+                                        root.package_mirror = root.index-to-mirror(idx);
+                                        root.save_mirror(root.package_mirror);
                                     }
                                 }
                             }

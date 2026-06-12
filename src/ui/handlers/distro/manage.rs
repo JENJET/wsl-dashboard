@@ -368,9 +368,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                                 slint_data.drive_total = data.drive_total.into();
                                 slint_data.drive_free = data.drive_free.into();
                                 app.set_information(slint_data);
-                                app.set_info_apt_mirror(instance_config.apt_mirror.into());
-                                app.set_info_dnf_mirror(instance_config.dnf_mirror.into());
-                                app.set_info_pacman_mirror(instance_config.pacman_mirror.into());
+                                app.set_info_package_mirror(instance_config.package_mirror.into());
                                 app.set_info_distro_category("".into());
                                 app.set_show_mirror_config_section(false);
                                 app.set_show_information(true);
@@ -636,13 +634,11 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
     {
         let ah_outer = app_handle.clone();
         let as_outer = app_state.clone();
-        app.on_save_info_mirror(move |name, apt_mirror, dnf_mirror, pacman_mirror| {
+        app.on_save_info_mirror(move |name, package_mirror| {
             let ah = ah_outer.clone();
             let as_ptr = as_outer.clone();
             let name = name.to_string();
-            let apt_mirror = apt_mirror.to_string();
-            let dnf_mirror = dnf_mirror.to_string();
-            let pacman_mirror = pacman_mirror.to_string();
+            let package_mirror = package_mirror.to_string();
 
             tokio::spawn(async move {
                 let executor = {
@@ -650,14 +646,12 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                     state.wsl_dashboard.executor().clone()
                 };
 
-                // Read existing config, only modify mirror fields
+                // Read existing config, only modify mirror field
                 let mut config = {
                     let state = as_ptr.lock().await;
                     state.config_manager.get_instance_config(&name)
                 };
-                config.apt_mirror = apt_mirror.clone();
-                config.dnf_mirror = dnf_mirror.clone();
-                config.pacman_mirror = pacman_mirror.clone();
+                config.package_mirror = package_mirror.clone();
 
                 // Save mirror config locally first
                 {
@@ -668,11 +662,7 @@ pub fn setup(app: &AppWindow, app_handle: slint::Weak<AppWindow>, app_state: Arc
                 }
 
                 // Apply mirrors (empty = restore default sources)
-                let mirror_config = crate::wsl::ops::mirror::MirrorConfig {
-                    apt_mirror,
-                    dnf_mirror,
-                    pacman_mirror,
-                };
+                let mirror_config = crate::wsl::ops::mirror::MirrorConfig { package_mirror };
                 let ah_bg = ah.clone();
                 let name_bg = name.clone();
                 tokio::spawn(async move {

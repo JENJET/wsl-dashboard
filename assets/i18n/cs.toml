@@ -309,6 +309,7 @@ mirror_ustc = "USTC"
 mirror_aliyun = "Aliyun"
 mirror_tencent = "Tencent"
 mirror_huawei = "Huawei Cloud"
+mirror_apk = "APK Mirror (Alpine Linux)"
 
 [dialog.terminal]
 title = "{0} Nastavení terminálu"
