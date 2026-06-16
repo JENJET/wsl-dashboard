@@ -100,6 +100,12 @@ impl WslCommandExecutor {
         let is_write_op = args_owned.iter().any(|arg| {
             let lower = arg.to_lowercase();
             write_ops.contains(&lower.as_str())
+                || lower.contains("useradd")
+                || lower.contains("adduser")
+                || lower.contains("chpasswd")
+                || lower.contains("usermod")
+                || lower.contains("passwd")
+                || lower.contains("userdel")
         });
         if is_write_op {
             info!("Executing WSL command: {}", command_str);
