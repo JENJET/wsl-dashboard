@@ -101,35 +101,27 @@ const BUILTIN_PRESETS: &[(&str, &str, &str)] = &[
     (
         "cmd",
         "cmd.exe",
-        " /c start \"WSL: {distro}\" cmd /c {proxy}wsl -d {distro} --cd {dir}",
+        " /c start \"WSL: {distro}\" cmd /c wsl -d {distro} --cd {dir}",
     ),
     (
         "powershell",
         "powershell.exe",
-        "-NoExit -Command {proxy}wsl -d {distro} --cd {dir}",
+        "-NoExit -Command wsl -d {distro} --cd {dir}",
     ),
-    ("wt", "wt.exe", "wsl -d {proxy}{distro} --cd {dir}"),
+    ("wt", "wt.exe", "wsl -d {distro} --cd {dir}"),
     (
         "pwsh",
         "pwsh.exe",
-        "-NoExit -Command {proxy}wsl -d {distro} --cd {dir}",
+        "-NoExit -Command wsl -d {distro} --cd {dir}",
     ),
     (
         "alacritty",
         "alacritty.exe",
-        "-e {proxy}wsl -d {distro} --cd {dir}",
+        "-e wsl -d {distro} --cd {dir}",
     ),
-    (
-        "conemu",
-        "ConEmu.exe",
-        "-run {proxy}wsl -d {distro} --cd {dir}",
-    ),
-    ("rio", "rio.exe", "-e {proxy}wsl -d {distro} --cd {dir}"),
-    (
-        "wezterm",
-        "wezterm.exe",
-        "-e {proxy}wsl -d {distro} --cd {dir}",
-    ),
+    ("conemu", "ConEmu.exe", "-run wsl -d {distro} --cd {dir}"),
+    ("rio", "rio.exe", "-e wsl -d {distro} --cd {dir}"),
+    ("wezterm", "wezterm.exe", "-e wsl -d {distro} --cd {dir}"),
 ];
 
 pub fn get_builtin_presets_map() -> HashMap<&'static str, TerminalPreset> {
@@ -179,26 +171,6 @@ pub fn resolve_presets(
         }
     }
     result
-}
-
-pub fn build_proxy_prefix(proxy_exports: Option<&[(String, String)]>) -> String {
-    let Some(exports) = proxy_exports else {
-        return String::new();
-    };
-    if exports.is_empty() {
-        return String::new();
-    }
-    let mut prefix = String::new();
-    let mut wslenv = String::new();
-    for (k, v) in exports {
-        prefix.push_str(&format!("set \"{}={}\"& ", k, v));
-        wslenv.push_str(&format!("{}/u:", k));
-    }
-    if !wslenv.is_empty() {
-        wslenv.pop();
-        prefix.push_str(&format!("set \"WSLENV={}\"& ", wslenv));
-    }
-    prefix
 }
 
 pub fn resolve_exe_path(path: &str) -> String {
@@ -273,42 +245,31 @@ pub fn format_terminal_command(
     terminal_proxy: bool,
     proxy_config: &crate::network::models::HttpProxyConfig,
 ) -> String {
-    let mut exports: Vec<(String, String)> = Vec::new();
+    let resolved_args = replace_placeholders(&preset.args, &preset.path, distro_name, working_dir);
+
+    let mut display = format!("{} {}", preset.path, resolved_args);
+
+    // Append a readable proxy annotation for display purposes
     if terminal_proxy
         && proxy_config.is_enabled
         && !proxy_config.host.is_empty()
         && !proxy_config.port.is_empty()
     {
-        let auth = if proxy_config.auth_enabled
+        let auth_hint = if proxy_config.auth_enabled
             && !proxy_config.username.is_empty()
             && !proxy_config.password.is_empty()
         {
-            format!("{}:{}@", proxy_config.username, proxy_config.password)
+            format!("{}:***@", proxy_config.username)
         } else {
             String::new()
         };
-        let proxy_url = format!("http://{}{}:{}", auth, proxy_config.host, proxy_config.port);
-        exports.push(("HTTP_PROXY".to_string(), proxy_url.clone()));
-        exports.push(("HTTPS_PROXY".to_string(), proxy_url.clone()));
-        if !proxy_config.no_proxy.is_empty() {
-            exports.push(("NO_PROXY".to_string(), proxy_config.no_proxy.clone()));
-        }
+        display.push_str(&format!(
+            "  [PROXY: {}{}:{}]",
+            auth_hint, proxy_config.host, proxy_config.port
+        ));
     }
-    let proxy_exports = if exports.is_empty() {
-        None
-    } else {
-        Some(exports)
-    };
-    let proxy_prefix = build_proxy_prefix(proxy_exports.as_deref());
 
-    let resolved_args = replace_placeholders(
-        &preset.args,
-        &preset.path,
-        distro_name,
-        working_dir,
-        &proxy_prefix,
-    );
-    format!("{} {}", preset.path, resolved_args)
+    display
 }
 
 fn replace_placeholders(
@@ -316,27 +277,51 @@ fn replace_placeholders(
     exe_path: &str,
     distro_name: &str,
     working_dir: &str,
-    proxy_prefix: &str,
 ) -> String {
     args.replace("{distro}", distro_name)
         .replace("{dir}", working_dir)
         .replace("{exe}", exe_path)
-        .replace("{proxy}", proxy_prefix)
+        // {proxy} is kept for backward compat with user-defined presets;
+        // actual proxy is now set via process env vars in build_command().
+        .replace("{proxy}", "")
+}
+
+/// Apply proxy environment variables to a Command via `.env()`.
+/// This works universally across all terminal emulators because the
+/// child process inherits the environment, and WSL picks up WSLENV to
+/// forward the vars into Linux.
+fn apply_proxy_env(
+    command: &mut std::process::Command,
+    proxy_exports: Option<&[(String, String)]>,
+) {
+    let Some(exports) = proxy_exports else {
+        return;
+    };
+    if exports.is_empty() {
+        return;
+    }
+    let mut wslenv_parts: Vec<String> = Vec::new();
+    for (k, v) in exports {
+        command.env(k, v);
+        wslenv_parts.push(format!("{}/u", k));
+    }
+    // Merge with any existing WSLENV from the parent environment
+    let existing = std::env::var("WSLENV").unwrap_or_default();
+    let wslenv = if existing.is_empty() {
+        wslenv_parts.join(":")
+    } else {
+        format!("{}:{}", existing, wslenv_parts.join(":"))
+    };
+    command.env("WSLENV", wslenv);
 }
 
 pub fn build_command(
     preset: &TerminalPreset,
     distro_name: &str,
     working_dir: &str,
-    proxy_prefix: &str,
+    proxy_exports: Option<&[(String, String)]>,
 ) -> std::process::Command {
-    let cmd_str = replace_placeholders(
-        &preset.args,
-        &preset.path,
-        distro_name,
-        working_dir,
-        proxy_prefix,
-    );
+    let cmd_str = replace_placeholders(&preset.args, &preset.path, distro_name, working_dir);
 
     let exe_path = resolve_exe_path(&preset.path);
     let mut command = std::process::Command::new(&exe_path);
@@ -356,6 +341,7 @@ pub fn build_command(
             command.stderr(std::process::Stdio::null());
         }
     }
+    apply_proxy_env(&mut command, proxy_exports);
     command.args(&args);
     command
 }

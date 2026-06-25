@@ -99,11 +99,12 @@ pub async fn open_distro_terminal(
 ) -> WslCommandResult<String> {
     let name = distro_name.to_string();
     let cd_path = working_dir.to_string();
-    let proxy_prefix = terminal::build_proxy_prefix(proxy_exports.as_deref());
     let preset = terminal_preset.clone();
+    let proxy_exports_owned = proxy_exports.clone();
 
     task::spawn_blocking(move || {
-        let mut command = terminal::build_command(&preset, &name, &cd_path, &proxy_prefix);
+        let mut command =
+            terminal::build_command(&preset, &name, &cd_path, proxy_exports_owned.as_deref());
         info!(
             "Opening terminal for '{}': {} {}",
             name,
@@ -112,7 +113,7 @@ pub async fn open_distro_terminal(
                 .args
                 .replace("{distro}", &name)
                 .replace("{dir}", &cd_path)
-                .replace("{proxy}", &proxy_prefix)
+                .replace("{proxy}", "")
         );
         match command.spawn() {
             Ok(_) => WslCommandResult::success(String::new(), None),

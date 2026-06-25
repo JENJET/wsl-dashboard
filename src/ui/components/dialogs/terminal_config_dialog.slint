@@ -191,7 +191,7 @@ export component TerminalConfigDialog inherits Rectangle {
                         placeholder-text: "start -- wsl -d {distro} --cd {dir}";
                     }
                     Text {
-                        text: "{exe} \u{2192} " + root.current_preset_exe + "    {distro} \u{2192} " + root.distro_name + "    {dir} \u{2192} " + root.terminal_dir + "    {proxy} \u{2192} " + root.proxy_hint;
+                        text: "{exe} \u{2192} " + root.current_preset_exe + "    {distro} \u{2192} " + root.distro_name + "    {dir} \u{2192} " + root.terminal_dir + "    proxy(env) \u{2192} " + root.proxy_hint;
                         font-size: 11px * LayoutConstants.font-scale;
                         font-family: Theme.default_font;
                         color: Theme.text_secondary;
