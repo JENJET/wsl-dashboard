@@ -1,7 +1,6 @@
 use tracing::{debug, info, warn};
 
 #[cfg(windows)]
-
 pub fn get_startup_dir() -> Result<std::path::PathBuf, Box<dyn std::error::Error + Send + Sync>> {
     let path = dirs::data_dir()
         .ok_or("Could not find AppData directory")?

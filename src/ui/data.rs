@@ -757,7 +757,7 @@ pub async fn load_settings_to_ui(
 
     // Validate and set log retention days
     let mut log_days = settings.log_days;
-    if !vec![7, 15, 30].contains(&log_days) {
+    if ![7, 15, 30].contains(&log_days) {
         debug!("Invalid log-days value ({}), resetting to 7", log_days);
         log_days = 7;
     }
@@ -765,7 +765,7 @@ pub async fn load_settings_to_ui(
 
     // Validate and set check_update interval
     let mut check_update = settings.check_update;
-    if !vec![1, 7, 15, 30].contains(&check_update) {
+    if ![1, 7, 15, 30].contains(&check_update) {
         debug!(
             "Invalid check-update value ({}), resetting to 7",
             check_update

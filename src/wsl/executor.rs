@@ -1,5 +1,5 @@
 use std::process::Stdio;
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncRead, AsyncReadExt};
 // use tokio::task; // Removed
 use tracing::{debug, error, info, warn};
 
@@ -27,6 +27,31 @@ const STREAMING_TIMEOUT_SECS: u64 = 1800;
 const MAX_OUTPUT_SIZE: usize = 1024 * 1024;
 const READ_BUF_SIZE: usize = 8192;
 const STREAM_BUF_SIZE: usize = 1024;
+
+async fn read_limited_output<R>(mut reader: R, stream_name: &str) -> Result<Vec<u8>, String>
+where
+    R: AsyncRead + Unpin,
+{
+    let mut data = Vec::new();
+    let mut buf = [0u8; READ_BUF_SIZE];
+
+    loop {
+        let n = reader
+            .read(&mut buf)
+            .await
+            .map_err(|e| format!("{} read error: {}", stream_name, e))?;
+        if n == 0 {
+            break;
+        }
+
+        let remaining = MAX_OUTPUT_SIZE.saturating_sub(data.len());
+        if remaining > 0 {
+            data.extend_from_slice(&buf[..n.min(remaining)]);
+        }
+    }
+
+    Ok(data)
+}
 
 // WSL command executor, responsible for executing various WSL commands
 #[derive(Clone)]
@@ -193,44 +218,19 @@ impl WslCommandExecutor {
                     .map_err(|e| format!("Failed to spawn wsl process: {}", e))?;
                 debug!("Wsl process spawned (pid: {:?})", child.id());
 
-                let mut stdout = child
+                let stdout = child
                     .stdout
                     .take()
                     .ok_or_else(|| "Failed to capture stdout".to_string())?;
-                let mut stderr = child
+                let stderr = child
                     .stderr
                     .take()
                     .ok_or_else(|| "Failed to capture stderr".to_string())?;
 
-                let mut stdout_data = Vec::new();
-                let mut stderr_data = Vec::new();
-                let mut buf = [0u8; READ_BUF_SIZE];
-                loop {
-                    let n = stdout
-                        .read(&mut buf)
-                        .await
-                        .map_err(|e| format!("Stdout read error: {}", e))?;
-                    if n == 0 {
-                        break;
-                    }
-                    if stdout_data.len() + n > MAX_OUTPUT_SIZE {
-                        break;
-                    }
-                    stdout_data.extend_from_slice(&buf[..n]);
-                }
-                loop {
-                    let n = stderr
-                        .read(&mut buf)
-                        .await
-                        .map_err(|e| format!("Stderr read error: {}", e))?;
-                    if n == 0 {
-                        break;
-                    }
-                    if stderr_data.len() + n > MAX_OUTPUT_SIZE {
-                        break;
-                    }
-                    stderr_data.extend_from_slice(&buf[..n]);
-                }
+                let (stdout_data, stderr_data) = tokio::try_join!(
+                    read_limited_output(stdout, "Stdout"),
+                    read_limited_output(stderr, "Stderr")
+                )?;
 
                 let status = child
                     .wait()

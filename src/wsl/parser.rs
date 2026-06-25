@@ -60,8 +60,8 @@ pub fn parse_distros_list(output: &str) -> Vec<WslDistro> {
         };
 
         // Check if it's the default subsystem (default subsystem has * before name)
-        let (is_default, name) = if name_parts.starts_with("*") {
-            (true, name_parts[1..].trim().to_string())
+        let (is_default, name) = if let Some(name) = name_parts.strip_prefix('*') {
+            (true, name.trim().to_string())
         } else {
             (false, name_parts.trim().to_string())
         };

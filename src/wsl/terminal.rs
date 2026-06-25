@@ -6,7 +6,7 @@ use std::sync::Mutex;
 use crate::config::TerminalPreset;
 
 // Cache for where.exe path resolution — results don't change at runtime
-static EXE_RESOLVE_CACHE: LazyLock<Mutex<HashMap<String, Option<String>>>> =
+static EXE_RESOLVE_CACHE: LazyLock<Mutex<HashMap<String, String>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
 // Cache for validate_preset results
@@ -180,7 +180,7 @@ pub fn resolve_exe_path(path: &str) -> String {
     {
         let cache = EXE_RESOLVE_CACHE.lock().unwrap();
         if let Some(cached) = cache.get(&key) {
-            return cached.clone().unwrap_or_else(|| key);
+            return cached.clone();
         }
     }
 
@@ -188,7 +188,7 @@ pub fn resolve_exe_path(path: &str) -> String {
 
     // Store in cache
     let mut cache = EXE_RESOLVE_CACHE.lock().unwrap();
-    cache.insert(key, Some(result.clone()));
+    cache.insert(key, result.clone());
     result
 }
 

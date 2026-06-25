@@ -71,8 +71,14 @@ pub fn parse_distribution_info(
                     arm64_url: arm64.as_ref().map(|u| u.0.clone()).unwrap_or_default(),
                     arm64_sha256: arm64.as_ref().map(|u| u.1.clone()).unwrap_or_default(),
                 });
-                if is_default_category && default_index.is_none() {
-                    if is_default_entry || default_index.is_none() {
+                // Set default_index: prioritize entry with "Default": true in the default category
+                // Otherwise, use the first entry in the default category
+                if is_default_category {
+                    if is_default_entry {
+                        // Found the explicitly marked default entry
+                        default_index = Some(entry_idx);
+                    } else if default_index.is_none() {
+                        // Fallback: use the first entry in the default category
                         default_index = Some(entry_idx);
                     }
                 }
@@ -207,7 +213,7 @@ impl DownloadManager {
         let prefix = &clean[..8.min(clean.len())];
         let suffix = &clean[clean.len().saturating_sub(8)..];
         // Extract filename from URL (last path segment, strip query params)
-        let url_name = url.split('/').last().unwrap_or("");
+        let url_name = url.rsplit('/').next().unwrap_or("");
         let url_name = url_name.split('?').next().unwrap_or(url_name);
         let url_name = url_name.split('#').next().unwrap_or(url_name);
         let safe_name: String = url_name
